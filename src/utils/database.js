@@ -295,12 +295,12 @@ export const database = {
       const name = companyName.toLowerCase();
       // Clean name: remove common suffixes like "Pvt Ltd", "Corporation", etc.
       const cleanedName = name
-        .replace(/\s+(pvt\s+ltd|ltd|inc|corp|corporation|llp|solutions|hospital|electronics).*/g, '')
+        .replace(/\s+(pvt\s+ltd|ltd|inc|corp|corporation|llp|solutions|hospital|electronics|foodcourt|resort|clinic).*/g, '')
         .replace(/^the\s+/g, '')
         .trim();
 
       const snakeName = cleanedName.replace(/\s+/g, '_');
-      const fullSnakeName = name.replace(/^the\s+/g, '').replace(/\s+/g, '_');
+      const fullSnakeName = name.replace(/^the\s+/g, '').replace(/\s+/g, '_').replace(/[\s-]+/g, '_');
 
       // 1. DISCOVERY: Find every table name this company has ever used in the Knowledge Studio
       const { data: registry } = await supabase
@@ -321,20 +321,23 @@ export const database = {
         `${fullSnakeName}_menu`
       ];
 
-      // 3. LEGACY: Hardcoded mappings (for safety)
+      // 3. LEGACY: Hardcoded mappings (Absolute Truth for known companies)
       let vaultTable = '';
       if (name.includes('aarogya')) vaultTable = 'aarogya_hospital_vault';
-      else if (name.includes('city')) vaultTable = 'city_general_vault';
       else if (name.includes('technova')) vaultTable = 'technova_solutions_vault';
       else if (name.includes('spice')) vaultTable = 'spice_garden_vault';
       else if (name.includes('quickkart')) vaultTable = 'quickkart_electronics_vault';
       else if (name.includes('aroma')) vaultTable = 'aroma_menu';
+      else if (name.includes('city')) vaultTable = 'city_general_vault';
 
       // 4. MERGE: Create a unique prioritized list of tables to scan
-      // We prioritize the hardcoded vaultTable first because it's most likely to be correct
+      // We prioritize the hardcoded vaultTable AND registeredTables over dynamic guesses
       const tablesToTry = [...new Set([
         vaultTable,
         ...registeredTables,
+        `${snakeName}_menu`,
+        `${snakeName}_vault`,
+        `${fullSnakeName}_menu`,
         ...dynamicPatterns
       ])].filter(Boolean);
 
