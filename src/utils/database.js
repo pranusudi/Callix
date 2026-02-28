@@ -277,16 +277,26 @@ export const database = {
       let finalTable = '';
 
       for (const table of tablesToTry) {
-        const { data, error } = await supabase.from(table).select('*').limit(100);
-        if (!error && data && data.length > 0) {
+        console.log(`🧠 Attempting to fetch catalogue from table: ${table}`);
+        const { data, error, status } = await supabase.from(table).select('*').limit(100);
+
+        if (error) {
+          if (status === 403 || error.code === '42501') {
+            console.error(`🛑 PERMISSION DENIED: Table "${table}" found but RLS is blocking access. Please add a SELECT policy in Supabase for the 'anon' role.`);
+          }
+          continue;
+        }
+
+        if (data && data.length > 0) {
           finalData = data;
           finalTable = table;
+          console.log(`✅ Success: Found data in "${table}"`);
           break;
         }
       }
 
       if (!finalData || finalData.length === 0) {
-        return `DATA_NOT_FOUND: No service or product information is available in the database for ${companyName}. Do not make up any details.`;
+        return `DATA_NOT_FOUND: No service or product information is available in the database for ${companyName}. Verify the table "${vaultTable || tablesToTry[0]}" exists and has active RLS policies.`;
       }
 
       return finalData.map(item => {
