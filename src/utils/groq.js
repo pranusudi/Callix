@@ -272,11 +272,15 @@ const detectIntent = (message, context) => {
       const bDate = cleanArg(match[2], 'today');
       const bTime = cleanArg(match[3], 'TBD');
 
+      const finalTitle = gSize.toLowerCase().includes(userName.toLowerCase()) || userName.toLowerCase().includes(gSize.toLowerCase())
+        ? `Table for ${gSize}`
+        : `Table for ${gSize} (${userName})`;
+
       return {
         name: 'book_appointment',
         args: {
           entityId, entityName, type: 'table', industry: 'Food & Beverage',
-          personName: `Table for ${gSize} (${userName})`,
+          personName: finalTitle,
           date: bDate,
           time: bTime,
           userEmail, userName,

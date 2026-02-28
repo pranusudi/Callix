@@ -211,6 +211,11 @@ const RecordCard = ({ record, type, formatDate, getStatusStyle }) => {
                                         isOrder ? (record.products?.name || 'E-Commerce Item') :
                                             `Feedback Rating`)).replace(/[\[\]{}]/g, '')}
                         </h3>
+                        {record.company_name && (
+                            <p className="text-[10px] font-black text-[#000080] uppercase tracking-widest opacity-70 mb-1">
+                                {record.company_name}
+                            </p>
+                        )}
                         <div className="flex items-center gap-4 text-xs font-bold text-slate-400 mt-1">
                             {record.date && !record.date.includes('{') && !record.time?.includes('{') && (
                                 <div className="flex items-center">
