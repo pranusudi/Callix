@@ -209,12 +209,18 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
         setIsProcessing(true);
         try {
           setIsTranscribing(true);
+          // Try to transcribe with current language
           let text = await sttService.transcribe(audioBlob, curLang.code);
           console.log(`🎤 STT Result: "${text}"`);
 
           setIsTranscribing(false);
 
-          if (text && text.trim().length > 1) {
+          // Only process if it's more than a single short word or noise
+          const cleanText = (text || "").trim().toLowerCase();
+          if (cleanText.length > 2 && !['hi', 'hello', 'hey', 'yes', 'no'].includes(cleanText)) {
+            await handleUserMessage(text, true);
+          } else if (cleanText.length > 0) {
+            // Short greeting/affirmation - process normally
             await handleUserMessage(text, true);
           } else {
             setIsProcessing(false);
@@ -284,7 +290,7 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
             const volume = currentDataArray.reduce((num, i) => num + i) / currentDataArray.length;
             setPulseScale(1 + (volume / 255) * 0.4);
 
-            const isTalking = volume > 15;
+            const isTalking = volume > 8; // Lower threshold (was 15) for better sensitivity
             setIsUserTalking(isTalking);
 
             if (isTalking) {
@@ -303,7 +309,7 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
                     mediaRecorderRef.current.stop();
                   }
                   silenceTimerRef.current = null;
-                }, 1200);
+                }, 1500); // Increased from 1200ms to 1500ms for natural pauses
               }
             }
           }

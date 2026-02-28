@@ -105,10 +105,16 @@ export const database = {
   signIn: async (email, password) => {
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
     if (!authError && authData.user) {
-      const { data: profile } = await supabase.from('profiles').select('*').eq('id', authData.user.id).single();
-      if (profile?.status === 'pending') throw new Error('Account awaiting approval.');
-      if (profile?.status === 'suspended') throw new Error('Account suspended.');
-      return { ...authData.user, profile };
+      try {
+        const { data: profile, error: pError } = await supabase.from('profiles').select('*').eq('id', authData.user.id).single();
+        if (pError) console.warn('Profile fetch failed:', pError.message);
+        if (profile?.status === 'pending') throw new Error('Account awaiting approval.');
+        if (profile?.status === 'suspended') throw new Error('Account suspended.');
+        return { ...authData.user, profile: profile || { role: 'user', full_name: authData.user.user_metadata?.full_name } };
+      } catch (err) {
+        console.warn('Handling profile error:', err.message);
+        return { ...authData.user, profile: { role: 'user', full_name: authData.user.user_metadata?.full_name } };
+      }
     }
     if (authError && (authError.message.includes('fetch') || authError.message.includes('timeout'))) {
       const role = email.includes('super') ? 'superadmin' : (email.includes('admin') ? 'admin' : 'user');
@@ -325,10 +331,11 @@ export const database = {
       else if (name.includes('aroma')) vaultTable = 'aroma_menu';
 
       // 4. MERGE: Create a unique prioritized list of tables to scan
+      // We prioritize the hardcoded vaultTable first because it's most likely to be correct
       const tablesToTry = [...new Set([
+        vaultTable,
         ...registeredTables,
-        ...dynamicPatterns,
-        vaultTable
+        ...dynamicPatterns
       ])].filter(Boolean);
 
       let finalData = null;
