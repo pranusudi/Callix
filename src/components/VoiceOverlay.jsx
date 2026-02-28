@@ -440,7 +440,7 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
     let compKey = 'default';
 
     if (name.includes('hospital') || name.includes('aarogya')) compKey = 'hospital';
-    else if (name.includes('restaurant') || name.includes('garden')) compKey = 'restaurant';
+    else if (name.includes('restaurant') || name.includes('garden') || name.includes('aroma')) compKey = 'restaurant';
     else if (name.includes('kart') || name.includes('commerce')) compKey = 'ecommerce';
     else if (name.includes('mahindra')) compKey = 'tech_mahindra';
     else if (name.includes('voxsphere')) compKey = 'voxsphere';
@@ -521,7 +521,7 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
       const compName = selectedCompany?.name?.toLowerCase() || '';
 
       if (industry.includes('health') || compName.includes('hospital') || compName.includes('aarogya')) specializedPrompt = HospitalPrompt;
-      else if (industry.includes('restaur') || compName.includes('garden')) specializedPrompt = RestaurantPrompt;
+      else if (industry.includes('restaur') || compName.includes('garden') || compName.includes('aroma')) specializedPrompt = RestaurantPrompt;
       else if (industry.includes('commerce') || compName.includes('kart')) specializedPrompt = ECommercePrompt;
       else if (industry.includes('business') || industry.includes('tech')) specializedPrompt = BusinessPrompt;
 
@@ -542,11 +542,12 @@ USER CONTEXT:
 Customer Name: ${latestName}
 
 CONVERSATIONAL PROTOCOL:
-1. GREETING & SERVICE EXPLANATION: In the first turn, introduce yourself as Callix and explain exactly what services you provide based on the IDENTITY and LIVE KNOWLEDGE.
+1. GREETING & SERVICE EXPLANATION: In the first turn, introduce yourself as Callix and explain exactly what services you provide based on your IDENTITY and LIVE KNOWLEDGE.
 2. DISCOVERY: Always use [QUERY_ENTITY_DATABASE] to fetch details before asking the user for confirmation.
 3. CONCISENESS: Max 1-2 natural sentences. No fluff.
 4. COMMANDS: [BOOK_APPOINTMENT], [BOOK_TABLE], [BOOK_ORDER], [COLLECT_FEEDBACK], [GET_AVAILABLE_SLOTS], [QUERY_ENTITY_DATABASE], [HANG_UP].
 5. MANDATORY FEEDBACK: After any booking/order is successful, you MUST ask: "How would you rate my service today on a scale of 1 to 5 stars?"
+6. RESPONSE STYLE: If the user just says "Hey" or "Hi", reply warmly with your introduction and ask how you can help. Never say "I didn't catch that" for a greeting.
 ${languageInstruction}`;
 
       const rawResponse = await chatWithGroq(

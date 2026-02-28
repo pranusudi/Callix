@@ -331,35 +331,41 @@ export const database = {
       else if (name.includes('city')) vaultTable = 'city_general_vault';
 
       // 4. MERGE: Create a unique prioritized list of tables to scan
-      // We prioritize the hardcoded vaultTable AND registeredTables over dynamic guesses
       const tablesToTry = [...new Set([
         vaultTable,
-        ...registeredTables,
-        `${snakeName}_menu`,
-        `${snakeName}_vault`,
-        `${fullSnakeName}_menu`,
-        ...dynamicPatterns
+        ...registeredTables
       ])].filter(Boolean);
+
+      // Add dynamic patterns ONLY if we haven't found a vaultTable or registeredTable
+      if (tablesToTry.length === 0) {
+        tablesToTry.push(...new Set([
+          `${snakeName}_menu`,
+          `${snakeName}_vault`,
+          `${snakeName}_catalogue`,
+          `${fullSnakeName}_menu`,
+          ...dynamicPatterns
+        ]));
+      }
 
       let finalData = null;
       let finalTable = '';
 
       for (const table of tablesToTry) {
-        console.log(`🧠 Attempting to fetch catalogue from table: ${table}`);
-        const { data, error, status } = await supabase.from(table).select('*').limit(100);
+        // console.log(`🧠 Attempting to fetch catalogue from table: ${table}`);
+        try {
+          // Use a head request or very limited select to minimize logs/bandwidth
+          const { data, error, status } = await supabase.from(table).select('*').limit(50);
 
-        if (error) {
-          if (status === 403 || error.code === '42501') {
-            console.error(`🛑 PERMISSION DENIED: Table "${table}" found but RLS is blocking access. Please add a SELECT policy in Supabase for the 'anon' role.`);
+          if (error) continue; // Skip if table doesn't exist (404) or other error
+
+          if (data && data.length > 0) {
+            finalData = data;
+            finalTable = table;
+            console.log(`✅ Success: Found data in "${table}"`);
+            break;
           }
+        } catch (e) {
           continue;
-        }
-
-        if (data && data.length > 0) {
-          finalData = data;
-          finalTable = table;
-          console.log(`✅ Success: Found data in "${table}"`);
-          break;
         }
       }
 
