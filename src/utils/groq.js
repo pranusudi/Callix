@@ -114,6 +114,7 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
     3. **Information Inquiry**: Before booking, ensure you have the required details (Date, Time, Item/Service Name).
     4. **Booking/Action**: Use the exact bracketed commands (e.g., [BOOK_APPOINTMENT ...]) to commit to the database.
     5. **Post-Action Feedback**: AFTER you receive a "SUCCESS" status for a booking/order, you MUST ask: "Since your order/booking is confirmed, how would you rate my service today on a scale of 1 to 5 stars?"
+    6. **Response Style**: If the user just says "Hey" or "Hi", reply warmly with your introduction and ask how you can help. Never say "I didn't catch that" for a greeting.
 
     CRITICAL PROTOCOLS:
     - **NAME USAGE**: ${isFirstTurn ? `Use ${userName} in the introduction.` : `Do not repeat the user's name frequently; stay concise.`}
@@ -219,13 +220,17 @@ const detectIntent = (message, context) => {
     const match = message.match(/BOOK_APPOINTMENT (?:for )?(.*?) on (.*?) at ([^\n.\r\]]*)/i);
     if (match) {
       const type = (industry.toLowerCase().includes('health') || industry.toLowerCase().includes('hosp')) ? 'doctor' : 'interview';
+      const pName = match[1].replace(/[\[\]{}]/g, '').trim() || 'General';
+      const dDate = match[2].replace(/[\[\]{}]/g, '').trim() || 'today';
+      const tTime = match[3].replace(/[\[\]{}]/g, '').trim() || 'TBD';
+
       return {
         name: 'book_appointment',
         args: {
           entityId, entityName, type, industry,
-          personName: match[1].replace(/[\[\]]/g, '').trim(),
-          date: match[2].replace(/[\[\]]/g, '').trim(),
-          time: match[3].replace(/[\[\]]/g, '').trim(),
+          personName: pName,
+          date: dDate,
+          time: tTime,
           userEmail, userName
         }
       };
@@ -249,13 +254,18 @@ const detectIntent = (message, context) => {
     }
 
     if (match) {
+      const gSize = match[1]?.trim() || '2';
+      const bDate = (match[2]?.trim() || 'today').replace(/\{date\}/g, 'today');
+      const bTime = (match[3]?.trim() || 'TBD').replace(/\{time\}/g, 'TBD');
+      const guests = gSize.replace(/\{guests\}/g, '2');
+
       return {
         name: 'book_appointment',
         args: {
           entityId, entityName, type: 'table', industry: 'Food & Beverage',
-          personName: `Table for ${match[1]?.trim() || '2'} (${userName})`,
-          date: match[2]?.trim() || 'today',
-          time: match[3]?.trim() || 'TBD',
+          personName: `Table for ${guests} (${userName})`,
+          date: bDate,
+          time: bTime,
           userEmail, userName,
           relatedId: 'TABLE_TBD'
         }
@@ -279,17 +289,37 @@ const detectIntent = (message, context) => {
   }
 
   // Rating Logic
-  if (msg.includes('COLLECT_FEEDBACK') || msg.includes('COLLECT_RATING')) {
+  if (msg.includes('COLLECT_FEEDBACK') || msg.includes('COLLECT_RATING') || msg.includes('RATE_SERVICE')) {
     const digitMatch = message.match(/[1-5]/);
     let rating = digitMatch ? parseInt(digitMatch[0]) : 0;
 
-    // Fallback: search the whole message if not strictly after the command
+    // Fallback for word ratings
+    if (!rating) {
+      if (msg.includes('ONE')) rating = 1;
+      else if (msg.includes('TWO')) rating = 2;
+      else if (msg.includes('THREE')) rating = 3;
+      else if (msg.includes('FOUR')) rating = 4;
+      else if (msg.includes('FIVE')) rating = 5;
+    }
+
     if (!rating) {
       const globalMatch = message.match(/\b([1-5])\b/);
       if (globalMatch) rating = parseInt(globalMatch[1]);
     }
 
-    if (rating) return { name: 'collect_feedback', args: { companyId: entityId, entityName, rating, userEmail, userName, comment: 'Voice Feedback' } };
+    if (rating) {
+      return {
+        name: 'collect_feedback',
+        args: {
+          companyId: entityId,
+          entityName,
+          rating,
+          userEmail,
+          userName,
+          comment: message.replace(/\[.*?\]/g, '').trim().substring(0, 100) || 'Voice Feedback'
+        }
+      };
+    }
   }
 
   if (msg.includes('GET_AVAILABLE_SLOTS')) {

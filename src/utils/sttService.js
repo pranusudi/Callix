@@ -13,7 +13,7 @@ class STTService {
         // Convert language codes for Deepgram
         const lang = languageCode.split('-')[0];
         // Using nova-3 for speed, adding filler_words to capture natural speech
-        const url = `https://api.deepgram.com/v1/listen?model=nova-3&language=${lang}&smart_format=true&punctuate=true&filler_words=true&diarize=false`;
+        const url = `https://api.deepgram.com/v1/listen?model=nova-3&language=${lang}&smart_format=true&punctuate=true&diarize=false`;
 
         console.log(`🎙️ [STT] Deepgram Nova-3 Request (${lang})...`);
 

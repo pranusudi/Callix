@@ -290,7 +290,7 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
             const volume = currentDataArray.reduce((num, i) => num + i) / currentDataArray.length;
             setPulseScale(1 + (volume / 255) * 0.4);
 
-            const isTalking = volume > 8; // Lower threshold (was 15) for better sensitivity
+            const isTalking = volume > 15; // Reverted to 15
             setIsUserTalking(isTalking);
 
             if (isTalking) {
@@ -309,7 +309,7 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
                     mediaRecorderRef.current.stop();
                   }
                   silenceTimerRef.current = null;
-                }, 1500); // Increased from 1200ms to 1500ms for natural pauses
+                }, 1200); // Reverted to 1200ms
               }
             }
           }

@@ -56,43 +56,39 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
     }, [view]);
 
     useEffect(() => {
-        if (user?.profile?.company_id) {
-            loadAdminData();
+        const companyId = user?.profile?.company_id || user?.user_metadata?.company_id;
+        if (companyId) {
+            loadAdminData(companyId);
+        } else {
+            setLoading(false); // Stop loading if no identity found
         }
-    }, [user?.profile?.company_id]);
+    }, [user?.profile?.company_id, user?.user_metadata?.company_id]);
 
-    const loadAdminData = async () => {
-        if (!user?.profile?.company_id) return;
+    const loadAdminData = async (companyId) => {
+        if (!companyId) return;
         try {
             setLoading(true);
-            const companyInfo = await database.getCompany(user.profile.company_id);
+            // companyId is passed as parameter
+
+            // Use Promise.all for faster parallel loading
+            const [
+                companyInfo,
+                { data: stats },
+                { data: companyUsers },
+                { data: bookingsData },
+                { data: registry }
+            ] = await Promise.all([
+                database.getCompany(companyId),
+                supabase.from('usage_stats').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
+                supabase.from('profiles').select('*').eq('company_id', companyId),
+                supabase.from('bookings').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
+                supabase.from('approval_queue').select('*').eq('company_id', companyId).order('created_at', { ascending: false })
+            ]);
+
             setCompany(companyInfo);
-
-            const { data: stats } = await supabase
-                .from('usage_stats')
-                .select('*')
-                .eq('company_id', user.profile.company_id)
-                .order('created_at', { ascending: false });
             setUsageStats(stats || []);
-
-            const { data: companyUsers } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('company_id', user.profile.company_id);
             setUsers(companyUsers || []);
-
-            const { data: bookingsData } = await supabase
-                .from('bookings')
-                .select('*')
-                .eq('company_id', user.profile.company_id)
-                .order('created_at', { ascending: false });
             setBookings(bookingsData || []);
-
-            const { data: registry } = await supabase
-                .from('approval_queue')
-                .select('*')
-                .eq('company_id', user.profile.company_id)
-                .order('created_at', { ascending: false });
             setRegistryData(registry || []);
             setPendingApprovals((registry || []).filter(r => r.status === 'pending'));
 
@@ -188,7 +184,8 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
         }, 600);
     };
 
-    if (loading || !user?.profile) {
+    const hasIdentity = user?.profile || user?.user_metadata?.role;
+    if (loading || !hasIdentity) {
         return (
             <div className="flex items-center justify-center h-screen bg-[#0F172A]" style={{ fontFamily: "'Outfit', 'Inter', sans-serif" }}>
                 <div className="text-center">
