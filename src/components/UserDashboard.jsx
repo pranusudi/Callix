@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, Clock, Loader, ShoppingBag, Stethoscope, ChevronRight, Utensils, Trash2, Star, Briefcase, LogOut } from 'lucide-react';
+import { Calendar, Clock, Loader, ShoppingBag, Stethoscope, ChevronRight, Utensils, Trash2, Star, Briefcase, LogOut, Home } from 'lucide-react';
 import { database } from '../utils/database';
 
 const UserDashboard = ({ user, onClose, onLogout, addToast }) => {
@@ -82,6 +82,14 @@ const UserDashboard = ({ user, onClose, onLogout, addToast }) => {
                         <ShoppingBag size={24} />
                     </div>
                     <h2 className="text-white text-lg font-black tracking-tight">Callix AI</h2>
+
+                    <button
+                        onClick={onClose}
+                        className="mt-4 flex items-center space-x-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg transition-all border border-white/10 group text-white/70 hover:text-white"
+                    >
+                        <Home size={14} className="group-hover:scale-110 transition-transform" />
+                        <span className="font-bold text-[9px] uppercase tracking-widest">Return Home</span>
+                    </button>
                 </div>
 
                 <nav className="flex-1 space-y-2">
