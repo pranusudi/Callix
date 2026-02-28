@@ -46,8 +46,10 @@ const UserDashboard = ({ user, onClose, onLogout, addToast }) => {
 
     const formatDate = (dateString) => {
         if (!dateString) return 'N/A';
-        const date = new Date(dateString);
-        return isNaN(date.getTime()) ? dateString : date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        // Clean placeholders like {tomorrow}
+        const cleaned = dateString.replace(/[\[\]{}]/g, '');
+        const date = new Date(cleaned);
+        return isNaN(date.getTime()) ? cleaned : date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
     };
 
     const getStatusStyle = (status) => {
@@ -203,17 +205,17 @@ const RecordCard = ({ record, type, formatDate, getStatusStyle }) => {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <h3 className="font-black text-slate-900 text-lg tracking-tight truncate">
-                            {record.title || (isHospital ? (record.doctors?.doctor_name || 'Medical Specialist') :
+                            {(record.title || (isHospital ? (record.doctors?.doctor_name || 'Medical Specialist') :
                                 isRestaurant ? (`Table #${record.restaurant_tables?.table_number || 'TBD'}`) :
                                     isBusiness ? (record.staff?.name || 'HR/Manager Meeting') :
                                         isOrder ? (record.products?.name || 'E-Commerce Item') :
-                                            `Feedback Rating`)}
+                                            `Feedback Rating`)).replace(/[\[\]{}]/g, '')}
                         </h3>
                         <div className="flex items-center gap-4 text-xs font-bold text-slate-400 mt-1">
-                            {record.date && (
+                            {record.date && !record.date.includes('{') && !record.time?.includes('{') && (
                                 <div className="flex items-center">
                                     <Clock size={14} className="mr-1.5" />
-                                    {formatDate(record.date)} • {record.time}
+                                    {formatDate(record.date)} • {record.time || 'ASAP'}
                                 </div>
                             )}
                             {isOrder && <span className="text-emerald-600 font-black">₹{record.total_price || record.products?.price}</span>}

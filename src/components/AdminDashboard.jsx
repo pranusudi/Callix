@@ -640,8 +640,12 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
                                                         <div className="text-[8px] text-indigo-400 font-bold uppercase tracking-widest">{b.sub_title || b.type}</div>
                                                     </td>
                                                     <td className="px-6 py-4">
-                                                        <div className="text-[10px] font-black text-indigo-400">{b.date ? new Date(b.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'ASAP'}</div>
-                                                        <div className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter mt-0.5">{b.time || 'N/A'}</div>
+                                                        <div className="text-[10px] font-black text-indigo-400">
+                                                            {b.date && !b.date.includes('{') ? new Date(b.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'SCHEDULED'}
+                                                        </div>
+                                                        <div className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter mt-0.5">
+                                                            {b.time && !b.time.includes('{') ? b.time : 'TIME TBD'}
+                                                        </div>
                                                     </td>
                                                     <td className="px-6 py-4 text-right">
                                                         <span className={`px-4 py-1.5 rounded-full text-[7px] font-black uppercase tracking-widest shadow-sm ${b.status === 'confirmed' || b.status === 'completed' ? 'text-emerald-400 bg-emerald-400/5 border border-emerald-400/20' : 'text-slate-500 bg-slate-800/50 border border-slate-700/50'}`}>

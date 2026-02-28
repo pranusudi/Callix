@@ -114,7 +114,8 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
     3. **Information Inquiry**: Before booking, ensure you have the required details (Date, Time, Item/Service Name).
     4. **Booking/Action**: Use the exact bracketed commands (e.g., [BOOK_APPOINTMENT ...]) to commit to the database.
     5. **Post-Action Feedback**: AFTER you receive a "SUCCESS" status for a booking/order, you MUST ask: "Since your order/booking is confirmed, how would you rate my service today on a scale of 1 to 5 stars?"
-    6. **Response Style**: If the user just says "Hey" or "Hi", reply warmly with your introduction and ask how you can help. Never say "I didn't catch that" for a greeting.
+    6. **Collecting Feedback**: When the user provides a rating (e.g., "5"), you MUST immediately output the bracketed command: [COLLECT_FEEDBACK rating/5]. Do not skip this bracketed command.
+    7. **Response Style**: If the user just says "Hey" or "Hi", reply warmly with your introduction and ask how you can help. Never say "I didn't catch that" for a greeting.
 
     CRITICAL PROTOCOLS:
     - **NAME USAGE**: ${isFirstTurn ? `Use ${userName} in the introduction.` : `Do not repeat the user's name frequently; stay concise.`}
@@ -129,7 +130,9 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
     - [BOOK_TABLE for {guests} on {date} at {time}]
     - [BOOK_ORDER for {item} (price)]
     - [COLLECT_FEEDBACK {rating}/5]
-    - [HANG_UP]`;
+    - [HANG_UP]
+    
+    CRITICAL: Never use curly braces like {tomorrow} or {any time} in the final bracketed command. If you lack the exact Date or Time, you MUST ask the user instead of guessing or using placeholders.`;
 
     const messages = [
       { role: 'system', content: systemMessage },
@@ -215,14 +218,25 @@ const detectIntent = (message, context) => {
   const userEmail = context?.userEmail || storedUser.email || '';
   const userName = context?.userName || storedUser.full_name || 'Guest';
 
+  // Helper to clean extracted values from leaks/placeholders
+  const cleanArg = (val, fallback = '') => {
+    if (!val) return fallback;
+    let cleaned = val.replace(/[\[\]{}]/g, '').trim();
+    const low = cleaned.toLowerCase();
+    // Detect dummy placeholders
+    if (low.includes('available time') || low.includes('any time') || low.includes('select time') || low.includes('tbd')) return fallback;
+    if (low === 'date' || low === 'time' || low === 'guests') return fallback;
+    return cleaned || fallback;
+  };
+
   // Appointment Logic
   if (msg.includes('BOOK_APPOINTMENT')) {
     const match = message.match(/BOOK_APPOINTMENT (?:for )?(.*?) on (.*?) at ([^\n.\r\]]*)/i);
     if (match) {
       const type = (industry.toLowerCase().includes('health') || industry.toLowerCase().includes('hosp')) ? 'doctor' : 'interview';
-      const pName = match[1].replace(/[\[\]{}]/g, '').trim() || 'General';
-      const dDate = match[2].replace(/[\[\]{}]/g, '').trim() || 'today';
-      const tTime = match[3].replace(/[\[\]{}]/g, '').trim() || 'TBD';
+      const pName = cleanArg(match[1], 'General');
+      const dDate = cleanArg(match[2], 'today');
+      const tTime = cleanArg(match[3], 'TBD');
 
       return {
         name: 'book_appointment',
@@ -254,16 +268,15 @@ const detectIntent = (message, context) => {
     }
 
     if (match) {
-      const gSize = match[1]?.trim() || '2';
-      const bDate = (match[2]?.trim() || 'today').replace(/\{date\}/g, 'today');
-      const bTime = (match[3]?.trim() || 'TBD').replace(/\{time\}/g, 'TBD');
-      const guests = gSize.replace(/\{guests\}/g, '2');
+      const gSize = cleanArg(match[1], '2');
+      const bDate = cleanArg(match[2], 'today');
+      const bTime = cleanArg(match[3], 'TBD');
 
       return {
         name: 'book_appointment',
         args: {
           entityId, entityName, type: 'table', industry: 'Food & Beverage',
-          personName: `Table for ${guests} (${userName})`,
+          personName: `Table for ${gSize} (${userName})`,
           date: bDate,
           time: bTime,
           userEmail, userName,
@@ -289,25 +302,28 @@ const detectIntent = (message, context) => {
   }
 
   // Rating Logic
-  if (msg.includes('COLLECT_FEEDBACK') || msg.includes('COLLECT_RATING') || msg.includes('RATE_SERVICE')) {
-    const digitMatch = message.match(/[1-5]/);
-    let rating = digitMatch ? parseInt(digitMatch[0]) : 0;
+  if (msg.includes('COLLECT_FEEDBACK') || msg.includes('COLLECT_RATING') || msg.includes('RATE_SERVICE') || msg.includes('GIVE_FEEDBACK')) {
+    // Look for any number 1-5 even if not in the command name itself
+    const ratingMatch = message.match(/(\d)\s?\/\s?5/) || message.match(/Rating:\s*(\d)/i) || message.match(/\b([1-5])\b/);
+    let rating = ratingMatch ? parseInt(ratingMatch[1]) : 0;
 
     // Fallback for word ratings
     if (!rating) {
-      if (msg.includes('ONE')) rating = 1;
-      else if (msg.includes('TWO')) rating = 2;
-      else if (msg.includes('THREE')) rating = 3;
-      else if (msg.includes('FOUR')) rating = 4;
-      else if (msg.includes('FIVE')) rating = 5;
-    }
-
-    if (!rating) {
-      const globalMatch = message.match(/\b([1-5])\b/);
-      if (globalMatch) rating = parseInt(globalMatch[1]);
+      if (msg.includes('ONE') || msg.includes('1')) rating = 1;
+      else if (msg.includes('TWO') || msg.includes('2')) rating = 2;
+      else if (msg.includes('THREE') || msg.includes('3')) rating = 3;
+      else if (msg.includes('FOUR') || msg.includes('4')) rating = 4;
+      else if (msg.includes('FIVE') || msg.includes('5')) rating = 5;
     }
 
     if (rating) {
+      // Clean comment: remove the command block and common leftovers
+      const comment = message
+        .replace(/\[COLLECT_FEEDBACK.*?\]/gi, '')
+        .replace(/\[.*?\]/g, '')
+        .trim()
+        .substring(0, 100) || 'Voice Feedback';
+
       return {
         name: 'collect_feedback',
         args: {
@@ -316,7 +332,8 @@ const detectIntent = (message, context) => {
           rating,
           userEmail,
           userName,
-          comment: message.replace(/\[.*?\]/g, '').trim().substring(0, 100) || 'Voice Feedback'
+          comment,
+          industry
         }
       };
     }

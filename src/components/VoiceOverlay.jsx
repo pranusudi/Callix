@@ -553,7 +553,7 @@ ${languageInstruction}`;
       const rawResponse = await chatWithGroq(
         `User Message: ${message}`,
         currentMessages.map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', text: m.text })),
-        { ...selectedCompany, userName: latestName, userEmail, sessionId, currLangCode: curLang.code },
+        { ...selectedCompany, userName: latestName, userEmail, sessionId, currLangCode: curLang.code, currLangName: curLang.name },
         systemPrompt
       );
 
