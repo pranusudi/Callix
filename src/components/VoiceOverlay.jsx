@@ -525,19 +525,23 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
       const systemPrompt = `
 IDENTITY: You are Callix, the professional voice representative for ${selectedCompany?.name}.
 ${specializedPrompt}
-LIVE KNOWLEDGE:
+
+LIVE KNOWLEDGE (SOURCE OF TRUTH):
 ${liveCatalogue || 'Standard records active.'}
+
 BUSINESS CONTEXT:
 ${selectedCompany?.nlp_context || 'A premium provider.'}
+
 USER CONTEXT:
 Customer Name: ${latestName}
-        CONVERSATIONAL PROTOCOL:
-        1. RECEPTIONIST GRADE: Professional and formal. Use "Sir/Ma'am" or "Mr/Ms" as needed. 
-        2. NO INFORMAL QUESTIONS: Avoid small talk or filler questions. 
-        3. ZERO META-COMMENTARY: NEVER mention internal actions like "searching slots" or "checking docs". 
-        4. ULTRA-BRIEF: Max 1-2 short sentences. Zero fluff.
-        5. COMMANDS: [BOOK_APPOINTMENT], [BOOK_TABLE], [BOOK_ORDER], [COLLECT_FEEDBACK], [GET_AVAILABLE_SLOTS], [QUERY_ENTITY_DATABASE], [HANG_UP].
-        ${languageInstruction}`;
+
+CONVERSATIONAL PROTOCOL:
+1. GREETING & SERVICE EXPLANATION: In the first turn, introduce yourself as Callix and explain exactly what services you provide based on the IDENTITY and LIVE KNOWLEDGE.
+2. DISCOVERY: Always use [QUERY_ENTITY_DATABASE] to fetch details before asking the user for confirmation.
+3. CONCISENESS: Max 1-2 natural sentences. No fluff.
+4. COMMANDS: [BOOK_APPOINTMENT], [BOOK_TABLE], [BOOK_ORDER], [COLLECT_FEEDBACK], [GET_AVAILABLE_SLOTS], [QUERY_ENTITY_DATABASE], [HANG_UP].
+5. MANDATORY FEEDBACK: After any booking/order is successful, you MUST ask: "How would you rate my service today on a scale of 1 to 5 stars?"
+${languageInstruction}`;
 
       const rawResponse = await chatWithGroq(
         `User Message: ${message}`,
@@ -741,20 +745,10 @@ Customer Name: ${latestName}
     setConvoPhase(nextPhase);
     stateRef.current.convoPhase = nextPhase;
 
-    // Trigger AI to speak first
-    setTimeout(() => {
-      if (existingName) {
-        handleUserMessage('[INTERNAL_GREETING_START]');
-      } else {
-        const curLang = stateRef.current.selectedLanguage;
-        let onboardingMsg = "Hello! I am Callix, your virtual receptionist. May I know your name, please?";
-        if (curLang.code === 'te-IN') onboardingMsg = "నమస్కారం! నేను Callix, మీ వర్చువల్ రిసెప్షనిస్ట్‌ను. దయచేసి మీ పేరు తెలుసుకోవచ్చా?";
-        if (curLang.code === 'hi-IN') onboardingMsg = "नमस्ते! मैं Callix हूँ, आपकी वर्चुअल रिसेप्शनिस्ट। क्या मैं आपका नाम जान सकता हूँ?";
-
-        addMessage('agent', onboardingMsg);
-        speak(onboardingMsg, curLang.code);
-      }
-    }, 500);
+    // We no longer trigger an automatic message. 
+    // The STT will start automatically due to the callState useEffect, 
+    // and the AI will wait for the user to speak first.
+    console.log("📞 Call Connected. Waiting for user input...");
   };
 
   const endCall = () => {

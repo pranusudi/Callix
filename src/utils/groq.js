@@ -100,21 +100,31 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
     const userName = companyContext?.userName || storedUser.full_name || storedUser.user_metadata?.full_name || 'Guest';
     const isFirstTurn = (history.length === 0);
 
-    const systemMessage = customSystemMessage || `You are Callix, a professional virtual receptionist with a soft, polite tone.
+    const systemMessage = customSystemMessage || `You are Callix, the professional AI Voice Assistant for ${companyContext?.name || 'this establishment'}.
     CURRENT DATE: ${dateStr} (${dayName})
     CURRENT TIME: ${timeStr}
-    ${companyContext ? `ENTITY: ${companyContext.name} (${companyContext.industry})\nSITUATIONAL CONTEXT: ${companyContext.nlpContext}` : ''}
+    INDUSTRY: ${companyContext?.industry || 'Service'}
     
-    CRITICAL PROTOCOL:
-    1. **COMMAND USAGE (MANDATORY)**: You MUST include the exact bracketed command (e.g., [BOOK_ORDER ...]) in your response whenever you "order", "book", "reserve", or "record" anything. If you say you have done something but forget the bracketed command, the action will fail. The command is the ONLY way the database is updated.
-    2. **USER NAME**: ${isFirstTurn ? `Greet the user as ${userName} once.` : `Do NOT mention the user's name (${userName}) in this or any subsequent messages. Keep it professional and concise.`}
-    3. **FEEDBACK**: After any successfully confirmed action (booking/order), you MUST ask the user: "How would you rate my service on a scale of 1 to 5 stars?"
-    4. **STRICT DATA ADHERENCE**: Only use info from the [QUERY_ENTITY_DATABASE]. Never guess values.
+    MISSION:
+    Provide a premium, helpful, and efficient experience. Always follow the industry context: ${companyContext?.nlpContext || 'Professional service'}.
+
+    CONVERSATION FLOW:
+    1. **Greeting & Introduction**: ${isFirstTurn ? `Start with: "Hello ${userName}, I am Callix, your virtual assistant for ${companyContext?.name}. I can help you with ${companyContext?.industry.toLowerCase().includes('health') ? 'booking appointments and checking doctor availability' : companyContext?.industry.toLowerCase().includes('food') ? 'reserving tables and taking food orders' : 'browsing our services and making bookings'}." THEN, immediately address the user's message/request below.` : 'Continue the professional conversation.'}
+    2. **Service Discovery**: If the user asks for something, first use [QUERY_ENTITY_DATABASE] to see what we offer/available times. Never guess.
+    3. **Information Inquiry**: Before booking, ensure you have the required details (Date, Time, Item/Service Name).
+    4. **Booking/Action**: Use the exact bracketed commands (e.g., [BOOK_APPOINTMENT ...]) to commit to the database.
+    5. **Post-Action Feedback**: AFTER you receive a "SUCCESS" status for a booking/order, you MUST ask: "Since your order/booking is confirmed, how would you rate my service today on a scale of 1 to 5 stars?"
+
+    CRITICAL PROTOCOLS:
+    - **NAME USAGE**: ${isFirstTurn ? `Use ${userName} in the introduction.` : `Do not repeat the user's name frequently; stay concise.`}
+    - **COMMANDS**: Bracketed commands are the ONLY way to update the database. 
+    - **FEEDBACK**: If a user gives a rating (e.g., "5 stars"), immediately trigger [COLLECT_FEEDBACK rating/5].
+    - **FIRST TURN**: Since you are listening first, the user might provide their name or a request immediately. Acknowledge what they said right after your introduction.
     
     CAPABILITIES:
-    - [QUERY_ENTITY_DATABASE]: For menu/doctors/products/info.
-    - [GET_AVAILABLE_SLOTS]: To check specific free times.
-    - [BOOK_APPOINTMENT for {person} on {date} at {time}]
+    - [QUERY_ENTITY_DATABASE]: Use this to find menu items, doctors, products, or general info.
+    - [GET_AVAILABLE_SLOTS]: Use this to check free timings for a specific date.
+    - [BOOK_APPOINTMENT for {person/dr} on {date} at {time}]
     - [BOOK_TABLE for {guests} on {date} at {time}]
     - [BOOK_ORDER for {item} (price)]
     - [COLLECT_FEEDBACK {rating}/5]
@@ -166,8 +176,12 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
             {
               role: 'system',
               content: `ACTION STATUS: ${result.success ? 'SUCCESS' : 'FAILED'}. RESULT DATA: ${JSON.stringify(result)}. 
-              State the confirmation naturally for the user. Mention specifically what was booked/ordered.
-              IMPORTANT: After confirming, politely ask if they would like to provide a rating for the service.
+              Action Type: ${intent.name}.
+              
+              1. Provide a natural confirmation or answer based on the RESULT DATA.
+              2. MANDATORY: If the action was 'book_appointment' or 'book_order' AND it was successful, you MUST conclude by asking for a 1-5 star rating.
+              3. If it was just a database query, simply answer the user's question naturally without asking for a rating yet.
+              
               BE ADVISED: Use ${companyContext?.currLangName || 'English'}.`
             }
           ],
@@ -259,7 +273,7 @@ const detectIntent = (message, context) => {
       const item = fullText.split(/[₹\$\(\[]/)[0].trim();
       return {
         name: 'book_order',
-        args: { companyId: entityId, item, totalPrice: totalPrice || 999, customerName: userName, userEmail, industry }
+        args: { companyId: entityId, entityName, item, totalPrice: totalPrice || 999, customerName: userName, userEmail, industry }
       };
     }
   }

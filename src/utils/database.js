@@ -163,42 +163,77 @@ export const database = {
     console.log('📦 Saving Universal Order:', order);
     const payload = {
       company_id: order.companyId || order.company_id || order.entityId,
+      company_name: order.companyName || order.entityName || 'General',
       user_email: order.userEmail || order.user_email,
       user_name: order.customerName || order.user_name || order.userName || 'Customer',
       booking_type: 'Order',
       target_item: order.item || 'Generic Item',
       title: order.item || 'E-Commerce Order',
       sub_title: order.industry || 'Purchase',
+      context: `Ordered: ${order.item || 'Item'} for ${order.totalPrice || 0} INR. Industry: ${order.industry || 'Other'}`,
       date: new Date().toISOString().split('T')[0],
       time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
       status: 'completed',
       total_price: order.totalPrice || order.price || 0,
-      currency: 'INR'
+      currency: 'INR',
+      metadata: { source: 'AI_AGENT', industry: order.industry }
     };
 
     const { data, error } = await supabase.from('bookings').insert([payload]).select();
-    if (error) console.error('Booking DB Error:', error);
-    return error ? { error: error.message } : { ...data[0], success: true };
+    if (error) {
+      console.error('Booking DB Error:', error);
+      // Fallback for older schema
+      if (error.code === '42703') {
+        const { data: fallbackData, error: fallbackError } = await supabase.from('bookings').insert([{
+          company_id: payload.company_id,
+          user_email: payload.user_email,
+          date: payload.date,
+          time: payload.time,
+          status: payload.status
+        }]).select();
+        return fallbackError ? { error: fallbackError.message } : { ...fallbackData[0], success: true };
+      }
+      return { error: error.message };
+    }
+    return { ...data[0], success: true };
   },
 
   saveAppointment: async (appointment) => {
     console.log('📅 Saving Universal Booking:', appointment);
     const payload = {
       company_id: appointment.companyId || appointment.company_id || appointment.entityId,
+      company_name: appointment.companyName || appointment.entityName || 'General',
       user_email: appointment.userEmail || appointment.user_email,
       user_name: appointment.userName || appointment.user_name || 'Customer',
       booking_type: appointment.type || 'Appointment',
       target_item: appointment.personName || appointment.item || 'General',
       title: appointment.personName || appointment.item || 'Generic Appointment',
       sub_title: appointment.type || appointment.industry || 'Activity',
+      context: `Booked ${appointment.type || 'Appointment'} with ${appointment.personName || 'N/A'} on ${appointment.date} at ${appointment.time}.`,
       date: appointment.date || new Date().toISOString().split('T')[0],
       time: appointment.time || 'TBD',
-      status: 'scheduled'
+      status: 'scheduled',
+      metadata: { source: 'AI_AGENT', industry: appointment.industry }
     };
 
+    if (appointment.doctorId) payload.doctor_id = appointment.doctorId;
+
     const { data, error } = await supabase.from('bookings').insert([payload]).select();
-    if (error) console.error('Booking DB Error:', error);
-    return error ? { error: error.message } : { ...data[0], success: true };
+    if (error) {
+      console.error('Booking DB Error:', error);
+      if (error.code === '42703') {
+        const { data: fallbackData, error: fallbackError } = await supabase.from('bookings').insert([{
+          company_id: payload.company_id,
+          user_email: payload.user_email,
+          date: payload.date,
+          time: payload.time,
+          status: payload.status
+        }]).select();
+        return fallbackError ? { error: fallbackError.message } : { ...fallbackData[0], success: true };
+      }
+      return { error: error.message };
+    }
+    return { ...data[0], success: true };
   },
 
   getUserData: async (email) => {
@@ -225,6 +260,7 @@ export const database = {
     console.log('⭐ Saving Universal Feedback:', feedback);
     const payload = {
       company_id: feedback.companyId || feedback.company_id || feedback.entityId,
+      company_name: feedback.companyName || feedback.entityName || 'General',
       user_email: feedback.user_email || feedback.userEmail || 'Guest',
       user_name: feedback.userName || feedback.user_name || 'Customer',
       rating: parseInt(feedback.rating),
@@ -232,8 +268,20 @@ export const database = {
       industry: feedback.industry || 'General'
     };
     const { data, error } = await supabase.from('feedback').insert([payload]).select();
-    if (error) console.error('Feedback DB Error:', error);
-    return error ? { error: error.message } : { ...data[0], success: true };
+    if (error) {
+      console.error('Feedback DB Error:', error);
+      if (error.code === '42703') {
+        const { data: fData, error: fError } = await supabase.from('feedback').insert([{
+          company_id: payload.company_id,
+          user_email: payload.user_email,
+          rating: payload.rating,
+          comment: payload.comment
+        }]).select();
+        return fError ? { error: fError.message } : { ...fData[0], success: true };
+      }
+      return { error: error.message };
+    }
+    return { ...data[0], success: true };
   },
 
   getLiveCatalogue: async (companyId, companyName) => {
