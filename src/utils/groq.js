@@ -96,6 +96,9 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
     const dayName = now.toLocaleDateString('en-IN', { weekday: 'long' });
     const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
 
+    const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const userName = companyContext?.userName || storedUser.full_name || storedUser.user_metadata?.full_name || 'Guest';
+
     const systemMessage = customSystemMessage || `You are Callix, a professional virtual receptionist with a soft, polite tone.
     CURRENT DATE: ${dateStr} (${dayName})
     CURRENT TIME: ${timeStr}
@@ -103,7 +106,7 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
     
     GUIDELINES:
     - Never be robotic. Speak like a helpful human receptionist.
-    - Always use the user's name naturally if provided.
+    - Use the user's name (${userName}) naturally, but only in the very first greeting. Avoid repeating their name in every response.
     - Use ${companyContext?.currLangName || 'English'} script and natural phrasing.
     - **STRICT DATA ADHERENCE**: Only provide information that is explicitly stated in the ENTITY, SITUATIONAL CONTEXT, or results from [QUERY_ENTITY_DATABASE].
     - **NO HALLUCINATION**: If the requested information is not available, politely say you don't have that information yet or offer to connect them with a human colleague. Never invent prices, dates, or services.
@@ -216,15 +219,28 @@ const detectIntent = (message, context) => {
 
   // Table Logic
   if (msg.includes('BOOK_TABLE')) {
-    const match = message.match(/BOOK_TABLE (?:for )?(.*?) on (.*?) at ([^\n.\r\]]*)/i);
+    // Try to match standard format: BOOK_TABLE for [guests] on [date] at [time]
+    let match = message.match(/BOOK_TABLE (?:for )?(.*?) on (.*?) at ([^\n.\r\]]*)/i);
+
+    // Fallback: If only time/date provided, try to extract whatever is there
+    if (!match) {
+      const timeMatch = message.match(/at\s+([^\n.\r\]]*)/i);
+      const dateMatch = message.match(/on\s+([^\n.\r\]]*)/i);
+      const guestMatch = message.match(/BOOK_TABLE (?:for )?(\d+)/i) || message.match(/for (\d+)/i);
+
+      if (timeMatch || dateMatch) {
+        match = [null, guestMatch ? guestMatch[1] : '2', dateMatch ? dateMatch[1] : 'today', timeMatch ? timeMatch[1] : 'TBD'];
+      }
+    }
+
     if (match) {
       return {
         name: 'book_appointment',
         args: {
           entityId, entityName, type: 'table', industry: 'Food & Beverage',
-          personName: `Table for ${match[1].replace(/[\[\]]/g, '').trim()} (${userName})`,
-          date: match[2].replace(/[\[\]]/g, '').trim(),
-          time: match[3].replace(/[\[\]]/g, '').trim(),
+          personName: `Table for ${match[1]?.trim() || '2'} (${userName})`,
+          date: match[2]?.trim() || 'today',
+          time: match[3]?.trim() || 'TBD',
           userEmail, userName,
           relatedId: 'TABLE_TBD'
         }
@@ -248,9 +264,16 @@ const detectIntent = (message, context) => {
   }
 
   // Rating Logic
-  if (msg.includes('COLLECT_FEEDBACK')) {
+  if (msg.includes('COLLECT_FEEDBACK') || msg.includes('COLLECT_RATING')) {
     const digitMatch = message.match(/[1-5]/);
     let rating = digitMatch ? parseInt(digitMatch[0]) : 0;
+
+    // Fallback: search the whole message if not strictly after the command
+    if (!rating) {
+      const globalMatch = message.match(/\b([1-5])\b/);
+      if (globalMatch) rating = parseInt(globalMatch[1]);
+    }
+
     if (rating) return { name: 'collect_feedback', args: { companyId: entityId, entityName, rating, userEmail, userName, comment: 'Voice Feedback' } };
   }
 
