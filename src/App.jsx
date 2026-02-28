@@ -321,7 +321,7 @@ function App() {
             © {new Date().getFullYear()} Callix. All rights reserved.
           </p>
           <p className="text-white/40 text-[10px] mt-2 tracking-wider">
-            Powered by Praneetha and Team.
+            Powered by Praneetha, Rishitha and Hasmitha.
           </p>
         </div>
       </footer>
