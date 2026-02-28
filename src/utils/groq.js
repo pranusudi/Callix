@@ -98,28 +98,27 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
 
     const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
     const userName = companyContext?.userName || storedUser.full_name || storedUser.user_metadata?.full_name || 'Guest';
+    const isFirstTurn = (history.length === 0);
 
     const systemMessage = customSystemMessage || `You are Callix, a professional virtual receptionist with a soft, polite tone.
     CURRENT DATE: ${dateStr} (${dayName})
     CURRENT TIME: ${timeStr}
     ${companyContext ? `ENTITY: ${companyContext.name} (${companyContext.industry})\nSITUATIONAL CONTEXT: ${companyContext.nlpContext}` : ''}
     
-    GUIDELINES:
-    - Never be robotic. Speak like a helpful human receptionist.
-    - Use the user's name (${userName}) naturally, but only in the very first greeting. Avoid repeating their name in every response.
-    - Use ${companyContext?.currLangName || 'English'} script and natural phrasing.
-    - **STRICT DATA ADHERENCE**: Only provide information that is explicitly stated in the ENTITY, SITUATIONAL CONTEXT, or results from [QUERY_ENTITY_DATABASE].
-    - **NO HALLUCINATION**: If the requested information is not available, politely say you don't have that information yet or offer to connect them with a human colleague. Never invent prices, dates, or services.
-    - **FEEDBACK PROTOCOL**: After successfully completing an order, booking, or appointment, ALWAYS ask the user for their rating (1-5 stars) and feedback. Use [COLLECT_FEEDBACK] if they provide it.
+    CRITICAL PROTOCOL:
+    1. **COMMAND USAGE (MANDATORY)**: You MUST include the exact bracketed command (e.g., [BOOK_ORDER ...]) in your response whenever you "order", "book", "reserve", or "record" anything. If you say you have done something but forget the bracketed command, the action will fail. The command is the ONLY way the database is updated.
+    2. **USER NAME**: ${isFirstTurn ? `Greet the user as ${userName} once.` : `Do NOT mention the user's name (${userName}) in this or any subsequent messages. Keep it professional and concise.`}
+    3. **FEEDBACK**: After any successfully confirmed action (booking/order), you MUST ask the user: "How would you rate my service on a scale of 1 to 5 stars?"
+    4. **STRICT DATA ADHERENCE**: Only use info from the [QUERY_ENTITY_DATABASE]. Never guess values.
     
     CAPABILITIES:
     - [QUERY_ENTITY_DATABASE]: For menu/doctors/products/info.
     - [GET_AVAILABLE_SLOTS]: To check specific free times.
-    - [BOOK_APPOINTMENT]: For clinical or professional bookings. Format: [BOOK_APPOINTMENT for {name} on {date} at {time}]
-    - [BOOK_TABLE]: For restaurant reservations. Format: [BOOK_TABLE for {guests} on {date} at {time}]
-    - [BOOK_ORDER]: For e-commerce transactions. Format: [BOOK_ORDER for {item} (price)]
-    - [COLLECT_FEEDBACK]: For numerical ratings (1-5). Format: [COLLECT_FEEDBACK {rating}/5]
-    - [HANG_UP]: To terminate the call session.`;
+    - [BOOK_APPOINTMENT for {person} on {date} at {time}]
+    - [BOOK_TABLE for {guests} on {date} at {time}]
+    - [BOOK_ORDER for {item} (price)]
+    - [COLLECT_FEEDBACK {rating}/5]
+    - [HANG_UP]`;
 
     const messages = [
       { role: 'system', content: systemMessage },
@@ -252,15 +251,15 @@ const detectIntent = (message, context) => {
 
   // Order Logic
   if (msg.includes('BOOK_ORDER')) {
-    const match = message.match(/BOOK_ORDER (?:for )?(.*)/i);
+    const match = message.match(/BOOK_ORDER (?:for )?(.*?)(?:\s*[\r\n\]]|$)/i);
     if (match) {
       const fullText = match[1].replace(/[\[\]]/g, '').trim();
       const priceMatch = fullText.match(/[₹\$]\s?([\d,]+)/);
-      const totalPrice = priceMatch ? parseInt(priceMatch[1].replace(/,/g, '')) : 999;
+      const totalPrice = priceMatch ? parseInt(priceMatch[1].replace(/,/g, '')) : 0;
       const item = fullText.split(/[₹\$\(\[]/)[0].trim();
       return {
         name: 'book_order',
-        args: { companyId: entityId, item, totalPrice, customerName: userName, userEmail, industry }
+        args: { companyId: entityId, item, totalPrice: totalPrice || 999, customerName: userName, userEmail, industry }
       };
     }
   }
