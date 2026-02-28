@@ -105,6 +105,8 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
     - Never be robotic. Speak like a helpful human receptionist.
     - Always use the user's name naturally if provided.
     - Use ${companyContext?.currLangName || 'English'} script and natural phrasing.
+    - **STRICT DATA ADHERENCE**: Only provide information that is explicitly stated in the ENTITY, SITUATIONAL CONTEXT, or results from [QUERY_ENTITY_DATABASE].
+    - **NO HALLUCINATION**: If the requested information is not available, politely say you don't have that information yet or offer to connect them with a human colleague. Never invent prices, dates, or services.
     
     CAPABILITIES:
     - [QUERY_ENTITY_DATABASE]: For menu/doctors/products/info.

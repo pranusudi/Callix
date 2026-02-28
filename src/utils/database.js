@@ -229,7 +229,14 @@ export const database = {
   getLiveCatalogue: async (companyId, companyName) => {
     try {
       const name = companyName.toLowerCase();
-      const snakeName = name.trim().replace(/\s+/g, '_');
+      // Clean name: remove common suffixes like "Pvt Ltd", "Corporation", etc.
+      const cleanedName = name
+        .replace(/\s+(pvt\s+ltd|ltd|inc|corp|corporation|llp|solutions|hospital|electronics).*/g, '')
+        .replace(/^the\s+/g, '')
+        .trim();
+
+      const snakeName = cleanedName.replace(/\s+/g, '_');
+      const fullSnakeName = name.replace(/^the\s+/g, '').replace(/\s+/g, '_');
 
       // 1. DISCOVERY: Find every table name this company has ever used in the Knowledge Studio
       const { data: registry } = await supabase
@@ -239,12 +246,15 @@ export const database = {
 
       const registeredTables = (registry || []).map(r => r.table_name).filter(Boolean);
 
-      // 2. PATTERNS: Common fallback naming conventions
+      // 2. PATTERNS: Common naming conventions starting with company name
       const dynamicPatterns = [
         `${snakeName}_vault`,
+        `${snakeName}_menu`,
         `${snakeName}_catalogue`,
         `${snakeName}_products`,
-        `${snakeName}_services`
+        `${snakeName}_services`,
+        `${fullSnakeName}_vault`,
+        `${fullSnakeName}_menu`
       ];
 
       // 3. LEGACY: Hardcoded mappings (for safety)
@@ -254,6 +264,7 @@ export const database = {
       else if (name.includes('technova')) vaultTable = 'technova_solutions_vault';
       else if (name.includes('spice')) vaultTable = 'spice_garden_vault';
       else if (name.includes('quickkart')) vaultTable = 'quickkart_electronics_vault';
+      else if (name.includes('aroma')) vaultTable = 'aroma_menu';
 
       // 4. MERGE: Create a unique prioritized list of tables to scan
       const tablesToTry = [...new Set([
@@ -266,7 +277,7 @@ export const database = {
       let finalTable = '';
 
       for (const table of tablesToTry) {
-        const { data, error } = await supabase.from(table).select('*').limit(50);
+        const { data, error } = await supabase.from(table).select('*').limit(100);
         if (!error && data && data.length > 0) {
           finalData = data;
           finalTable = table;
@@ -274,16 +285,21 @@ export const database = {
         }
       }
 
-      if (!finalData) return `Operational. (No catalogue found in ${tablesToTry[0]} etc.)`;
+      if (!finalData || finalData.length === 0) {
+        return `DATA_NOT_FOUND: No service or product information is available in the database for ${companyName}. Do not make up any details.`;
+      }
 
       return finalData.map(item => {
         const timings = item.timings_json ? ` | Timings: ${JSON.stringify(item.timings_json)}` : '';
         const price = item.price_or_fee || item.price ? ` | Price: ${item.price_or_fee || item.price} INR` : '';
-        return `[${(item.category || 'INFO').toUpperCase()}] ${item.label || item.name || 'Detail'}: ${item.details || item.description || ''}${price}${timings}`;
+        const category = (item.category || item.type || 'INFO').toUpperCase();
+        const label = item.label || item.name || item.title || 'Detail';
+        const desc = item.details || item.description || item.sub_details || '';
+        return `[${category}] ${label}: ${desc}${price}${timings}`;
       }).join('\n');
     } catch (e) {
       console.warn('Vault Access Error:', e);
-      return 'Operational.';
+      return 'DATA_UNAVAILABLE: The database is currently unreachable.';
     }
   },
 
