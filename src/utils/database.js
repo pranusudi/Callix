@@ -160,24 +160,29 @@ export const database = {
 
   // --- UNIVERSAL INTERACTION ENGINE ---
   saveOrder: async (order) => {
+    console.log('📦 Saving Universal Order:', order);
     const payload = {
       company_id: order.companyId || order.company_id || order.entityId,
       user_email: order.userEmail || order.user_email,
-      user_name: order.customerName || order.user_name || 'Customer',
+      user_name: order.customerName || order.user_name || order.userName || 'Customer',
       booking_type: 'Order',
       target_item: order.item || 'Generic Item',
       title: order.item || 'E-Commerce Order',
       sub_title: order.industry || 'Purchase',
       date: new Date().toISOString().split('T')[0],
-      time: new Date().toTimeString().split(' ')[0],
-      status: 'completed'
+      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+      status: 'completed',
+      total_price: order.totalPrice || order.price || 0,
+      currency: 'INR'
     };
 
     const { data, error } = await supabase.from('bookings').insert([payload]).select();
-    return error ? { error: error.message } : data[0];
+    if (error) console.error('Booking DB Error:', error);
+    return error ? { error: error.message } : { ...data[0], success: true };
   },
 
   saveAppointment: async (appointment) => {
+    console.log('📅 Saving Universal Booking:', appointment);
     const payload = {
       company_id: appointment.companyId || appointment.company_id || appointment.entityId,
       user_email: appointment.userEmail || appointment.user_email,
@@ -185,14 +190,15 @@ export const database = {
       booking_type: appointment.type || 'Appointment',
       target_item: appointment.personName || appointment.item || 'General',
       title: appointment.personName || appointment.item || 'Generic Appointment',
-      sub_title: appointment.type || 'Activity',
-      date: appointment.date,
-      time: appointment.time,
+      sub_title: appointment.type || appointment.industry || 'Activity',
+      date: appointment.date || new Date().toISOString().split('T')[0],
+      time: appointment.time || 'TBD',
       status: 'scheduled'
     };
 
     const { data, error } = await supabase.from('bookings').insert([payload]).select();
-    return error ? { error: error.message } : data[0];
+    if (error) console.error('Booking DB Error:', error);
+    return error ? { error: error.message } : { ...data[0], success: true };
   },
 
   getUserData: async (email) => {
@@ -216,14 +222,18 @@ export const database = {
   },
 
   saveFeedback: async (feedback) => {
+    console.log('⭐ Saving Universal Feedback:', feedback);
     const payload = {
       company_id: feedback.companyId || feedback.company_id || feedback.entityId,
       user_email: feedback.user_email || feedback.userEmail || 'Guest',
-      rating: feedback.rating,
-      comment: feedback.comment || 'Voice Feedback'
+      user_name: feedback.userName || feedback.user_name || 'Customer',
+      rating: parseInt(feedback.rating),
+      comment: feedback.comment || 'Voice Feedback',
+      industry: feedback.industry || 'General'
     };
     const { data, error } = await supabase.from('feedback').insert([payload]).select();
-    return error ? { error: error.message } : data[0];
+    if (error) console.error('Feedback DB Error:', error);
+    return error ? { error: error.message } : { ...data[0], success: true };
   },
 
   getLiveCatalogue: async (companyId, companyName) => {

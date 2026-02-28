@@ -110,14 +110,15 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
     - Use ${companyContext?.currLangName || 'English'} script and natural phrasing.
     - **STRICT DATA ADHERENCE**: Only provide information that is explicitly stated in the ENTITY, SITUATIONAL CONTEXT, or results from [QUERY_ENTITY_DATABASE].
     - **NO HALLUCINATION**: If the requested information is not available, politely say you don't have that information yet or offer to connect them with a human colleague. Never invent prices, dates, or services.
+    - **FEEDBACK PROTOCOL**: After successfully completing an order, booking, or appointment, ALWAYS ask the user for their rating (1-5 stars) and feedback. Use [COLLECT_FEEDBACK] if they provide it.
     
     CAPABILITIES:
     - [QUERY_ENTITY_DATABASE]: For menu/doctors/products/info.
     - [GET_AVAILABLE_SLOTS]: To check specific free times.
-    - [BOOK_APPOINTMENT]: For clinical or professional bookings.
-    - [BOOK_TABLE]: For restaurant reservations.
-    - [BOOK_ORDER]: For e-commerce transactions.
-    - [COLLECT_FEEDBACK]: For numerical ratings (1-5).
+    - [BOOK_APPOINTMENT]: For clinical or professional bookings. Format: [BOOK_APPOINTMENT for {name} on {date} at {time}]
+    - [BOOK_TABLE]: For restaurant reservations. Format: [BOOK_TABLE for {guests} on {date} at {time}]
+    - [BOOK_ORDER]: For e-commerce transactions. Format: [BOOK_ORDER for {item} (price)]
+    - [COLLECT_FEEDBACK]: For numerical ratings (1-5). Format: [COLLECT_FEEDBACK {rating}/5]
     - [HANG_UP]: To terminate the call session.`;
 
     const messages = [
@@ -132,7 +133,7 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
       body: JSON.stringify({
         model: 'llama-3.1-8b-instant',
         messages,
-        temperature: 0.4,
+        temperature: 0.3,
         max_tokens: 600
       })
     });
@@ -149,7 +150,9 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
     const intent = hasCommand ? detectIntent(assistantMessage, companyContext) : null;
 
     if (intent) {
+      console.log('🤖 Detected Intent:', intent);
       const result = await executeAction(intent);
+      console.log('🛠 Action Result:', result);
       const cleanedMessageForUser = cleanInternalCommands(assistantMessage);
 
       // Confirmation turn
@@ -163,15 +166,14 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
             { role: 'assistant', content: assistantMessage },
             {
               role: 'system',
-              content: `ACTION RESULT: ${JSON.stringify(result)}. 
-              Confirm that the action was successful or state the result naturally in 1 short sentence.
-              BE ADVISED: Use the same language as the previous turn: ${companyContext?.currLangName || 'English'}.
-              NEVER mention internal technical terms like "slots", "database", "searching", or "booking process".
-              Just confirm results like: "Done, your table for 4 is booked." or "I've scheduled your appointment with Dr. Rao."`
+              content: `ACTION STATUS: ${result.success ? 'SUCCESS' : 'FAILED'}. RESULT DATA: ${JSON.stringify(result)}. 
+              State the confirmation naturally for the user. Mention specifically what was booked/ordered.
+              IMPORTANT: After confirming, politely ask if they would like to provide a rating for the service.
+              BE ADVISED: Use ${companyContext?.currLangName || 'English'}.`
             }
           ],
-          temperature: 0.5,
-          max_tokens: 150
+          temperature: 0.4,
+          max_tokens: 200
         })
       });
 
