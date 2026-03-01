@@ -8,15 +8,17 @@ export const cleanInternalCommands = (text) => {
   if (!text) return '';
   return text
     .replace(/^(Callix|Agent|Assistant|System|User|Callix Virtual Assistant):\s*/i, '')
-    // Replace all internal bracketed commands (space or underscore)
+    // Replace all internal bracketed commands
     .replace(/\[(BOOK|COLLECT|GET|QUERY|HANG|TRACE).*?\]/gim, '')
-    // Remove standalone command keywords if they leak
+    // Remove standalone command keywords
     .replace(/\b(BOOK_APPOINTMENT|BOOK_TABLE|BOOK_ORDER|COLLECT_FEEDBACK|GET_AVAILABLE_SLOTS|QUERY_ENTITY_DATABASE|HANG_UP)\b/gi, '')
-    // Remove debug markers that leak from system prompts
-    .replace(/(ACTION STATUS|ACTION COMPLETED|RESULT DATA|DATA:|Action Type:).*?(\n|$)/gim, '')
+    // Remove debug markers (Action Status, Results, etc)
+    .replace(/(ACTION STATUS|ACTION COMPLETED|RESULT DATA|LATEST_TASK_OUTCOME|DATA:|LATEST_DATA:|Action Type:).*?(\n|$)/gim, '')
+    // Remove standalone success/fail leaks
+    .replace(/^\s*(SUCCESS|FAILED|COMPLETED|ERROR)\.?\s*$/gim, '')
     // Remove "Thinking" or "Action" crumbs
     .replace(/(Searching|Booking|Checking|Wait|One moment|Hold on|I'm checking|Let me see|Querying|Processing|Fetching).*?(slots|database|available|appointment|info|table|order|result|data)\.{0,3}/gi, '')
-    // Final cleanup of punctuation and formatting
+    // Final cleanup
     .replace(/[\[\]]/g, '')
     .replace(/\.\.+/g, '.')
     .replace(/\s+/g, ' ')
@@ -172,36 +174,36 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
       const result = await executeAction(intent);
       console.log('🛠 Action Result:', result);
 
-      // Confirmation turn - The model needs to give the final natural response after the action
+      // Confirmation turn - Force-focused on the latest result to prevent repetition
       const finalResponse = await fetchWithRetry(GROQ_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'llama-3.1-8b-instant',
           messages: [
-            ...messages,
+            ...messages.slice(-2), // Only give very recent history to prevent "double confirmation" of old tasks
             { role: 'assistant', content: assistantMessage },
             {
               role: 'system',
-              content: `ACTION COMPLETED: ${result.success ? 'SUCCESS' : 'FAILED'}. 
-              DATA: ${JSON.stringify(result)}. 
+              content: `LATEST_TASK_OUTCOME: ${result.success ? 'COMPLETED' : 'ERROR'}. 
+              LATEST_DATA: ${JSON.stringify(result)}. 
               
-              CRITICAL: 
-              1. Produce a single, natural sentence confirming the result in ${companyContext?.currLangName || 'English'}.
-              2. DO NOT repeat the words "ACTION STATUS" or "RESULT DATA".
+              CRITICAL INSTRUCTIONS:
+              1. Provide a single natural confirmation in ${companyContext?.currLangName || 'English'}.
+              2. DO NOT repeat the words "SUCCESS", "FAILED", or "LATEST_DATA".
               3. If a booking was successful, you MUST ask for a 1-5 star rating.
-              4. Be extremely brief (max 15 words).`
+              4. Max 15 words. Be ultra-concise.`
             }
           ],
-          temperature: 0.1, // Lower temperature for more consistent, less hallucinatory confirmation
-          max_tokens: 150
+          temperature: 0, // Zero temperature for total consistency
+          max_tokens: 100
         })
       });
 
       if (finalResponse && finalResponse.ok) {
         const finalData = await finalResponse.json();
         const confirmationText = finalData.choices[0]?.message?.content;
-        return cleanInternalCommands(confirmationText);
+        return cleanInternalCommands(confirmationText) || cleanInternalCommands(assistantMessage);
       }
       return cleanInternalCommands(assistantMessage);
     }
