@@ -159,7 +159,33 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
       msgUpper.includes('BOOK_') || msgUpper.includes('COLLECT_') ||
       msgUpper.includes('QUERY_') || msgUpper.includes('HANG_UP');
 
-    const intent = hasCommand ? detectIntent(assistantMessage, companyContext) : null;
+    let intent = hasCommand ? detectIntent(assistantMessage, companyContext) : null;
+
+    // Fallback for missing feedback command:
+    if (!intent && history.length > 0) {
+      const lastBotMsg = history[history.length - 1]?.content || '';
+      if (/rate|star|feedback|assistance/i.test(lastBotMsg)) {
+        const ratingMatch = prompt.match(/([\d.]+)\s?\/\s?5/) || prompt.match(/(?:^|\s|\b)([1-5](?:\.\d+)?)\b/);
+        if (ratingMatch) {
+          const ratingVal = parseFloat(ratingMatch[1]);
+          if (ratingVal > 0 && ratingVal <= 5) {
+            intent = {
+              name: 'collect_feedback',
+              args: {
+                companyId: companyContext?._id || companyContext?.id || companyContext?.company_id || 'manual',
+                companyName: companyContext?.name || 'General',
+                rating: ratingVal,
+                user_email: companyContext?.userEmail || '',
+                user_name: companyContext?.userName || 'Guest',
+                comment: prompt.replace(/User Message:/i, '').trim() || 'Voice Feedback',
+                industry: companyContext?.industry || 'General'
+              }
+            };
+            console.log('⚠️ Activated Feedback Fallback System!');
+          }
+        }
+      }
+    }
 
     if (intent) {
       console.log('🤖 Detected Intent:', (intent.name || 'unknown'), (intent.args || {}));
@@ -310,9 +336,9 @@ const detectIntent = (message, context) => {
   const hasBrackets = message.includes('[') && message.includes(']');
 
   if (isExplicitCommand || (hasBrackets && (msg.includes('STAR') || msg.includes('FEEDBACK')))) {
-    // Look for any number 1-5 even if not in the command name itself
-    const ratingMatch = message.match(/(\d)\s?\/\s?5/) || message.match(/Rating:\s*(\d)/i) || message.match(/\b([1-5])\b/);
-    let rating = ratingMatch ? parseInt(ratingMatch[1]) : 0;
+    // Look for any number 1-5 (including decimals like 4.5) even if not in the command name itself
+    const ratingMatch = message.match(/([\d.]+)\s?\/\s?5/) || message.match(/Rating:\s*([\d.]+)/i) || message.match(/(?:^|\s|\b)([1-5](?:\.\d+)?)\b/);
+    let rating = ratingMatch ? parseFloat(ratingMatch[1]) : 0;
 
     if (rating || msg.includes('STAR')) {
       // Clean comment: remove the command block and common leftovers
