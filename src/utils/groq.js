@@ -7,14 +7,16 @@ const GROQ_AUDIO_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
 export const cleanInternalCommands = (text) => {
   if (!text) return '';
   return text
-    .replace(/^(Callix|Agent|Assistant|System|User):\s*/i, '')
-    // Replace all internal bracketed commands
-    .replace(/\[(BOOK_APPOINTMENT|BOOK_TABLE|BOOK_ORDER|COLLECT_RATING|COLLECT_FEEDBACK|GET_AVAILABLE_SLOTS|QUERY_ENTITY_DATABASE|HANG_UP|TRACE_ORDER).*?\]/gim, '')
-    // Remove standalone command keywords if they leak outside brackets
+    .replace(/^(Callix|Agent|Assistant|System|User|Callix Virtual Assistant):\s*/i, '')
+    // Replace all internal bracketed commands (space or underscore)
+    .replace(/\[(BOOK|COLLECT|GET|QUERY|HANG|TRACE).*?\]/gim, '')
+    // Remove standalone command keywords if they leak
     .replace(/\b(BOOK_APPOINTMENT|BOOK_TABLE|BOOK_ORDER|COLLECT_FEEDBACK|GET_AVAILABLE_SLOTS|QUERY_ENTITY_DATABASE|HANG_UP)\b/gi, '')
-    // Remove "Thinking" or "Action" crumbs - much more aggressive here
-    .replace(/(Searching|Booking|Checking|Wait|One moment|Hold on|I'm checking|Let me see|Querying|Action result|Executing|Processing|Fetching).*?(slots|database|available|appointment|info|table|order|result|data)\.{0,3}/gi, '')
-    // Fix common punctuation leftovers
+    // Remove debug markers that leak from system prompts
+    .replace(/(ACTION STATUS|ACTION COMPLETED|RESULT DATA|DATA:|Action Type:).*?(\n|$)/gim, '')
+    // Remove "Thinking" or "Action" crumbs
+    .replace(/(Searching|Booking|Checking|Wait|One moment|Hold on|I'm checking|Let me see|Querying|Processing|Fetching).*?(slots|database|available|appointment|info|table|order|result|data)\.{0,3}/gi, '')
+    // Final cleanup of punctuation and formatting
     .replace(/[\[\]]/g, '')
     .replace(/\.\.+/g, '.')
     .replace(/\s+/g, ' ')
@@ -169,9 +171,8 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
       console.log('🤖 Detected Intent:', (intent.name || 'unknown'), (intent.args || {}));
       const result = await executeAction(intent);
       console.log('🛠 Action Result:', result);
-      const cleanedMessageForUser = cleanInternalCommands(assistantMessage);
 
-      // Confirmation turn
+      // Confirmation turn - The model needs to give the final natural response after the action
       const finalResponse = await fetchWithRetry(GROQ_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -182,27 +183,27 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
             { role: 'assistant', content: assistantMessage },
             {
               role: 'system',
-              content: `ACTION STATUS: ${result.success ? 'SUCCESS' : 'FAILED'}. RESULT DATA: ${JSON.stringify(result)}. 
-              Action Type: ${intent.name}.
+              content: `ACTION COMPLETED: ${result.success ? 'SUCCESS' : 'FAILED'}. 
+              DATA: ${JSON.stringify(result)}. 
               
-              1. Confirm the result naturally (e.g., "Great, you're booked for 4pm").
-              2. MANDATORY: If the action was 'book_appointment', 'book_table', or 'book_order', you MUST conclude with: "How would you rate my service today on a scale of 1 to 5 stars?"
-              3. Be extremely brief. No more than 15 words.
-              
-              RESPONSE LANGUAGE: ${companyContext?.currLangName || 'English'}.`
+              CRITICAL: 
+              1. Produce a single, natural sentence confirming the result in ${companyContext?.currLangName || 'English'}.
+              2. DO NOT repeat the words "ACTION STATUS" or "RESULT DATA".
+              3. If a booking was successful, you MUST ask for a 1-5 star rating.
+              4. Be extremely brief (max 15 words).`
             }
           ],
-          temperature: 0.4,
-          max_tokens: 200
+          temperature: 0.1, // Lower temperature for more consistent, less hallucinatory confirmation
+          max_tokens: 150
         })
       });
 
       if (finalResponse && finalResponse.ok) {
         const finalData = await finalResponse.json();
         const confirmationText = finalData.choices[0]?.message?.content;
-        return cleanedMessageForUser.length > 5 ? `${cleanedMessageForUser} ${confirmationText}` : confirmationText;
+        return cleanInternalCommands(confirmationText);
       }
-      return cleanedMessageForUser;
+      return cleanInternalCommands(assistantMessage);
     }
 
     return cleanInternalCommands(assistantMessage);
