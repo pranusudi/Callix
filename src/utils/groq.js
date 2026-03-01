@@ -163,7 +163,7 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
     const intent = hasCommand ? detectIntent(assistantMessage, companyContext) : null;
 
     if (intent) {
-      console.log('🤖 Detected Intent:', intent);
+      console.log('🤖 Detected Intent:', (intent.name || 'unknown'), (intent.args || {}));
       const result = await executeAction(intent);
       console.log('🛠 Action Result:', result);
       const cleanedMessageForUser = cleanInternalCommands(assistantMessage);
@@ -211,7 +211,7 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
 
 const detectIntent = (message, context) => {
   const msg = message.toUpperCase();
-  const entityId = context?._id || context?.id || 'manual';
+  const entityId = context?._id || context?.id || context?.company_id || 'manual';
   const entityName = context?.name || 'General';
   const industry = context?.industry || 'Other';
   const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
@@ -332,7 +332,7 @@ const detectIntent = (message, context) => {
         name: 'collect_feedback',
         args: {
           companyId: entityId,
-          entityName,
+          companyName: entityName,
           rating,
           userEmail,
           userName,
@@ -340,6 +340,8 @@ const detectIntent = (message, context) => {
           industry
         }
       };
+    } else {
+      console.warn('⚠️ Feedback rating missing or 0:', message);
     }
   }
 

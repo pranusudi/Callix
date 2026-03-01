@@ -284,17 +284,22 @@ export const database = {
     const { data, error } = await supabase.from('feedback').insert([payload]).select();
 
     if (error) {
-      console.error('❌ Feedback DB Error:', error);
+      console.error('❌ Supabase Feedback Error (Full):', error);
       // If user_name/company_name/industry columns are somehow missing, fallback to essential fields
-      if (error.code === '42703') {
-        console.warn('⚠️ Falling back to legacy feedback schema...');
+      if (error.code === '42703' || error.message?.includes('column')) {
+        console.warn('⚠️ Column missing, trying minimal feedback insert...');
         const { data: fData, error: fError } = await supabase.from('feedback').insert([{
           company_id: payload.company_id,
           user_email: payload.user_email,
           rating: payload.rating,
           comment: payload.comment
         }]).select();
-        return fError ? { error: fError.message } : { ...fData[0], success: true };
+
+        if (fError) {
+          console.error('❌ Minimal Feedback Insert also FAILED:', fError);
+          return { error: fError.message };
+        }
+        return { ...fData[0] || {}, success: true };
       }
       return { error: error.message };
     }
