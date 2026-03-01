@@ -8,19 +8,17 @@ export const cleanInternalCommands = (text) => {
   if (!text) return '';
   return text
     .replace(/^(Callix|Agent|Assistant|System|User|Callix Virtual Assistant):\s*/i, '')
-    // Replace all internal bracketed commands
-    .replace(/\[(BOOK|COLLECT|GET|QUERY|HANG|TRACE).*?\]/gim, '')
-    // Remove standalone command keywords
+    // 1. First, remove explicit internal bracketed thoughts/commands
+    .replace(/\[(BOOK|COLLECT|GET|QUERY|HANG|TRACE|THOUGHT|ACTION|RESULT).*?\]/gim, '')
+    // 2. Remove standalone command keywords if they leak out of brackets
     .replace(/\b(BOOK_APPOINTMENT|BOOK_TABLE|BOOK_ORDER|COLLECT_FEEDBACK|GET_AVAILABLE_SLOTS|QUERY_ENTITY_DATABASE|HANG_UP)\b/gi, '')
-    // Remove debug markers (Action Status, Results, etc)
-    .replace(/(ACTION STATUS|ACTION COMPLETED|RESULT DATA|LATEST_TASK_OUTCOME|DATA:|LATEST_DATA:|Action Type:).*?(\n|$)/gim, '')
-    // Remove standalone success/fail leaks
+    // 3. Remove specific debug marker lines
+    .replace(/(ACTION STATUS|ACTION COMPLETED|RESULT DATA|LATEST_TASK_OUTCOME|LATEST_DATA:|Action Type:).*?(\n|$)/gim, '')
+    // 4. Remove standalone success/fail markers
     .replace(/^\s*(SUCCESS|FAILED|COMPLETED|ERROR)\.?\s*$/gim, '')
-    // Remove "Thinking" or "Action" crumbs
-    .replace(/(Searching|Booking|Checking|Wait|One moment|Hold on|I'm checking|Let me see|Querying|Processing|Fetching|Syncing|Verifying).*?(\.{1,3}|request|database|available|appointment|info|table|order|result|data|slots)/gi, '')
-    // Final cleanup
-    .replace(/[\[\]]/g, '')
-    .replace(/\.\.+/g, '.')
+    // 5. Remove ONLY standalone "Thinking" lines (not mid-sentence words)
+    .replace(/^\s*(Searching|Booking|Checking|Wait|One moment|Hold on|Querying|Processing|Fetching|Syncing|Verifying)(\.{1,3}|.*?request|.*?database|.*?slots)\s*$/gim, '')
+    // Final cleanup of empty artifacts
     .replace(/\s+/g, ' ')
     .trim();
 };
@@ -109,22 +107,22 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
     INDUSTRY: ${companyContext?.industry || 'Service'}
     USER NAME: ${userName}
     
-    PERSONALITY:
-    - Warm, polite, and helpful (like a 5-star hotel receptionist).
-    - Use "Sir/Ma'am" or "${userName}" occasionally but naturally.
-    - If the user greets you, respond warmly first.
+    PERSONALITY & STYLE:
+    - Polite, attentive, and helpful. Treat every user like a VIP guest.
+    - Respond naturally. If the user says "Okay" or "Thank you", respond with a warm "You're very welcome!" or "It's my pleasure."
     
-    CORE RULES:
-    1. **Service Inquiry**: If a user asks what we offer, use [QUERY_ENTITY_DATABASE] and then *summarize* the highlights politely.
-    2. **Booking vs Ordering**: 
-       - "Book a table": Use [BOOK_TABLE]. This is for SEATING.
-       - "Order food": Use [BOOK_ORDER]. This is for PURCHASING items.
-    3. **Details First**: Always confirm Date and Time before using a booking bracket.
-    4. **The "Confirm" Step**: After a user says "Proceed" or "Yes" to a booking summary, you MUST output the bracket command.
-    5. **Post-Action**: After a successful booking (SUCCESS status), say: "Wonderful! Your booking is confirmed. May I ask how you would rate my service today on a scale of 1 to 5 stars?"
-    6. **Collecting Rating**: If the user gives a number (1-5), immediately output: [COLLECT_FEEDBACK rating/5].
+    CORE PROTOCOLS:
+    1. **Greet First**: Always start with a warm greeting if it's the beginning of the chat.
+    2. **Booking Requirements**: Before using [BOOK_TABLE] or [BOOK_APPOINTMENT], you MUST have:
+       - Number of guests (for tables)
+       - Specific Date (e.g., Today, tomorrow, or a date)
+       - Specific Time (e.g., 7 PM, 8:30 PM)
+       If any are missing, ask politely: "Certainly! For what time and for how many guests should I reserve the table?"
+    3. **Order Placement**: [BOOK_ORDER] is for items from the menu. Summarize the items and total price before committing.
+    4. **Confirmation Turn**: Once a booking is successful, say: "Perfect! Your table for 3 at 8:00 PM is all set. We look forward to seeing you then! By the way, how would you rate my assistance today on a scale of 1 to 5?"
+    5. **Collecting Rating**: Use [COLLECT_FEEDBACK rating/5] only after the user provides a number.
     
-    ACTION BRACKETS (USE EXACTLY):
+    ACTION BRACKETS:
     - [QUERY_ENTITY_DATABASE for topic]
     - [GET_AVAILABLE_SLOTS for date]
     - [BOOK_APPOINTMENT for person on date at time]
@@ -133,7 +131,7 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
     - [COLLECT_FEEDBACK rating/5]
     - [HANG_UP]
     
-    CRITICAL: Never leak "Processing..." or "Searching...". Just provide the natural receptionist response.`;
+    CRITICAL: Never leak internal commands or "Thinking..." lines. No "Your We look forward..."—ensure every sentence is grammatically complete.`;
 
     const messages = [
       { role: 'system', content: systemMessage },

@@ -529,26 +529,31 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
       const latestName = stateRef.current.userName || 'Guest';
 
       const systemPrompt = `
-IDENTITY: You are Callix, the professional voice representative for ${selectedCompany?.name}.
-${specializedPrompt}
+IDENTITY: You are Callix, the warm and professional Virtual Receptionist for ${selectedCompany?.name}.
+CURRENT DATE: ${new Date().toLocaleDateString('en-IN')} | CURRENT TIME: ${new Date().toLocaleTimeString('en-IN')}
 
-LIVE KNOWLEDGE (SOURCE OF TRUTH):
+PERSONALITY & STYLE:
+- Polite, VIP Receptionist tone. Warm and helpful.
+- Respond in ${curLang.name} script only. Speak as a native ${curLang.name} speaker would.
+- Keep responses ultra-brief (max 20 words).
+
+CORE PROTOCOLS:
+1. **Details First**: Before using [BOOK_TABLE] or [BOOK_APPOINTMENT], you MUST confirm: Date, Time, and guests.
+   If missing, ask: "Certainly! For what time and how many guests should I reserve this for?"
+2. **Action Brackets**: You MUST use exact commands: [BOOK_TABLE...], [BOOK_APPOINTMENT...], [BOOK_ORDER...].
+3. **Discovery**: Use [QUERY_ENTITY_DATABASE] to check services/menu before guessing.
+4. **Post-Action**: After a successful booking, ask for a 1-5 star rating politely.
+5. **Language**: Use native ${curLang.name} script (Telugu script for Telugu, Devanagari for Hindi).
+
+LIVE KNOWLEDGE:
 ${liveCatalogue || 'Standard records active.'}
 
 BUSINESS CONTEXT:
 ${selectedCompany?.nlp_context || 'A premium provider.'}
+${specializedPrompt}
 
 USER CONTEXT:
-Customer Name: ${latestName}
-
-CRITICAL PROTOCOLS:
-1. ACTION OVER TALK: Bracketed commands are the ONLY way to update the database. You MUST output the command (e.g., [BOOK_APPOINTMENT for Dr. X on Y at Z]) if the user wants to book. Never just say "You are booked". You must include the brackets.
-2. DISCOVERY: Always use [QUERY_ENTITY_DATABASE] to fetch details before asking for confirmation.
-3. CONCISENESS: Max 1-2 natural sentences. 
-4. NO PLACEHOLDERS: Never use {ebony} or {tomorrow} inside brackets. Use real text or ASK the user.
-5. MANDATORY FEEDBACK: After any booking is successful, you MUST ask for a 1-5 star rating.
-6. HANG UP: If the user says goodbye, use [HANG_UP].
-${languageInstruction}`;
+Customer Name: ${latestName}`;
 
       const rawResponse = await chatWithGroq(
         `User Message: ${message}`,
@@ -590,7 +595,7 @@ ${languageInstruction}`;
       const ttsLang = languageLookup[targetLangCode] || 'en';
       const languageFullName = languageNameMap[targetLangCode] || 'English';
 
-      console.log(`🗣️ Speak: Code="${targetLangCode}" (mapped to ${ttsLang}), Language="${languageFullName}", Gender="${agentGender}"`);
+      console.log(`🗣️ Speak: Code = "${targetLangCode}"(mapped to ${ttsLang}), Language = "${languageFullName}", Gender = "${agentGender}"`);
 
       setIsSpeaking(true);
 
@@ -617,7 +622,7 @@ ${languageInstruction}`;
       };
 
       const hasTelugu = /[\u0C00-\u0C7F]/.test(text);
-      console.log(`🗣️ Pro TTS Request: Lang="${ttsLang}", Native Script: ${hasTelugu}, Text: "${text.substring(0, 40)}..."`);
+      console.log(`🗣️ Pro TTS Request: Lang = "${ttsLang}", Native Script: ${hasTelugu}, Text: "${text.substring(0, 40)}..."`);
 
       // Force Single Female Voice
       const femaleSpeaker = 'female';
@@ -681,7 +686,7 @@ ${languageInstruction}`;
             const voice = getBestVoice();
             if (voice || voices.length > 0) {
               const selectedVoice = voice || voices[0];
-              console.log(`🔊 [Selection] Locked onto: ${selectedVoice.name} (${selectedVoice.lang}) for ${targetLangCode}`);
+              console.log(`🔊[Selection] Locked onto: ${selectedVoice.name} (${selectedVoice.lang}) for ${targetLangCode}`);
               const utterance = new SpeechSynthesisUtterance(text);
               utterance.voice = selectedVoice;
               utterance.lang = selectedVoice.lang;
@@ -844,12 +849,12 @@ ${languageInstruction}`;
                           }
                         }}
                         disabled={lang.locked}
-                        className={`px-4 py-2 rounded-full border-2 transition-all duration-300 font-semibold text-sm flex items-center gap-2 ${lang.locked
-                          ? 'border-white/20 bg-white/5 text-white/40 cursor-not-allowed'
-                          : selectedLanguage.code === lang.code
-                            ? 'border-blue-400 bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/50 hover:scale-110'
-                            : 'border-white/30 bg-white/10 backdrop-blur-sm text-white hover:border-blue-300 hover:bg-white/20 hover:scale-110'
-                          }`}
+                        className={`px - 4 py - 2 rounded - full border - 2 transition - all duration - 300 font - semibold text - sm flex items - center gap - 2 ${lang.locked
+                            ? 'border-white/20 bg-white/5 text-white/40 cursor-not-allowed'
+                            : selectedLanguage.code === lang.code
+                              ? 'border-blue-400 bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/50 hover:scale-110'
+                              : 'border-white/30 bg-white/10 backdrop-blur-sm text-white hover:border-blue-300 hover:bg-white/20 hover:scale-110'
+                          } `}
                       >
                         {lang.name}
                         {lang.locked && (
@@ -920,8 +925,8 @@ ${languageInstruction}`;
                         : "0 15px 35px rgba(0, 0, 0, 0.1)"
                   }}
                   transition={{ duration: 1.5, repeat: Infinity }}
-                  className={`w-32 h-32 md:w-56 md:h-56 aspect-square rounded-full overflow-hidden border-[4px] md:border-[6px] transition-all duration-500 flex items-center justify-center p-1.5 bg-white ${isSpeaking ? 'border-green-400' : isListening ? 'border-blue-600' : 'border-slate-100'
-                    }`}
+                  className={`w - 32 h - 32 md: w - 56 md: h - 56 aspect - square rounded - full overflow - hidden border - [4px] md: border - [6px] transition - all duration - 500 flex items - center justify - center p - 1.5 bg - white ${isSpeaking ? 'border-green-400' : isListening ? 'border-blue-600' : 'border-slate-100'
+                    } `}
                 >
                   <img src={agentAvatar} className="w-full h-full object-cover rounded-full shadow-inner" alt="Callix Agent" />
                 </motion.div>
@@ -950,8 +955,8 @@ ${languageInstruction}`;
 
                   <div className="flex flex-col items-center gap-1">
                     <div className="flex flex-col items-center gap-2">
-                      <div className={`px-3 py-1 md:px-4 md:py-1.5 rounded-full text-[8px] md:text-[10px] font-black tracking-widest uppercase flex items-center space-x-2 border transition-all duration-300 ${isSpeaking ? 'bg-green-100 text-green-700 border-green-200' : isThinking ? 'bg-purple-100 text-purple-700 border-purple-200' : isTranscribing ? 'bg-orange-100 text-orange-700 border-orange-200' : isListening ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`} style={{ transform: `scale(${isListening && !isSpeaking ? pulseScale : 1})` }}>
-                        <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${isSpeaking ? 'bg-green-500' : isThinking ? 'bg-purple-500' : isTranscribing ? 'bg-orange-500' : isListening ? 'bg-blue-500' : 'bg-slate-400'}`}></div>
+                      <div className={`px - 3 py - 1 md: px - 4 md: py - 1.5 rounded - full text - [8px] md: text - [10px] font - black tracking - widest uppercase flex items - center space - x - 2 border transition - all duration - 300 ${isSpeaking ? 'bg-green-100 text-green-700 border-green-200' : isThinking ? 'bg-purple-100 text-purple-700 border-purple-200' : isTranscribing ? 'bg-orange-100 text-orange-700 border-orange-200' : isListening ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-slate-100 text-slate-500 border-slate-200'} `} style={{ transform: `scale(${isListening && !isSpeaking ? pulseScale : 1})` }}>
+                        <div className={`w - 1.5 h - 1.5 rounded - full animate - pulse ${isSpeaking ? 'bg-green-500' : isThinking ? 'bg-purple-500' : isTranscribing ? 'bg-orange-500' : isListening ? 'bg-blue-500' : 'bg-slate-400'} `}></div>
                         <span>{isSpeaking ? 'Speaking' : isThinking ? 'Thinking' : isTranscribing ? 'Transcribing' : isListening ? 'Listening' : 'Ready'}</span>
                       </div>
                     </div>
@@ -959,7 +964,7 @@ ${languageInstruction}`;
                 </div>
 
                 <div className="mt-4 md:mt-8 flex items-center space-x-3 md:space-x-4">
-                  <button onClick={toggleMute} className={`p-3 md:p-4 rounded-full shadow-lg transition-all ${isMuted ? 'bg-red-500 text-white' : 'bg-white text-slate-700 hover:bg-slate-100'}`}>
+                  <button onClick={toggleMute} className={`p - 3 md: p - 4 rounded - full shadow - lg transition - all ${isMuted ? 'bg-red-500 text-white' : 'bg-white text-slate-700 hover:bg-slate-100'} `}>
                     {isMuted ? <MicOff size={20} /> : <Mic size={20} />}
                   </button>
                   {isSpeaking && (
@@ -984,10 +989,10 @@ ${languageInstruction}`;
 
               <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50/50">
                 {messages.map((m, i) => (
-                  <motion.div initial={{ opacity: 0, x: m.sender === 'user' ? 20 : -20 }} animate={{ opacity: 1, x: 0 }} key={i} className={`flex ${m.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] p-4 rounded-2xl shadow-sm border ${m.sender === 'user' ? 'bg-[#000080] text-white border-[#000080]' : 'bg-white text-slate-800 border-slate-200'}`}>
+                  <motion.div initial={{ opacity: 0, x: m.sender === 'user' ? 20 : -20 }} animate={{ opacity: 1, x: 0 }} key={i} className={`flex ${m.sender === 'user' ? 'justify-end' : 'justify-start'} `}>
+                    <div className={`max - w - [85 %] p - 4 rounded - 2xl shadow - sm border ${m.sender === 'user' ? 'bg-[#000080] text-white border-[#000080]' : 'bg-white text-slate-800 border-slate-200'} `}>
                       <p className="text-sm font-medium leading-relaxed">{m.text}</p>
-                      <p className={`text-[10px] mt-2 font-bold uppercase opacity-50 ${m.sender === 'user' ? 'text-white' : 'text-slate-400'}`}>{m.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                      <p className={`text - [10px] mt - 2 font - bold uppercase opacity - 50 ${m.sender === 'user' ? 'text-white' : 'text-slate-400'} `}>{m.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                     </div>
                   </motion.div>
                 ))}
@@ -1004,7 +1009,7 @@ ${languageInstruction}`;
 
               <div className="p-6 bg-white border-t border-slate-100">
                 <div className="flex items-center space-x-3 text-slate-400">
-                  <div className={`w-2 h-2 rounded-full ${isListening ? 'bg-blue-500 animate-ping' : 'bg-slate-300'}`}></div>
+                  <div className={`w - 2 h - 2 rounded - full ${isListening ? 'bg-blue-500 animate-ping' : 'bg-slate-300'} `}></div>
                   <span className="text-xs font-black uppercase tracking-widest">{isListening ? 'Voice capture active' : 'Waiting for system'}</span>
                 </div>
               </div>
