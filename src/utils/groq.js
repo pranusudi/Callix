@@ -123,16 +123,16 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
     - **FEEDBACK**: If a user gives a rating (e.g., "5 stars"), immediately trigger [COLLECT_FEEDBACK rating/5].
     - **FIRST TURN**: Since you are listening first, the user might provide their name or a request immediately. Acknowledge what they said right after your introduction.
     
-    CAPABILITIES:
-    - [QUERY_ENTITY_DATABASE]: Use this to find menu items, doctors, products, or general info.
-    - [GET_AVAILABLE_SLOTS]: Use this to check free timings for a specific date.
-    - [BOOK_APPOINTMENT for {person/dr} on {date} at {time}]
-    - [BOOK_TABLE for {guests} on {date} at {time}]
-    - [BOOK_ORDER for {item} (price)]
-    - [COLLECT_FEEDBACK {rating}/5]
+    CAPABILITIES (USE THESE EXACT BRACKETS):
+    - [QUERY_ENTITY_DATABASE for query] (Find info)
+    - [GET_AVAILABLE_SLOTS for date] (Check timings)
+    - [BOOK_APPOINTMENT for person on date at time]
+    - [BOOK_TABLE for guests on date at time]
+    - [BOOK_ORDER for item (price)]
+    - [COLLECT_FEEDBACK rating/5]
     - [HANG_UP]
     
-    CRITICAL: Never use curly braces like {tomorrow} or {any time} in the final bracketed command. If you lack the exact Date or Time, you MUST ask the user instead of guessing or using placeholders.`;
+    CRITICAL: Never use curly braces like {tomorrow} in the command. If you lack details, ASK. DO NOT finish a turn without an action bracket if a task is being decided.`;
 
     const messages = [
       { role: 'system', content: systemMessage },
@@ -156,9 +156,12 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
     const data = await response.json();
     const assistantMessage = data.choices[0]?.message?.content || '';
 
-    // Handle Intent
+    // Handle Intent - Much more inclusive detection
     const msgUpper = assistantMessage.toUpperCase();
-    const hasCommand = msgUpper.includes('BOOK_') || msgUpper.includes('COLLECT_') || msgUpper.includes('QUERY_') || msgUpper.includes('HANG_UP');
+    const hasCommand = /\[.*?\]/i.test(assistantMessage) ||
+      msgUpper.includes('BOOK') || msgUpper.includes('COLLECT') ||
+      msgUpper.includes('QUERY') || msgUpper.includes('HANG') ||
+      msgUpper.includes('STARS') || msgUpper.includes('APPOINTMENT');
 
     const intent = hasCommand ? detectIntent(assistantMessage, companyContext) : null;
 
@@ -182,11 +185,11 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
               content: `ACTION STATUS: ${result.success ? 'SUCCESS' : 'FAILED'}. RESULT DATA: ${JSON.stringify(result)}. 
               Action Type: ${intent.name}.
               
-              1. Provide a natural confirmation or answer based on the RESULT DATA.
-              2. MANDATORY: If the action was 'book_appointment' or 'book_order' AND it was successful, you MUST conclude by asking for a 1-5 star rating.
-              3. If it was just a database query, simply answer the user's question naturally without asking for a rating yet.
+              1. Confirm the result naturally (e.g., "Great, you're booked for 4pm").
+              2. MANDATORY: If the action was 'book_appointment', 'book_table', or 'book_order', you MUST conclude with: "How would you rate my service today on a scale of 1 to 5 stars?"
+              3. Be extremely brief. No more than 15 words.
               
-              BE ADVISED: Use ${companyContext?.currLangName || 'English'}.`
+              RESPONSE LANGUAGE: ${companyContext?.currLangName || 'English'}.`
             }
           ],
           temperature: 0.4,
@@ -229,9 +232,9 @@ const detectIntent = (message, context) => {
     return cleaned || fallback;
   };
 
-  // Appointment Logic
-  if (msg.includes('BOOK_APPOINTMENT')) {
-    const match = message.match(/BOOK_APPOINTMENT (?:for )?(.*?) on (.*?) at ([^\n.\r\]]*)/i);
+  // Appointment Logic (Flexible regex for spaces/underscores)
+  if (msg.includes('BOOK') && (msg.includes('APPOINTMENT') || msg.includes('DOCTOR') || msg.includes('MEETING'))) {
+    const match = message.match(/BOOK[_\s](?:APPOINTMENT|DOCTOR|MEETING|RECORD) (?:for )?(.*?) on (.*?) at ([^\n.\r\]]*)/i);
     if (match) {
       const type = (industry.toLowerCase().includes('health') || industry.toLowerCase().includes('hosp')) ? 'doctor' : 'interview';
       const pName = cleanArg(match[1], 'General');
@@ -252,15 +255,15 @@ const detectIntent = (message, context) => {
   }
 
   // Table Logic
-  if (msg.includes('BOOK_TABLE')) {
+  if (msg.includes('BOOK') && (msg.includes('TABLE') || msg.includes('RESERVATION'))) {
     // Try to match standard format: BOOK_TABLE for [guests] on [date] at [time]
-    let match = message.match(/BOOK_TABLE (?:for )?(.*?) on (.*?) at ([^\n.\r\]]*)/i);
+    let match = message.match(/BOOK[_\s](?:TABLE|RESERVATION) (?:for )?(.*?) on (.*?) at ([^\n.\r\]]*)/i);
 
     // Fallback: If only time/date provided, try to extract whatever is there
     if (!match) {
       const timeMatch = message.match(/at\s+([^\n.\r\]]*)/i);
       const dateMatch = message.match(/on\s+([^\n.\r\]]*)/i);
-      const guestMatch = message.match(/BOOK_TABLE (?:for )?(\d+)/i) || message.match(/for (\d+)/i);
+      const guestMatch = message.match(/BOOK[_\s]TABLE (?:for )?(\d+)/i) || message.match(/for (\d+)/i);
 
       if (timeMatch || dateMatch) {
         match = [null, guestMatch ? guestMatch[1] : '2', dateMatch ? dateMatch[1] : 'today', timeMatch ? timeMatch[1] : 'TBD'];
@@ -305,13 +308,13 @@ const detectIntent = (message, context) => {
     }
   }
 
-  // Rating Logic
-  if (msg.includes('COLLECT_FEEDBACK') || msg.includes('COLLECT_RATING') || msg.includes('RATE_SERVICE') || msg.includes('GIVE_FEEDBACK')) {
+  // Rating Logic (Resilient to spaces and word variety)
+  const isRatingWords = msg.includes('STAR') || msg.includes('RATING') || msg.includes('FEEDBACK') || msg.includes('SCORE');
+  if (msg.includes('COLLECT') || msg.includes('RATE') || isRatingWords) {
     // Look for any number 1-5 even if not in the command name itself
     const ratingMatch = message.match(/(\d)\s?\/\s?5/) || message.match(/Rating:\s*(\d)/i) || message.match(/\b([1-5])\b/);
     let rating = ratingMatch ? parseInt(ratingMatch[1]) : 0;
 
-    // Fallback for word ratings
     if (!rating) {
       if (msg.includes('ONE') || msg.includes('1')) rating = 1;
       else if (msg.includes('TWO') || msg.includes('2')) rating = 2;
@@ -320,11 +323,12 @@ const detectIntent = (message, context) => {
       else if (msg.includes('FIVE') || msg.includes('5')) rating = 5;
     }
 
-    if (rating) {
+    if (rating || isRatingWords) {
       // Clean comment: remove the command block and common leftovers
       const comment = message
         .replace(/\[COLLECT_FEEDBACK.*?\]/gi, '')
         .replace(/\[.*?\]/g, '')
+        .split('How would you rate')[0]
         .trim()
         .substring(0, 100) || 'Voice Feedback';
 
@@ -333,15 +337,13 @@ const detectIntent = (message, context) => {
         args: {
           companyId: entityId,
           companyName: entityName,
-          rating,
-          userEmail,
-          userName,
+          rating: rating || 5, // Default to 5 if keywords present but no number found
+          user_email: userEmail,
+          user_name: userName,
           comment,
           industry
         }
       };
-    } else {
-      console.warn('⚠️ Feedback rating missing or 0:', message);
     }
   }
 
