@@ -206,10 +206,10 @@ const RecordCard = ({ record, type, formatDate, getStatusStyle }) => {
                             </p>
                         )}
                         <div className="flex items-center gap-4 text-xs font-bold text-slate-400 mt-1">
-                            {record.date && !record.date.includes('{') && !record.time?.includes('{') && (
+                            {record.date && !record.date.includes('{') && !record.date.includes('?') && record.date.length < 50 && (
                                 <div className="flex items-center">
                                     <Clock size={14} className="mr-1.5" />
-                                    {formatDate(record.date)} • {record.time || 'ASAP'}
+                                    {formatDate(record.date)} {record.time && !record.time.includes('{') && !record.time.includes('?') && record.time.length < 50 ? `• ${record.time}` : ''}
                                 </div>
                             )}
                             {isOrder && <span className="text-emerald-600 font-black">₹{record.total_price || record.products?.price}</span>}
