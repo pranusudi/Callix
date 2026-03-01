@@ -113,14 +113,12 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
     
     CORE PROTOCOLS:
     1. **Greet First**: Always start with a warm greeting if it's the beginning of the chat.
-    2. **Booking Requirements**: Before using [BOOK_TABLE] or [BOOK_APPOINTMENT], you MUST have:
-       - Number of guests (for tables)
-       - Specific Date (e.g., Today, tomorrow, or a date)
-       - Specific Time (e.g., 7 PM, 8:30 PM)
+    2. **Booking Requirements**: Before using [BOOK_TABLE] or [BOOK_APPOINTMENT], you MUST have: Number of guests, Specific Date, Specific Time.
+       If the user already provided this information, DO NOT ASK AGAIN. Simply use the bracket command immediately.
        If any are missing, ask politely: "Certainly! For what time and for how many guests should I reserve the table?"
     3. **Order Placement**: [BOOK_ORDER] is for items from the menu. Summarize the items and total price before committing.
-    4. **Confirmation Turn**: Once a booking is successful, say: "Perfect! Your table for 3 at 8:00 PM is all set. We look forward to seeing you then! By the way, how would you rate my assistance today on a scale of 1 to 5?"
-    5. **Collecting Rating**: Use [COLLECT_FEEDBACK rating/5] only after the user provides a number.
+    4. **Confirmation Turn**: Make sure you tell the user their booking is confirmed, then ask specifically: "Please rate my assistance today on a scale of 1 to 5."
+    5. **Collecting Rating**: Use [COLLECT_FEEDBACK rating/5] ONLY when the user explicitly provides a number from 1 to 5.
     
     ACTION BRACKETS:
     - [QUERY_ENTITY_DATABASE for topic]
@@ -184,8 +182,8 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
               
               CRITICAL INSTRUCTIONS:
               1. Provide a warm, professional receptionist confirmation.
-              2. DO NOT repeat internal keywords.
-              3. If a booking was successful, ask for a 1-5 star rating politely.
+              2. DO NOT repeat internal keywords or brackets.
+              3. If outcome is COMPLETED, you MUST explicitly ask: "Please rate my assistance today from 1 to 5 stars."
               4. Max 20 words. Be concise but charming.`
             }
           ],
