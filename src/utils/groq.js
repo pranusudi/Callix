@@ -163,9 +163,8 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
     // Handle Intent - Much more inclusive detection
     const msgUpper = assistantMessage.toUpperCase();
     const hasCommand = /\[.*?\]/i.test(assistantMessage) ||
-      msgUpper.includes('BOOK') || msgUpper.includes('COLLECT') ||
-      msgUpper.includes('QUERY') || msgUpper.includes('HANG') ||
-      msgUpper.includes('STARS') || msgUpper.includes('APPOINTMENT');
+      msgUpper.includes('BOOK_') || msgUpper.includes('COLLECT_') ||
+      msgUpper.includes('QUERY_') || msgUpper.includes('HANG_UP');
 
     const intent = hasCommand ? detectIntent(assistantMessage, companyContext) : null;
 
@@ -313,20 +312,16 @@ const detectIntent = (message, context) => {
 
   // Rating Logic (Resilient to spaces and word variety)
   const isRatingWords = msg.includes('STAR') || msg.includes('RATING') || msg.includes('FEEDBACK') || msg.includes('SCORE');
-  if (msg.includes('COLLECT') || msg.includes('RATE') || isRatingWords) {
+  // Rating Logic (Specific to the command or explicit bracket)
+  const isExplicitCommand = msg.includes('COLLECT_FEEDBACK');
+  const hasBrackets = message.includes('[') && message.includes(']');
+
+  if (isExplicitCommand || (hasBrackets && (msg.includes('STAR') || msg.includes('FEEDBACK')))) {
     // Look for any number 1-5 even if not in the command name itself
     const ratingMatch = message.match(/(\d)\s?\/\s?5/) || message.match(/Rating:\s*(\d)/i) || message.match(/\b([1-5])\b/);
     let rating = ratingMatch ? parseInt(ratingMatch[1]) : 0;
 
-    if (!rating) {
-      if (msg.includes('ONE') || msg.includes('1')) rating = 1;
-      else if (msg.includes('TWO') || msg.includes('2')) rating = 2;
-      else if (msg.includes('THREE') || msg.includes('3')) rating = 3;
-      else if (msg.includes('FOUR') || msg.includes('4')) rating = 4;
-      else if (msg.includes('FIVE') || msg.includes('5')) rating = 5;
-    }
-
-    if (rating || isRatingWords) {
+    if (rating || msg.includes('STAR')) {
       // Clean comment: remove the command block and common leftovers
       const comment = message
         .replace(/\[COLLECT_FEEDBACK.*?\]/gi, '')

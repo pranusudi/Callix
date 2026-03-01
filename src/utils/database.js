@@ -365,33 +365,47 @@ export const database = {
         ]));
       }
 
-      let finalData = null;
-      let finalTable = '';
+      let finalData = [];
+
+      // 0. CORE COMPANY METADATA: Start with the base identity from 'companies' table
+      const { data: companyMeta } = await supabase.from('companies').select('*').eq('id', companyId).single();
+      if (companyMeta) {
+        finalData.push({
+          category: 'ORGANIZATION',
+          label: companyMeta.name,
+          details: `Industry: ${companyMeta.industry}. Context: ${companyMeta.nlp_context || 'Professional Service'}. Website: ${companyMeta.website_url || 'N/A'}`,
+          type: 'CORE_IDENTITY'
+        });
+      }
 
       for (const table of tablesToTry) {
-        // console.log(`🧠 Attempting to fetch catalogue from table: ${table}`);
         try {
-          // Use a head request or very limited select to minimize logs/bandwidth
-          const { data, error, status } = await supabase.from(table).select('*').limit(50);
-
-          if (error) continue; // Skip if table doesn't exist (404) or other error
+          const { data, error } = await supabase.from(table).select('*').limit(50);
+          if (error) continue;
 
           if (data && data.length > 0) {
-            finalData = data;
-            finalTable = table;
-            console.log(`✅ Success: Found data in "${table}"`);
-            break;
+            finalData = [...finalData, ...data];
+            console.log(`✅ Success: Aggregated data from "${table}"`);
           }
         } catch (e) {
           continue;
         }
       }
 
-      if (!finalData || finalData.length === 0) {
+      if (finalData.length === 0) {
         return `DATA_NOT_FOUND: No service or product information is available in the database for ${companyName}. Verify the table "${vaultTable || tablesToTry[0]}" exists and has active RLS policies.`;
       }
 
-      return finalData.map(item => {
+      // De-duplicate if same items appear in multiple tables
+      const seen = new Set();
+      const uniqueData = finalData.filter(item => {
+        const id = (item.label || item.name || item.title || '') + (item.details || item.description || '');
+        if (!id || seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      });
+
+      return uniqueData.map(item => {
         const timings = item.timings_json ? ` | Timings: ${JSON.stringify(item.timings_json)}` : '';
         const price = item.price_or_fee || item.price ? ` | Price: ${item.price_or_fee || item.price} INR` : '';
         const category = (item.category || item.type || 'INFO').toUpperCase();
