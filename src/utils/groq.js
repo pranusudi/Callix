@@ -17,7 +17,7 @@ export const cleanInternalCommands = (text) => {
     // Remove standalone success/fail leaks
     .replace(/^\s*(SUCCESS|FAILED|COMPLETED|ERROR)\.?\s*$/gim, '')
     // Remove "Thinking" or "Action" crumbs
-    .replace(/(Searching|Booking|Checking|Wait|One moment|Hold on|I'm checking|Let me see|Querying|Processing|Fetching).*?(slots|database|available|appointment|info|table|order|result|data)\.{0,3}/gi, '')
+    .replace(/(Searching|Booking|Checking|Wait|One moment|Hold on|I'm checking|Let me see|Querying|Processing|Fetching|Syncing|Verifying).*?(\.{1,3}|request|database|available|appointment|info|table|order|result|data|slots)/gi, '')
     // Final cleanup
     .replace(/[\[\]]/g, '')
     .replace(/\.\.+/g, '.')
@@ -104,39 +104,36 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
     const userName = companyContext?.userName || storedUser.full_name || storedUser.user_metadata?.full_name || 'Guest';
     const isFirstTurn = (history.length === 0);
 
-    const systemMessage = customSystemMessage || `You are Callix, the professional AI Voice Assistant for ${companyContext?.name || 'this establishment'}.
-    CURRENT DATE: ${dateStr} (${dayName})
-    CURRENT TIME: ${timeStr}
+    const systemMessage = customSystemMessage || `You are Callix, the warm and professional Virtual Receptionist for ${companyContext?.name || 'our business'}.
+    CURRENT DATE: ${dateStr} (${dayName}) | CURRENT TIME: ${timeStr}
     INDUSTRY: ${companyContext?.industry || 'Service'}
+    USER NAME: ${userName}
     
-    MISSION:
-    Provide a premium, helpful, and efficient experience. Always follow the industry context: ${companyContext?.nlpContext || 'Professional service'}.
-
-    CONVERSATION FLOW:
-    1. **Greeting & Introduction**: ${isFirstTurn ? `Start with: "Hello ${userName}, I am Callix, your virtual assistant for ${companyContext?.name}. I can help you with ${companyContext?.industry.toLowerCase().includes('health') ? 'booking appointments and checking doctor availability' : companyContext?.industry.toLowerCase().includes('food') ? 'reserving tables and taking food orders' : 'browsing our services and making bookings'}." THEN, immediately address the user's message/request below.` : 'Continue the professional conversation.'}
-    2. **Service Discovery**: If the user asks for something, first use [QUERY_ENTITY_DATABASE] to see what we offer/available times. Never guess.
-    3. **Information Inquiry**: Before booking, ensure you have the required details (Date, Time, Item/Service Name).
-    4. **Booking/Action**: Use the exact bracketed commands (e.g., [BOOK_APPOINTMENT ...]) to commit to the database.
-    5. **Post-Action Feedback**: AFTER you receive a "SUCCESS" status for a booking/order, you MUST ask: "Since your order/booking is confirmed, how would you rate my service today on a scale of 1 to 5 stars?"
-    6. **Collecting Feedback**: When the user provides a rating (e.g., "5"), you MUST immediately output the bracketed command: [COLLECT_FEEDBACK rating/5]. Do not skip this bracketed command.
-    7. **Response Style**: If the user just says "Hey" or "Hi", reply warmly with your introduction and ask how you can help. Never say "I didn't catch that" for a greeting.
-
-    CRITICAL PROTOCOLS:
-    - **NAME USAGE**: ${isFirstTurn ? `Use ${userName} in the introduction.` : `Do not repeat the user's name frequently; stay concise.`}
-    - **COMMANDS**: Bracketed commands are the ONLY way to update the database. 
-    - **FEEDBACK**: If a user gives a rating (e.g., "5 stars"), immediately trigger [COLLECT_FEEDBACK rating/5].
-    - **FIRST TURN**: Since you are listening first, the user might provide their name or a request immediately. Acknowledge what they said right after your introduction.
+    PERSONALITY:
+    - Warm, polite, and helpful (like a 5-star hotel receptionist).
+    - Use "Sir/Ma'am" or "${userName}" occasionally but naturally.
+    - If the user greets you, respond warmly first.
     
-    CAPABILITIES (USE THESE EXACT BRACKETS):
-    - [QUERY_ENTITY_DATABASE for query] (Find info)
-    - [GET_AVAILABLE_SLOTS for date] (Check timings)
+    CORE RULES:
+    1. **Service Inquiry**: If a user asks what we offer, use [QUERY_ENTITY_DATABASE] and then *summarize* the highlights politely.
+    2. **Booking vs Ordering**: 
+       - "Book a table": Use [BOOK_TABLE]. This is for SEATING.
+       - "Order food": Use [BOOK_ORDER]. This is for PURCHASING items.
+    3. **Details First**: Always confirm Date and Time before using a booking bracket.
+    4. **The "Confirm" Step**: After a user says "Proceed" or "Yes" to a booking summary, you MUST output the bracket command.
+    5. **Post-Action**: After a successful booking (SUCCESS status), say: "Wonderful! Your booking is confirmed. May I ask how you would rate my service today on a scale of 1 to 5 stars?"
+    6. **Collecting Rating**: If the user gives a number (1-5), immediately output: [COLLECT_FEEDBACK rating/5].
+    
+    ACTION BRACKETS (USE EXACTLY):
+    - [QUERY_ENTITY_DATABASE for topic]
+    - [GET_AVAILABLE_SLOTS for date]
     - [BOOK_APPOINTMENT for person on date at time]
     - [BOOK_TABLE for guests on date at time]
     - [BOOK_ORDER for item (price)]
     - [COLLECT_FEEDBACK rating/5]
     - [HANG_UP]
     
-    CRITICAL: Never use curly braces like {tomorrow} in the command. If you lack details, ASK. DO NOT finish a turn without an action bracket if a task is being decided.`;
+    CRITICAL: Never leak "Processing..." or "Searching...". Just provide the natural receptionist response.`;
 
     const messages = [
       { role: 'system', content: systemMessage },
@@ -188,14 +185,14 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
               LATEST_DATA: ${JSON.stringify(result)}. 
               
               CRITICAL INSTRUCTIONS:
-              1. Provide a single natural confirmation in ${companyContext?.currLangName || 'English'}.
-              2. DO NOT repeat the words "SUCCESS", "FAILED", or "LATEST_DATA".
-              3. If a booking was successful, you MUST ask for a 1-5 star rating.
-              4. Max 15 words. Be ultra-concise.`
+              1. Provide a warm, professional receptionist confirmation.
+              2. DO NOT repeat internal keywords.
+              3. If a booking was successful, ask for a 1-5 star rating politely.
+              4. Max 20 words. Be concise but charming.`
             }
           ],
-          temperature: 0, // Zero temperature for total consistency
-          max_tokens: 100
+          temperature: 0.1, // Slight temperature for natural variation
+          max_tokens: 150
         })
       });
 
@@ -261,14 +258,14 @@ const detectIntent = (message, context) => {
     // Try to match standard format: BOOK_TABLE for [guests] on [date] at [time]
     let match = message.match(/BOOK[_\s](?:TABLE|RESERVATION) (?:for )?(.*?) on (.*?) at ([^\n.\r\]]*)/i);
 
-    // Fallback: If only time/date provided, try to extract whatever is there
+    // Fallback: Try different word orders (at [time] on [date] or on [date] at [time])
     if (!match) {
-      const timeMatch = message.match(/at\s+([^\n.\r\]]*)/i);
-      const dateMatch = message.match(/on\s+([^\n.\r\]]*)/i);
-      const guestMatch = message.match(/BOOK[_\s]TABLE (?:for )?(\d+)/i) || message.match(/for (\d+)/i);
+      const timeMatch = message.match(/at\s+([^\n.\r\]]*)/i) || message.match(/(\d{1,2}(?::\d{2})?\s?(?:AM|PM|am|pm))/i);
+      const dateMatch = message.match(/on\s+([^\n.\r\]]*)/i) || message.match(/(today|tomorrow|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/i);
+      const guestMatch = message.match(/for\s+(\d+|one|two|three|four|five|six)/i);
 
       if (timeMatch || dateMatch) {
-        match = [null, guestMatch ? guestMatch[1] : '2', dateMatch ? dateMatch[1] : 'today', timeMatch ? timeMatch[1] : 'TBD'];
+        match = [null, guestMatch ? guestMatch[1] : '2', dateMatch ? (Array.isArray(dateMatch) ? dateMatch[1] : dateMatch) : 'today', timeMatch ? (Array.isArray(timeMatch) ? timeMatch[1] : timeMatch) : 'TBD'];
       }
     }
 
