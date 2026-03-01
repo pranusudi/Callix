@@ -264,19 +264,30 @@ export const database = {
 
   saveFeedback: async (feedback) => {
     console.log('⭐ Saving Universal Feedback:', feedback);
+    // Explicitly mapping to match the schema: company_id, user_email, rating, comment, user_name, industry, company_name
     const payload = {
       company_id: feedback.companyId || feedback.company_id || feedback.entityId,
       company_name: feedback.companyName || feedback.entityName || 'General',
-      user_email: feedback.user_email || feedback.userEmail || 'Guest',
+      user_email: feedback.user_email || feedback.userEmail || (feedback.userName ? '' : 'Guest'),
       user_name: feedback.userName || feedback.user_name || 'Customer',
-      rating: parseInt(feedback.rating),
+      rating: parseInt(feedback.rating) || 5,
       comment: feedback.comment || 'Voice Feedback',
       industry: feedback.industry || 'General'
     };
+
+    // Validation: Supabase will fail if company_id is not a valid UUID
+    if (!payload.company_id || payload.company_id === 'manual') {
+      console.error('❌ Feedback Error: Invalid Company ID (UUID required)');
+      return { error: 'Invalid company identification for feedback storage.' };
+    }
+
     const { data, error } = await supabase.from('feedback').insert([payload]).select();
+
     if (error) {
-      console.error('Feedback DB Error:', error);
+      console.error('❌ Feedback DB Error:', error);
+      // If user_name/company_name/industry columns are somehow missing, fallback to essential fields
       if (error.code === '42703') {
+        console.warn('⚠️ Falling back to legacy feedback schema...');
         const { data: fData, error: fError } = await supabase.from('feedback').insert([{
           company_id: payload.company_id,
           user_email: payload.user_email,
@@ -287,6 +298,8 @@ export const database = {
       }
       return { error: error.message };
     }
+
+    console.log('✅ Feedback Saved Successfully:', data[0]?.id);
     return { ...data[0], success: true };
   },
 

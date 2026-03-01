@@ -35,6 +35,7 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
     const [view, setView] = useState('overview');
     const [loading, setLoading] = useState(true);
     const [bookings, setBookings] = useState([]);
+    const [feedback, setFeedback] = useState([]);
     const [pendingApprovals, setPendingApprovals] = useState([]);
     const [usageStats, setUsageStats] = useState([]);
     const [users, setUsers] = useState([]);
@@ -76,12 +77,14 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
                 { data: stats },
                 { data: companyUsers },
                 { data: bookingsData },
+                { data: feedbackData },
                 { data: registry }
             ] = await Promise.all([
                 database.getCompany(companyId),
                 supabase.from('usage_stats').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
                 supabase.from('profiles').select('*').eq('company_id', companyId),
                 supabase.from('bookings').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
+                supabase.from('feedback').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
                 supabase.from('approval_queue').select('*').eq('company_id', companyId).order('created_at', { ascending: false })
             ]);
 
@@ -89,6 +92,7 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
             setUsageStats(stats || []);
             setUsers(companyUsers || []);
             setBookings(bookingsData || []);
+            setFeedback(feedbackData || []);
             setRegistryData(registry || []);
             setPendingApprovals((registry || []).filter(r => r.status === 'pending'));
 
@@ -274,7 +278,7 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
                                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                     <InsightCard label="Neural Load" value={usageStats.reduce((acc, s) => acc + s.tokens_used, 0).toLocaleString() + " TX"} icon={<TrendingUp size={18} />} color="text-emerald-400" />
                                     <InsightCard label="Sync Bookings" value={bookings.length} icon={<Calendar size={18} />} color="text-indigo-400" />
-                                    <InsightCard label="Uptime State" value="99.99%" icon={<Activity size={18} />} color="text-amber-400" />
+                                    <InsightCard label="Avg Sentiment" value={feedback.length > 0 ? (feedback.reduce((a, b) => a + b.rating, 0) / feedback.length).toFixed(1) + " / 5" : "N/A"} icon={<MessageSquare size={18} />} color="text-amber-400" />
                                     <InsightCard label="Neural Nodes" value={users.length} icon={<Users size={18} />} color="text-rose-400" />
                                 </div>
                                 <div className="bg-[#1E293B]/60 backdrop-blur-sm rounded-[2rem] border border-white/5 p-6 shadow-2xl relative overflow-hidden">
@@ -627,33 +631,64 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-800/30">
-                                            {bookings.length === 0 ? (
+                                            {bookings.length === 0 && feedback.length === 0 ? (
                                                 <tr><td colSpan="4" className="px-6 py-12 text-center text-slate-600 font-black uppercase text-[8px] tracking-[0.4em] italic opacity-30">No Universal Interactions Found</td></tr>
-                                            ) : bookings.map(b => (
-                                                <tr key={b.id} className="hover:bg-indigo-500/5 transition-all group">
-                                                    <td className="px-6 py-4">
-                                                        <div className="font-bold text-slate-300 group-hover:text-white transition-colors truncate max-w-[150px]">{b.user_name || 'Customer'}</div>
-                                                        <div className="text-[7px] text-slate-500 font-bold uppercase tracking-widest">{b.user_email}</div>
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <div className="font-black text-[10px] text-white uppercase tracking-tight">{b.title}</div>
-                                                        <div className="text-[8px] text-indigo-400 font-bold uppercase tracking-widest">{b.sub_title || b.type}</div>
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <div className="text-[10px] font-black text-indigo-400">
-                                                            {b.date && !b.date.includes('{') ? new Date(b.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'SCHEDULED'}
-                                                        </div>
-                                                        <div className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter mt-0.5">
-                                                            {b.time && !b.time.includes('{') ? b.time : 'TIME TBD'}
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-6 py-4 text-right">
-                                                        <span className={`px-4 py-1.5 rounded-full text-[7px] font-black uppercase tracking-widest shadow-sm ${b.status === 'confirmed' || b.status === 'completed' ? 'text-emerald-400 bg-emerald-400/5 border border-emerald-400/20' : 'text-slate-500 bg-slate-800/50 border border-slate-700/50'}`}>
-                                                            {b.status}
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                            ) : (
+                                                <>
+                                                    {bookings.map(b => (
+                                                        <tr key={b.id} className="hover:bg-indigo-500/5 transition-all group">
+                                                            <td className="px-6 py-4">
+                                                                <div className="font-bold text-slate-300 group-hover:text-white transition-colors truncate max-w-[150px]">{b.user_name || 'Customer'}</div>
+                                                                <div className="text-[7px] text-slate-500 font-bold uppercase tracking-widest">{b.user_email}</div>
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <div className="font-black text-[10px] text-white uppercase tracking-tight">{b.title}</div>
+                                                                <div className="text-[8px] text-indigo-400 font-bold uppercase tracking-widest">{b.sub_title || b.type}</div>
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <div className="text-[10px] font-black text-indigo-400">
+                                                                    {b.date && !b.date.includes('{') ? new Date(b.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'SCHEDULED'}
+                                                                </div>
+                                                                <div className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter mt-0.5">
+                                                                    {b.time && !b.time.includes('{') ? b.time : 'TIME TBD'}
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-4 text-right">
+                                                                <span className={`px-4 py-1.5 rounded-full text-[7px] font-black uppercase tracking-widest shadow-sm ${b.status === 'confirmed' || b.status === 'completed' ? 'text-emerald-400 bg-emerald-400/5 border border-emerald-400/20' : 'text-slate-500 bg-slate-800/50 border border-slate-700/50'}`}>
+                                                                    {b.status}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                    {feedback.map(f => (
+                                                        <tr key={f.id} className="hover:bg-amber-500/5 transition-all group border-l-2 border-amber-500/20">
+                                                            <td className="px-6 py-4">
+                                                                <div className="font-bold text-amber-100 group-hover:text-white transition-colors truncate max-w-[150px]">{f.user_name || 'Reviewer'}</div>
+                                                                <div className="text-[7px] text-slate-500 font-bold uppercase tracking-widest">{f.user_email}</div>
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <div className="flex items-center gap-1">
+                                                                    {[...Array(5)].map((_, i) => (
+                                                                        <Star key={i} size={8} className={i < f.rating ? "text-amber-400 fill-amber-400" : "text-slate-800"} />
+                                                                    ))}
+                                                                </div>
+                                                                <div className="text-[8px] text-slate-400 italic mt-1 truncate max-w-[200px]">"{f.comment}"</div>
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <div className="text-[10px] font-black text-amber-400">FEEDBACK</div>
+                                                                <div className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter mt-0.5">
+                                                                    {new Date(f.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-4 text-right">
+                                                                <span className="px-4 py-1.5 rounded-full text-[7px] font-black uppercase tracking-widest shadow-sm text-amber-400 bg-amber-400/5 border border-amber-400/20">
+                                                                    SUBMITTED
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </>
+                                            )}
                                         </tbody>
                                     </table>
                                 </div>
