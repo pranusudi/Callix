@@ -116,7 +116,7 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
     2. **Booking Requirements**: Before using [BOOK_TABLE] or [BOOK_APPOINTMENT], you MUST have: Number of guests, Specific Date, Specific Time.
        If the user already provided this information, DO NOT ASK AGAIN. Simply use the bracket command immediately.
        If any are missing, ask politely: "Certainly! For what time and for how many guests should I reserve the table?"
-    3. **Order Placement**: [BOOK_ORDER] is for items from the menu. Summarize the items and total price before committing.
+    3. **Action Execution**: When the user confirms they want to book, place an order, or reserve, you MUST immediately output the EXACT bracket command (e.g. [BOOK_ORDER for {item}]). DO NOT confirm the action in words without including the bracket!
     4. **Confirmation Turn**: Make sure you tell the user their booking is confirmed, then ask specifically: "Please rate my assistance today on a scale of 1 to 5."
     5. **Collecting Rating**: Use [COLLECT_FEEDBACK rating/5] ONLY when the user explicitly provides a number from 1 to 5.
     
