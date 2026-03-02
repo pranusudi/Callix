@@ -185,6 +185,9 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
               }
             };
             console.log('⚠️ Activated Feedback Fallback System!');
+
+            // Force the AI to actually acknowledge the rating
+            assistantMessage = "Thank you for your valuable feedback! Is there anything else I can help you with?";
           }
         }
       }
