@@ -229,9 +229,9 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
 
       if (['collect_feedback', 'hang_up', 'query_entity_database', 'get_available_slots'].includes(intent.name)) {
         criticalInstructions = `
-              1. Provide a warm, professional receptionist response.
-              2. DO NOT repeat internal keywords or brackets.
-              3. Max 20 words. Be concise but charming.`;
+              - Speak normally to the user as a helpful virtual assistant.
+              - Absolutely NO internal brackets or command data in your response.
+              - Max 20 words. No robotic explanations. Just natural conversation.`;
       }
 
       const finalResponse = await fetchWithRetry(GROQ_API_URL, {
