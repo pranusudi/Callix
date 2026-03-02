@@ -195,7 +195,14 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
 
     if (intent) {
       const sessionId = companyContext?.sessionId || 'default';
-      const actionSignature = `${intent.name}_${JSON.stringify(intent.args)}`;
+
+      // Prevent double feedback if comment wording naturally changes slightly
+      let actionSignature;
+      if (intent.name === 'collect_feedback') {
+        actionSignature = `collect_feedback_session_locked`;
+      } else {
+        actionSignature = `${intent.name}_${JSON.stringify(intent.args)}`;
+      }
 
       if (!sessionActionsMemory.has(sessionId)) {
         sessionActionsMemory.set(sessionId, new Set());
