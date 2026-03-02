@@ -406,17 +406,27 @@ const detectIntent = (message, context) => {
 
   // Order Logic
   if (msg.includes('BOOK_ORDER')) {
-    const match = message.match(/BOOK_ORDER (?:for )?(.*?)(?:\s*[\r\n\]]|$)/i);
+    const match = message.match(/BOOK_ORDER (?:for )?(.*?)(?:\s*[\r\n\]]|$)/i) || message.match(/BOOK_ORDER\s+([^\]]+)\]/i);
+    let item = 'Item';
+    let totalPrice = 999;
+
     if (match) {
       const fullText = match[1].replace(/[\[\]]/g, '').trim();
       const priceMatch = fullText.match(/[₹\$]\s?([\d,]+)/);
-      const totalPrice = priceMatch ? parseInt(priceMatch[1].replace(/,/g, '')) : 0;
-      const item = fullText.split(/[₹\$\(\[]/)[0].trim();
-      return {
-        name: 'book_order',
-        args: { companyId: entityId, entityName, item, totalPrice: totalPrice || 999, customerName: userName, userEmail, industry }
-      };
+      totalPrice = priceMatch ? parseInt(priceMatch[1].replace(/,/g, '')) : 999;
+      item = fullText.split(/[₹\$\(\[]/)[0].trim();
+    } else {
+      // Just extract everything after BOOK_ORDER
+      const fallbackMatch = message.match(/BOOK_ORDER\s+(.*)/i);
+      if (fallbackMatch) {
+        item = fallbackMatch[1].replace(/[\[\]]/g, '').trim().substring(0, 30);
+      }
     }
+
+    return {
+      name: 'book_order',
+      args: { companyId: entityId, entityName, item, totalPrice, customerName: userName, userEmail, industry }
+    };
   }
 
   // Rating Logic (Resilient to spaces and word variety)

@@ -246,11 +246,28 @@ export const database = {
     const { data: b } = await supabase.from('bookings').select('*').eq('user_email', email).order('created_at', { ascending: false });
     const { data: f } = await supabase.from('feedback').select('*').eq('user_email', email).order('created_at', { ascending: false });
 
+    const getTab = (item) => {
+      const ind = (item.metadata?.industry || item.sub_title || '').toLowerCase();
+      const type = (item.booking_type || '').toLowerCase();
+
+      if (ind.includes('health') || ind.includes('hosp') || type === 'doctor') return 'appointments';
+      if (ind.includes('restaur') || ind.includes('food') || type === 'table' || type === 'reservation') return 'reservations';
+      if (ind.includes('commerce') || ind.includes('retail') || type === 'order') return 'orders';
+      if (ind.includes('business') || ind.includes('tech') || ind.includes('it') || type === 'meeting' || type === 'interview') return 'meetings';
+
+      // Fallbacks
+      if (type === 'order') return 'orders';
+      if (type === 'table') return 'reservations';
+      if (type === 'doctor') return 'appointments';
+      if (type === 'interview') return 'meetings';
+      return 'appointments'; // default fallback
+    };
+
     return {
-      appointments: (b || []).filter(item => item.booking_type?.toLowerCase() === 'appointment' || item.booking_type?.toLowerCase() === 'doctor'),
-      reservations: (b || []).filter(item => item.booking_type?.toLowerCase() === 'table' || item.booking_type?.toLowerCase() === 'reservation'),
-      meetings: (b || []).filter(item => item.booking_type?.toLowerCase() === 'meeting' || item.booking_type?.toLowerCase() === 'interview'),
-      orders: (b || []).filter(item => item.booking_type?.toLowerCase() === 'order'),
+      appointments: (b || []).filter(item => getTab(item) === 'appointments'),
+      reservations: (b || []).filter(item => getTab(item) === 'reservations'),
+      meetings: (b || []).filter(item => getTab(item) === 'meetings'),
+      orders: (b || []).filter(item => getTab(item) === 'orders'),
       feedback: f || []
     };
   },
