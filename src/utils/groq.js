@@ -305,7 +305,7 @@ const detectIntent = (message, context) => {
     if (!match) {
       const timeMatch = message.match(/at\s+([^\n.\r\]]*)/i) || message.match(/(\d{1,2}(?::\d{2})?\s?(?:AM|PM|am|pm))/i);
       const dateMatch = message.match(/on\s+([^\n.\r\]]*)/i) || message.match(/(today|tomorrow|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/i);
-      const guestMatch = message.match(/for\s+(\d+|one|two|three|four|five|six)/i);
+      const guestMatch = message.match(/for\s+([\w\d]+)\b/i);
 
       if (timeMatch || dateMatch) {
         match = [null, guestMatch ? guestMatch[1] : '2', dateMatch ? (Array.isArray(dateMatch) ? dateMatch[1] : dateMatch) : 'today', timeMatch ? (Array.isArray(timeMatch) ? timeMatch[1] : timeMatch) : 'TBD'];
