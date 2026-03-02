@@ -89,6 +89,9 @@ const fetchWithRetry = async (url, options, maxRetries = 3) => {
   }
 };
 
+// Cache to prevent duplicate actions in the same session string
+const sessionActionsMemory = new Map();
+
 export const chatWithGroq = async (prompt, history = [], companyContext = null, customSystemMessage = null) => {
   if (API_KEYS.length === 0 && !primaryApiKey) throw new Error('No Groq API keys configured.');
 
@@ -188,6 +191,21 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
     }
 
     if (intent) {
+      const sessionId = companyContext?.sessionId || 'default';
+      const actionSignature = `${intent.name}_${JSON.stringify(intent.args)}`;
+
+      if (!sessionActionsMemory.has(sessionId)) {
+        sessionActionsMemory.set(sessionId, new Set());
+      }
+      const memorySet = sessionActionsMemory.get(sessionId);
+
+      if (memorySet.has(actionSignature) && intent.name !== 'query_entity_database') {
+        console.log('⚠️ Duplicate Intent Prevented in session:', intent.name);
+        return cleanInternalCommands(assistantMessage);
+      }
+
+      memorySet.add(actionSignature);
+
       console.log('🤖 Detected Intent:', (intent.name || 'unknown'), (intent.args || {}));
       const result = await executeAction(intent);
       console.log('🛠 Action Result:', result);
