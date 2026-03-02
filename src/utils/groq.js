@@ -214,6 +214,19 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
       console.log('🛠 Action Result:', result);
 
       // Confirmation turn - Force-focused on the latest result to prevent repetition
+      let criticalInstructions = `
+              1. Provide a warm, professional receptionist confirmation.
+              2. DO NOT repeat internal keywords or brackets.
+              3. If outcome is COMPLETED, you MUST explicitly ask: "Please rate my assistance today from 1 to 5 stars."
+              4. Max 20 words. Be concise but charming.`;
+
+      if (['collect_feedback', 'hang_up', 'query_entity_database', 'get_available_slots'].includes(intent.name)) {
+        criticalInstructions = `
+              1. Provide a warm, professional receptionist response.
+              2. DO NOT repeat internal keywords or brackets.
+              3. Max 20 words. Be concise but charming.`;
+      }
+
       const finalResponse = await fetchWithRetry(GROQ_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -227,11 +240,7 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
               content: `LATEST_TASK_OUTCOME: ${result.success ? 'COMPLETED' : 'ERROR'}. 
               LATEST_DATA: ${JSON.stringify(result)}. 
               
-              CRITICAL INSTRUCTIONS:
-              1. Provide a warm, professional receptionist confirmation.
-              2. DO NOT repeat internal keywords or brackets.
-              3. If outcome is COMPLETED, you MUST explicitly ask: "Please rate my assistance today from 1 to 5 stars."
-              4. Max 20 words. Be concise but charming.`
+              CRITICAL INSTRUCTIONS:${criticalInstructions}`
             }
           ],
           temperature: 0.1, // Slight temperature for natural variation
@@ -239,18 +248,20 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
         })
       });
 
+      const bypassRatingsAppends = ['query_entity_database', 'get_available_slots', 'collect_feedback', 'hang_up'];
+
       if (finalResponse && finalResponse.ok) {
         const finalData = await finalResponse.json();
         const confirmationText = finalData.choices[0]?.message?.content;
         let finalDisplay = cleanInternalCommands(confirmationText) || cleanInternalCommands(assistantMessage);
-        if (result.success && intent.name !== 'query_entity_database' && intent.name !== 'get_available_slots' && !/rate|star|feedback|1 to 5/i.test(finalDisplay)) {
+        if (result.success && !bypassRatingsAppends.includes(intent.name) && !/rate|star|feedback|1 to 5/i.test(finalDisplay)) {
           finalDisplay += " Please rate my assistance today from 1 to 5 stars.";
         }
         return finalDisplay;
       }
 
       let baseFallback = cleanInternalCommands(assistantMessage);
-      if (result.success && intent.name !== 'query_entity_database' && intent.name !== 'get_available_slots' && !/rate|star|feedback|1 to 5/i.test(baseFallback)) {
+      if (result.success && !bypassRatingsAppends.includes(intent.name) && !/rate|star|feedback|1 to 5/i.test(baseFallback)) {
         baseFallback += " Please rate my assistance today from 1 to 5 stars.";
       }
       return baseFallback;
