@@ -212,7 +212,6 @@ const RecordCard = ({ record, type, formatDate, getStatusStyle }) => {
                                     {formatDate(record.date)} {record.time && !record.time.includes('{') && !record.time.includes('?') && record.time.length < 50 ? `• ${record.time}` : ''}
                                 </div>
                             )}
-                            {isOrder && <span className="text-emerald-600 font-black">₹{record.total_price || record.products?.price}</span>}
                             {isFeedback && (
                                 <div className="flex items-center gap-1">
                                     {[...Array(5)].map((_, i) => (

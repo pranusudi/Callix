@@ -291,65 +291,99 @@ const detectIntent = (message, context) => {
     return cleaned || fallback;
   };
 
-  // Appointment Logic (Flexible regex for spaces/underscores)
+  // Appointment Logic
   if (msg.includes('BOOK') && (msg.includes('APPOINTMENT') || msg.includes('DOCTOR') || msg.includes('MEETING'))) {
-    const match = message.match(/BOOK[_\s](?:APPOINTMENT|DOCTOR|MEETING|RECORD) (?:for )?(.*?) on (.*?) at ([^\n.\r\]]*)/i);
-    if (match) {
-      const type = (industry.toLowerCase().includes('health') || industry.toLowerCase().includes('hosp')) ? 'doctor' : 'interview';
-      const pName = cleanArg(match[1], 'General');
-      const dDate = cleanArg(match[2], 'today');
-      const tTime = cleanArg(match[3], 'TBD');
+    let pName = 'General';
+    let dDate = 'today';
+    let tTime = 'TBD';
 
-      return {
-        name: 'book_appointment',
-        args: {
-          entityId, entityName, type, industry,
-          personName: pName,
-          date: dDate,
-          time: tTime,
-          userEmail, userName
-        }
-      };
+    // First, try the strict instructed format
+    let match = message.match(/BOOK[_\s](?:APPOINTMENT|DOCTOR|MEETING|RECORD)\s*(?:for\s+)?(.*?)\s+on\s+(.*?)\s+at\s+([^\n.\r\]]*)/i);
+
+    if (match) {
+      pName = match[1];
+      dDate = match[2];
+      tTime = match[3];
+    } else {
+      // Robust Fallback
+      const cmdMatch = message.match(/BOOK[_\s](?:APPOINTMENT|DOCTOR|MEETING|RECORD)\s+([^\]]+)/i);
+      const detailsStr = cmdMatch ? cmdMatch[1] : message;
+
+      const timeMatch = detailsStr.match(/at\s+([^\s\]]+)/i) || detailsStr.match(/(\d{1,2}(?::\d{2})?\s*(?:AM|PM|am|pm))/i);
+      if (timeMatch) tTime = timeMatch[1].trim();
+
+      const dateMatch = detailsStr.match(/on\s+([^\s\]]+)/i) || detailsStr.match(/(today|tomorrow|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/i);
+      if (dateMatch) dDate = dateMatch[1].trim();
+
+      const personMatch = detailsStr.match(/(?:for\s+)?(.*?)(?:\s+on|\s+at|$|\])/i);
+      if (personMatch) pName = personMatch[1].trim();
     }
+
+    pName = cleanArg(pName, 'General');
+    dDate = cleanArg(dDate, 'today');
+    tTime = cleanArg(tTime, 'TBD');
+
+    const type = (industry.toLowerCase().includes('health') || industry.toLowerCase().includes('hosp')) ? 'doctor' : 'interview';
+
+    return {
+      name: 'book_appointment',
+      args: {
+        entityId, entityName, type, industry,
+        personName: pName,
+        date: dDate,
+        time: tTime,
+        userEmail, userName
+      }
+    };
   }
 
   // Table Logic
   if (msg.includes('BOOK') && (msg.includes('TABLE') || msg.includes('RESERVATION'))) {
-    // Try to match standard format: BOOK_TABLE for [guests] on [date] at [time]
-    let match = message.match(/BOOK[_\s](?:TABLE|RESERVATION) (?:for )?(.*?) on (.*?) at ([^\n.\r\]]*)/i);
+    let gSize = '2';
+    let bDate = 'today';
+    let bTime = 'TBD';
 
-    // Fallback: Try different word orders (at [time] on [date] or on [date] at [time])
-    if (!match) {
-      const timeMatch = message.match(/at\s+([^\n.\r\]]*)/i) || message.match(/(\d{1,2}(?::\d{2})?\s?(?:AM|PM|am|pm))/i);
-      const dateMatch = message.match(/on\s+([^\n.\r\]]*)/i) || message.match(/(today|tomorrow|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/i);
-      const guestMatch = message.match(/for\s+([\w\d]+)\b/i);
-
-      if (timeMatch || dateMatch) {
-        match = [null, guestMatch ? guestMatch[1] : '2', dateMatch ? (Array.isArray(dateMatch) ? dateMatch[1] : dateMatch) : 'today', timeMatch ? (Array.isArray(timeMatch) ? timeMatch[1] : timeMatch) : 'TBD'];
-      }
-    }
+    // First, try the strict instructed format
+    let match = message.match(/BOOK[_\s](?:TABLE|RESERVATION)\s*(?:for\s+)?(.*?)\s+on\s+(.*?)\s+at\s+([^\n.\r\]]*)/i);
 
     if (match) {
-      const gSize = cleanArg(match[1], '2');
-      const bDate = cleanArg(match[2], 'today');
-      const bTime = cleanArg(match[3], 'TBD');
+      gSize = match[1];
+      bDate = match[2];
+      bTime = match[3];
+    } else {
+      // Robust Fallback
+      const cmdMatch = message.match(/BOOK[_\s](?:TABLE|RESERVATION)\s+([^\]]+)/i);
+      const detailsStr = cmdMatch ? cmdMatch[1] : message;
 
-      const finalTitle = gSize.toLowerCase().includes(userName.toLowerCase()) || userName.toLowerCase().includes(gSize.toLowerCase())
-        ? `Table for ${gSize}`
-        : `Table for ${gSize} (${userName})`;
+      const guestMatch = detailsStr.match(/(?:for\s+)?(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s*(?:guests|people|members|persons|pax)?/i) || detailsStr.match(/(\d+)/);
+      if (guestMatch) gSize = guestMatch[1];
 
-      return {
-        name: 'book_appointment',
-        args: {
-          entityId, entityName, type: 'table', industry: 'Food & Beverage',
-          personName: finalTitle,
-          date: bDate,
-          time: bTime,
-          userEmail, userName,
-          relatedId: 'TABLE_TBD'
-        }
-      };
+      const timeMatch = detailsStr.match(/at\s+([^\s\]]+)/i) || detailsStr.match(/(\d{1,2}(?::\d{2})?\s*(?:AM|PM|am|pm))/i);
+      if (timeMatch) bTime = timeMatch[1].trim();
+
+      const dateMatch = detailsStr.match(/on\s+([^\s\]]+)/i) || detailsStr.match(/(today|tomorrow|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/i);
+      if (dateMatch) bDate = dateMatch[1].trim();
     }
+
+    gSize = cleanArg(gSize, '2');
+    bDate = cleanArg(bDate, 'today');
+    bTime = cleanArg(bTime, 'TBD');
+
+    const finalTitle = gSize.toLowerCase().includes(userName.toLowerCase()) || userName.toLowerCase().includes(gSize.toLowerCase())
+      ? `Table for ${gSize}`
+      : `Table for ${gSize} (${userName})`;
+
+    return {
+      name: 'book_appointment',
+      args: {
+        entityId, entityName, type: 'table', industry: 'Food & Beverage',
+        personName: finalTitle,
+        date: bDate,
+        time: bTime,
+        userEmail, userName,
+        relatedId: 'TABLE_TBD'
+      }
+    };
   }
 
   // Order Logic
