@@ -227,8 +227,7 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
       let criticalInstructions = `
               1. Provide a warm, professional receptionist confirmation.
               2. DO NOT repeat internal keywords or brackets.
-              3. If outcome is COMPLETED, you MUST explicitly ask: "Please rate my assistance today from 1 to 5 stars."
-              4. Max 20 words. Be concise but charming.`;
+              3. Max 20 words. Be concise but charming.`;
 
       if (['collect_feedback', 'hang_up', 'query_entity_database', 'get_available_slots'].includes(intent.name)) {
         criticalInstructions = `
@@ -246,8 +245,9 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
             ...messages.slice(-2), // Only give very recent history to prevent "double confirmation" of old tasks
             { role: 'assistant', content: assistantMessage },
             {
-              role: 'system',
-              content: `LATEST_TASK_OUTCOME: ${result.success ? 'COMPLETED' : 'ERROR'}. 
+              role: 'user',
+              content: `[SYSTEM ALERT: TASK EXECUTION LOG]
+              LATEST_TASK_OUTCOME: ${result.success ? 'COMPLETED' : 'ERROR'}. 
               LATEST_DATA: ${JSON.stringify(result)}. 
               
               CRITICAL INSTRUCTIONS:${criticalInstructions}`
