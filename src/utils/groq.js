@@ -89,8 +89,11 @@ const fetchWithRetry = async (url, options, maxRetries = 3) => {
   }
 };
 
-// Cache to prevent duplicate actions in the same session string
-const sessionActionsMemory = new Map();
+// Cache to prevent duplicate actions in the same session string (Persistant across Vite HMR)
+const sessionActionsMemory = typeof window !== 'undefined' && window.__sessionActionsMemory
+  ? window.__sessionActionsMemory
+  : new Map();
+if (typeof window !== 'undefined') window.__sessionActionsMemory = sessionActionsMemory;
 
 export const chatWithGroq = async (prompt, history = [], companyContext = null, customSystemMessage = null) => {
   if (API_KEYS.length === 0 && !primaryApiKey) throw new Error('No Groq API keys configured.');
@@ -301,7 +304,7 @@ const detectIntent = (message, context) => {
   // Helper to clean extracted values from leaks/placeholders
   const cleanArg = (val, fallback = '') => {
     if (!val) return fallback;
-    let cleaned = val.replace(/[\[\]{}]/g, '').trim();
+    let cleaned = val.replace(/[\[\]{}"']/g, '').replace(/(?:dish|item|name|product|title|guest|guests):\s*/gi, '').trim();
     const low = cleaned.toLowerCase();
     // Detect dummy placeholders
     if (low.includes('available time') || low.includes('any time') || low.includes('select time') || low.includes('tbd')) return fallback;
@@ -411,7 +414,7 @@ const detectIntent = (message, context) => {
     let totalPrice = 999;
 
     if (match) {
-      const fullText = match[1].replace(/[\[\]]/g, '').trim();
+      let fullText = match[1].replace(/[\[\]{}"']/g, '').replace(/(?:dish|item|name|product|title):\s*/gi, '').trim();
       const priceMatch = fullText.match(/[₹\$]\s?([\d,]+)/);
       totalPrice = priceMatch ? parseInt(priceMatch[1].replace(/,/g, '')) : 999;
       item = fullText.split(/[₹\$\(\[]/)[0].trim();

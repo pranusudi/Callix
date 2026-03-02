@@ -194,11 +194,11 @@ const RecordCard = ({ record, type, formatDate, getStatusStyle }) => {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <h3 className="font-black text-slate-900 text-lg tracking-tight truncate">
-                            {(record.title || (isHospital ? (record.doctors?.doctor_name || 'Medical Specialist') :
+                            {String(record.title || (isHospital ? (record.doctors?.doctor_name || 'Medical Specialist') :
                                 isRestaurant ? (`Table #${record.restaurant_tables?.table_number || 'TBD'}`) :
                                     isBusiness ? (record.staff?.name || 'HR/Manager Meeting') :
                                         isOrder ? (record.products?.name || 'E-Commerce Item') :
-                                            `Feedback Rating`)).replace(/[\[\]{}]/g, '')}
+                                            `Feedback Rating`)).replace(/[\[\]{}"']/g, '').replace(/(?:dish|item|name|product|title|guest|guests):\s*/gi, '').trim()}
                         </h3>
                         {record.company_name && (
                             <p className="text-[10px] font-black text-[#000080] uppercase tracking-widest opacity-70 mb-1">
