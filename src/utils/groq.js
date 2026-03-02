@@ -201,7 +201,7 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
 
       if (memorySet.has(actionSignature) && intent.name !== 'query_entity_database') {
         console.log('⚠️ Duplicate Intent Prevented in session:', intent.name);
-        return cleanInternalCommands(assistantMessage);
+        return cleanInternalCommands(assistantMessage) || "I've carefully noted those details for you. Is there anything else you need assistance with?";
       }
 
       memorySet.add(actionSignature);

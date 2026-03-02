@@ -558,7 +558,7 @@ Customer Name: ${latestName}`;
 
       const rawResponse = await chatWithGroq(
         `User Message: ${message}`,
-        currentMessages.map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', text: m.text })),
+        currentMessages.map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', text: m.rawText || m.text })),
         { ...selectedCompany, userName: latestName, userEmail, sessionId, currLangCode: curLang.code, currLangName: curLang.name },
         systemPrompt
       );
@@ -567,7 +567,7 @@ Customer Name: ${latestName}`;
       setIsThinking(false);
 
       const finalDisplay = cleanInternalCommands(rawResponse) || "Processing your request...";
-      addMessage('agent', finalDisplay);
+      addMessage('agent', finalDisplay, rawResponse);
 
       const shouldTerminate = rawResponse.toUpperCase().includes('HANG_UP');
       await speak(finalDisplay, curLang.code, shouldTerminate);
@@ -585,8 +585,8 @@ Customer Name: ${latestName}`;
     }
   };
 
-  const addMessage = (sender, text) => {
-    setMessages(prev => [...prev, { sender, text, timestamp: new Date() }]);
+  const addMessage = (sender, text, rawText = null) => {
+    setMessages(prev => [...prev, { sender, text, rawText: rawText || text, timestamp: new Date() }]);
   };
 
   const speak = (text, languageCode, shouldTerminate = false) => {
