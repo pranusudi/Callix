@@ -198,7 +198,7 @@ const RecordCard = ({ record, type, formatDate, getStatusStyle }) => {
                                 isRestaurant ? (`Table #${record.restaurant_tables?.table_number || 'TBD'}`) :
                                     isBusiness ? (record.staff?.name || 'HR/Manager Meeting') :
                                         isOrder ? (record.products?.name || 'E-Commerce Item') :
-                                            `Feedback Rating`)).replace(/[\[\]{}"']/g, '').replace(/(?:dish|item|name|product|title|guest|guests):\s*/gi, '').trim()}
+                                            `Feedback Rating`)).replace(/[\[\]{}"']/g, '').replace(/(?:dish|item|name|product|title|guest|guests):\s*/gi, '').replace(/\(Johnson\)/gi, '').trim() || 'Reservation'}
                         </h3>
                         {record.company_name && (
                             <p className="text-[10px] font-black text-[#000080] uppercase tracking-widest opacity-70 mb-1">
