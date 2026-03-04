@@ -336,6 +336,8 @@ export const database = {
 
       const snakeName = cleanedName.replace(/\s+/g, '_');
       const fullSnakeName = name.replace(/^the\s+/g, '').replace(/\s+/g, '_').replace(/[\s-]+/g, '_');
+      const noSpaceName = cleanedName.replace(/\s+/g, '');
+      const fullNoSpaceName = name.replace(/^the\s+/g, '').replace(/[\s-]/g, '');
 
       // 1. DISCOVERY: Find every table name this company has ever used in the Knowledge Studio
       const { data: registry } = await supabase
@@ -353,7 +355,14 @@ export const database = {
         `${snakeName}_products`,
         `${snakeName}_services`,
         `${fullSnakeName}_vault`,
-        `${fullSnakeName}_menu`
+        `${fullSnakeName}_menu`,
+        `${noSpaceName}_vault`,
+        `${noSpaceName}_menu`,
+        `${noSpaceName}_catalogue`,
+        `${noSpaceName}_products`,
+        `${noSpaceName}_services`,
+        `${fullNoSpaceName}_vault`,
+        `${fullNoSpaceName}_menu`
       ];
 
       // 3. LEGACY: Hardcoded mappings (Absolute Truth for known companies)
@@ -365,13 +374,25 @@ export const database = {
       else if (name.includes('aroma')) vaultTable = 'aroma_menu';
       else if (name.includes('city')) vaultTable = 'city_general_vault';
 
-      // 4. MERGE: Create a unique prioritized list of tables to scan
+      // 4. DYNAMIC POSTGRES RPC: If the user added an RPC to dynamically list tables
+      let rpcTables = [];
+      try {
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_company_tables', { prefix: snakeName });
+        if (!rpcError && rpcData) {
+          rpcTables = rpcData.map(t => t.table_name);
+        }
+      } catch (e) {
+        // RPC might not exist, ignore and fallback
+      }
+
+      // 5. MERGE: Create a unique prioritized list of tables to scan
       const tablesToTry = [...new Set([
         vaultTable,
-        ...registeredTables
+        ...registeredTables,
+        ...rpcTables
       ])].filter(Boolean);
 
-      // Add dynamic patterns ONLY if we haven't found a vaultTable or registeredTable
+      // Add dynamic patterns ONLY if we haven't found any known table
       if (tablesToTry.length === 0) {
         tablesToTry.push(...new Set([
           `${snakeName}_menu`,
