@@ -37,7 +37,7 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
   };
 
   const extractNameFromMessage = (message) => {
-    let extractedName = 'Guest';
+    let extractedName = null;
     const cleanMsg = message.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "").trim();
     const nameMatch = cleanMsg.match(/(?:name is|i am|i'm|call me|this is|my name is) ([a-zA-Z]+)/i);
 
@@ -47,7 +47,7 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
       const ignoreList = [
         'hi', 'hello', 'hey', 'my', 'name', 'is', 'the', 'a', 'an', 'yeah', 'yes', 'i', 'am', 'im',
         'నమస్కారం', 'పేరు', 'నా', 'నాకు', 'నేను', 'naa', 'na', 'naperu',
-        'नमस्ते', 'नाम', 'मेरा', 'मै', 'हूँ', 'mera', 'naam'
+        'नमस्ते', 'नाम', 'मेरा', 'मै', 'हूँ', 'mera', 'naam', 'book', 'table', 'appointment'
       ];
 
       const words = cleanMsg.split(/\s+/).filter(w => {
@@ -57,7 +57,7 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
 
       if (words.length > 0) {
         const capWords = words.filter(w => w[0] === w[0].toUpperCase() && /[a-zA-Z]/.test(w[0]) && w.length > 1);
-        extractedName = capWords.length > 0 ? capWords[capWords.length - 1] : words[words.length - 1];
+        if (capWords.length > 0) extractedName = capWords[capWords.length - 1];
       }
     }
     return extractedName;
@@ -484,11 +484,12 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
 
       if (curPhase === 'onboarding') {
         const extractedName = extractNameFromMessage(message);
-        setUserName(extractedName);
+        const nextName = extractedName || curName || 'Guest';
+        setUserName(nextName);
         setConvoPhase('chatting');
-        stateRef.current.userName = extractedName;
+        stateRef.current.userName = nextName;
         stateRef.current.convoPhase = 'chatting';
-        message = `${message} [SYSTEM: User name discovered as ${extractedName}]`;
+        message = `${message} [SYSTEM: User name discovered as ${nextName}]`;
       }
 
       // Main AI Flow starts here
