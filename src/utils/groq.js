@@ -411,8 +411,6 @@ const detectIntent = (message, context) => {
   if (msg.includes('BOOK_ORDER')) {
     const match = message.match(/BOOK_ORDER (?:for )?(.*?)(?:\s*[\r\n\]]|$)/i) || message.match(/BOOK_ORDER\s+([^\]]+)\]/i);
     let item = 'Item';
-    let totalPrice = 999;
-
     if (match) {
       let fullText = match[1].replace(/[\[\]{}"']/g, '').replace(/(?:dish|item|name|product|title):\s*/gi, '').trim();
       const priceMatch = fullText.match(/[₹\$]\s?([\d,]+)/);
