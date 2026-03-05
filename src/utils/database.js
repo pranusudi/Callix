@@ -105,10 +105,16 @@ export const database = {
   signIn: async (email, password) => {
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
     if (!authError && authData.user) {
-      const { data: profile } = await supabase.from('profiles').select('*').eq('id', authData.user.id).single();
-      if (profile?.status === 'pending') throw new Error('Account awaiting approval.');
-      if (profile?.status === 'suspended') throw new Error('Account suspended.');
-      return { ...authData.user, profile };
+      try {
+        const { data: profile, error: pError } = await supabase.from('profiles').select('*').eq('id', authData.user.id).single();
+        if (pError) console.warn('Profile fetch failed:', pError.message);
+        if (profile?.status === 'pending') throw new Error('Account awaiting approval.');
+        if (profile?.status === 'suspended') throw new Error('Account suspended.');
+        return { ...authData.user, profile: profile || { role: 'user', full_name: authData.user.user_metadata?.full_name } };
+      } catch (err) {
+        console.warn('Handling profile error:', err.message);
+        return { ...authData.user, profile: { role: 'user', full_name: authData.user.user_metadata?.full_name } };
+      }
     }
     if (authError && (authError.message.includes('fetch') || authError.message.includes('timeout'))) {
       const role = email.includes('super') ? 'superadmin' : (email.includes('admin') ? 'admin' : 'user');
@@ -163,53 +169,105 @@ export const database = {
     console.log('📦 Saving Universal Order:', order);
     const payload = {
       company_id: order.companyId || order.company_id || order.entityId,
+      company_name: order.companyName || order.entityName || 'General',
       user_email: order.userEmail || order.user_email,
       user_name: order.customerName || order.user_name || order.userName || 'Customer',
       booking_type: 'Order',
       target_item: order.item || 'Generic Item',
       title: order.item || 'E-Commerce Order',
       sub_title: order.industry || 'Purchase',
+      context: `Ordered: ${order.item || 'Item'} for ${order.totalPrice || 0} INR. Industry: ${order.industry || 'Other'}`,
       date: new Date().toISOString().split('T')[0],
       time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
       status: 'completed',
       total_price: order.totalPrice || order.price || 0,
-      currency: 'INR'
+      currency: 'INR',
+      metadata: { source: 'AI_AGENT', industry: order.industry }
     };
 
     const { data, error } = await supabase.from('bookings').insert([payload]).select();
-    if (error) console.error('Booking DB Error:', error);
-    return error ? { error: error.message } : { ...data[0], success: true };
+    if (error) {
+      console.error('Booking DB Error:', error);
+      // Fallback for older schema
+      if (error.code === '42703') {
+        const { data: fallbackData, error: fallbackError } = await supabase.from('bookings').insert([{
+          company_id: payload.company_id,
+          user_email: payload.user_email,
+          date: payload.date,
+          time: payload.time,
+          status: payload.status
+        }]).select();
+        return fallbackError ? { error: fallbackError.message } : { ...fallbackData[0], success: true };
+      }
+      return { error: error.message };
+    }
+    return { ...data[0], success: true };
   },
 
   saveAppointment: async (appointment) => {
     console.log('📅 Saving Universal Booking:', appointment);
     const payload = {
       company_id: appointment.companyId || appointment.company_id || appointment.entityId,
+      company_name: appointment.companyName || appointment.entityName || 'General',
       user_email: appointment.userEmail || appointment.user_email,
       user_name: appointment.userName || appointment.user_name || 'Customer',
       booking_type: appointment.type || 'Appointment',
       target_item: appointment.personName || appointment.item || 'General',
       title: appointment.personName || appointment.item || 'Generic Appointment',
       sub_title: appointment.type || appointment.industry || 'Activity',
+      context: `Booked ${appointment.type || 'Appointment'} with ${appointment.personName || 'N/A'} on ${appointment.date} at ${appointment.time}.`,
       date: appointment.date || new Date().toISOString().split('T')[0],
       time: appointment.time || 'TBD',
-      status: 'scheduled'
+      status: 'scheduled',
+      metadata: { source: 'AI_AGENT', industry: appointment.industry }
     };
 
+    if (appointment.doctorId) payload.doctor_id = appointment.doctorId;
+
     const { data, error } = await supabase.from('bookings').insert([payload]).select();
-    if (error) console.error('Booking DB Error:', error);
-    return error ? { error: error.message } : { ...data[0], success: true };
+    if (error) {
+      console.error('Booking DB Error:', error);
+      if (error.code === '42703') {
+        const { data: fallbackData, error: fallbackError } = await supabase.from('bookings').insert([{
+          company_id: payload.company_id,
+          user_email: payload.user_email,
+          date: payload.date,
+          time: payload.time,
+          status: payload.status
+        }]).select();
+        return fallbackError ? { error: fallbackError.message } : { ...fallbackData[0], success: true };
+      }
+      return { error: error.message };
+    }
+    return { ...data[0], success: true };
   },
 
   getUserData: async (email) => {
     const { data: b } = await supabase.from('bookings').select('*').eq('user_email', email).order('created_at', { ascending: false });
     const { data: f } = await supabase.from('feedback').select('*').eq('user_email', email).order('created_at', { ascending: false });
 
+    const getTab = (item) => {
+      const ind = (item.metadata?.industry || item.sub_title || '').toLowerCase();
+      const type = (item.booking_type || '').toLowerCase();
+
+      if (ind.includes('health') || ind.includes('hosp') || type === 'doctor') return 'appointments';
+      if (ind.includes('restaur') || ind.includes('food') || type === 'table' || type === 'reservation') return 'reservations';
+      if (ind.includes('commerce') || ind.includes('retail') || type === 'order') return 'orders';
+      if (ind.includes('business') || ind.includes('tech') || ind.includes('it') || type === 'meeting' || type === 'interview') return 'meetings';
+
+      // Fallbacks
+      if (type === 'order') return 'orders';
+      if (type === 'table') return 'reservations';
+      if (type === 'doctor') return 'appointments';
+      if (type === 'interview') return 'meetings';
+      return 'appointments'; // default fallback
+    };
+
     return {
-      appointments: (b || []).filter(item => item.booking_type?.toLowerCase() === 'appointment' || item.booking_type?.toLowerCase() === 'doctor'),
-      reservations: (b || []).filter(item => item.booking_type?.toLowerCase() === 'table' || item.booking_type?.toLowerCase() === 'reservation'),
-      meetings: (b || []).filter(item => item.booking_type?.toLowerCase() === 'meeting' || item.booking_type?.toLowerCase() === 'interview'),
-      orders: (b || []).filter(item => item.booking_type?.toLowerCase() === 'order'),
+      appointments: (b || []).filter(item => getTab(item) === 'appointments'),
+      reservations: (b || []).filter(item => getTab(item) === 'reservations'),
+      meetings: (b || []).filter(item => getTab(item) === 'meetings'),
+      orders: (b || []).filter(item => getTab(item) === 'orders'),
       feedback: f || []
     };
   },
@@ -223,17 +281,48 @@ export const database = {
 
   saveFeedback: async (feedback) => {
     console.log('⭐ Saving Universal Feedback:', feedback);
+    // Explicitly mapping to match the schema: company_id, user_email, rating, comment, user_name, industry, company_name
     const payload = {
       company_id: feedback.companyId || feedback.company_id || feedback.entityId,
-      user_email: feedback.user_email || feedback.userEmail || 'Guest',
+      company_name: feedback.companyName || feedback.entityName || 'General',
+      user_email: feedback.user_email || feedback.userEmail || (feedback.userName ? '' : 'Guest'),
       user_name: feedback.userName || feedback.user_name || 'Customer',
-      rating: parseInt(feedback.rating),
+      rating: parseInt(feedback.rating) || 5,
       comment: feedback.comment || 'Voice Feedback',
       industry: feedback.industry || 'General'
     };
+
+    // Validation: Supabase will fail if company_id is not a valid UUID
+    if (!payload.company_id || payload.company_id === 'manual') {
+      console.error('❌ Feedback Error: Invalid Company ID (UUID required)');
+      return { error: 'Invalid company identification for feedback storage.' };
+    }
+
     const { data, error } = await supabase.from('feedback').insert([payload]).select();
-    if (error) console.error('Feedback DB Error:', error);
-    return error ? { error: error.message } : { ...data[0], success: true };
+
+    if (error) {
+      console.error('❌ Supabase Feedback Error (Full):', error);
+      // If user_name/company_name/industry columns are somehow missing, fallback to essential fields
+      if (error.code === '42703' || error.message?.includes('column')) {
+        console.warn('⚠️ Column missing, trying minimal feedback insert...');
+        const { data: fData, error: fError } = await supabase.from('feedback').insert([{
+          company_id: payload.company_id,
+          user_email: payload.user_email,
+          rating: payload.rating,
+          comment: payload.comment
+        }]).select();
+
+        if (fError) {
+          console.error('❌ Minimal Feedback Insert also FAILED:', fError);
+          return { error: fError.message };
+        }
+        return { ...fData[0] || {}, success: true };
+      }
+      return { error: error.message };
+    }
+
+    console.log('✅ Feedback Saved Successfully:', data[0]?.id);
+    return { ...data[0], success: true };
   },
 
   getLiveCatalogue: async (companyId, companyName) => {
@@ -241,12 +330,14 @@ export const database = {
       const name = companyName.toLowerCase();
       // Clean name: remove common suffixes like "Pvt Ltd", "Corporation", etc.
       const cleanedName = name
-        .replace(/\s+(pvt\s+ltd|ltd|inc|corp|corporation|llp|solutions|hospital|electronics).*/g, '')
+        .replace(/\s+(pvt\s+ltd|ltd|inc|corp|corporation|llp|solutions|hospital|electronics|foodcourt|resort|clinic).*/g, '')
         .replace(/^the\s+/g, '')
         .trim();
 
       const snakeName = cleanedName.replace(/\s+/g, '_');
-      const fullSnakeName = name.replace(/^the\s+/g, '').replace(/\s+/g, '_');
+      const fullSnakeName = name.replace(/^the\s+/g, '').replace(/\s+/g, '_').replace(/[\s-]+/g, '_');
+      const noSpaceName = cleanedName.replace(/\s+/g, '');
+      const fullNoSpaceName = name.replace(/^the\s+/g, '').replace(/[\s-]/g, '');
 
       // 1. DISCOVERY: Find every table name this company has ever used in the Knowledge Studio
       const { data: registry } = await supabase
@@ -264,52 +355,95 @@ export const database = {
         `${snakeName}_products`,
         `${snakeName}_services`,
         `${fullSnakeName}_vault`,
-        `${fullSnakeName}_menu`
+        `${fullSnakeName}_menu`,
+        `${noSpaceName}_vault`,
+        `${noSpaceName}_menu`,
+        `${noSpaceName}_catalogue`,
+        `${noSpaceName}_products`,
+        `${noSpaceName}_services`,
+        `${fullNoSpaceName}_vault`,
+        `${fullNoSpaceName}_menu`
       ];
 
-      // 3. LEGACY: Hardcoded mappings (for safety)
+      // 3. LEGACY: Hardcoded mappings (Absolute Truth for known companies)
       let vaultTable = '';
       if (name.includes('aarogya')) vaultTable = 'aarogya_hospital_vault';
-      else if (name.includes('city')) vaultTable = 'city_general_vault';
       else if (name.includes('technova')) vaultTable = 'technova_solutions_vault';
       else if (name.includes('spice')) vaultTable = 'spice_garden_vault';
       else if (name.includes('quickkart')) vaultTable = 'quickkart_electronics_vault';
       else if (name.includes('aroma')) vaultTable = 'aroma_menu';
+      else if (name.includes('city')) vaultTable = 'city_general_vault';
 
-      // 4. MERGE: Create a unique prioritized list of tables to scan
+      // 4. DYNAMIC POSTGRES RPC: If the user added an RPC to dynamically list tables
+      let rpcTables = [];
+      try {
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_company_tables', { prefix: snakeName });
+        if (!rpcError && rpcData) {
+          rpcTables = rpcData.map(t => t.table_name);
+        }
+      } catch (e) {
+        // RPC might not exist, ignore and fallback
+      }
+
+      // 5. MERGE: Create a unique prioritized list of tables to scan
       const tablesToTry = [...new Set([
+        vaultTable,
         ...registeredTables,
-        ...dynamicPatterns,
-        vaultTable
+        ...rpcTables
       ])].filter(Boolean);
 
-      let finalData = null;
-      let finalTable = '';
+      // Add dynamic patterns ONLY if we haven't found any known table
+      if (tablesToTry.length === 0) {
+        tablesToTry.push(...new Set([
+          `${snakeName}_menu`,
+          `${snakeName}_vault`,
+          `${snakeName}_catalogue`,
+          `${fullSnakeName}_menu`,
+          ...dynamicPatterns
+        ]));
+      }
+
+      let finalData = [];
+
+      // 0. CORE COMPANY METADATA: Start with the base identity from 'companies' table
+      const { data: companyMeta } = await supabase.from('companies').select('*').eq('id', companyId).single();
+      if (companyMeta) {
+        finalData.push({
+          category: 'ORGANIZATION',
+          label: companyMeta.name,
+          details: `Industry: ${companyMeta.industry}. Context: ${companyMeta.nlp_context || 'Professional Service'}. Website: ${companyMeta.website_url || 'N/A'}`,
+          type: 'CORE_IDENTITY'
+        });
+      }
 
       for (const table of tablesToTry) {
-        console.log(`🧠 Attempting to fetch catalogue from table: ${table}`);
-        const { data, error, status } = await supabase.from(table).select('*').limit(100);
+        try {
+          const { data, error } = await supabase.from(table).select('*').limit(50);
+          if (error) continue;
 
-        if (error) {
-          if (status === 403 || error.code === '42501') {
-            console.error(`🛑 PERMISSION DENIED: Table "${table}" found but RLS is blocking access. Please add a SELECT policy in Supabase for the 'anon' role.`);
+          if (data && data.length > 0) {
+            finalData = [...finalData, ...data];
+            console.log(`✅ Success: Aggregated data from "${table}"`);
           }
+        } catch (e) {
           continue;
-        }
-
-        if (data && data.length > 0) {
-          finalData = data;
-          finalTable = table;
-          console.log(`✅ Success: Found data in "${table}"`);
-          break;
         }
       }
 
-      if (!finalData || finalData.length === 0) {
+      if (finalData.length === 0) {
         return `DATA_NOT_FOUND: No service or product information is available in the database for ${companyName}. Verify the table "${vaultTable || tablesToTry[0]}" exists and has active RLS policies.`;
       }
 
-      return finalData.map(item => {
+      // De-duplicate if same items appear in multiple tables
+      const seen = new Set();
+      const uniqueData = finalData.filter(item => {
+        const id = (item.label || item.name || item.title || '') + (item.details || item.description || '');
+        if (!id || seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      });
+
+      return uniqueData.map(item => {
         const timings = item.timings_json ? ` | Timings: ${JSON.stringify(item.timings_json)}` : '';
         const price = item.price_or_fee || item.price ? ` | Price: ${item.price_or_fee || item.price} INR` : '';
         const category = (item.category || item.type || 'INFO').toUpperCase();

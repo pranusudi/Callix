@@ -46,8 +46,10 @@ const UserDashboard = ({ user, onClose, onLogout, addToast }) => {
 
     const formatDate = (dateString) => {
         if (!dateString) return 'N/A';
-        const date = new Date(dateString);
-        return isNaN(date.getTime()) ? dateString : date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        // Clean placeholders like {tomorrow}
+        const cleaned = dateString.replace(/[\[\]{}]/g, '');
+        const date = new Date(cleaned);
+        return isNaN(date.getTime()) ? cleaned : date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
     };
 
     const getStatusStyle = (status) => {
@@ -130,18 +132,7 @@ const UserDashboard = ({ user, onClose, onLogout, addToast }) => {
 
                 <main className="flex-1 overflow-y-auto p-4 bg-[#F8FAFC]">
                     <div className="max-w-4xl mx-auto">
-                        <div className="mb-6 p-4 rounded-[24px] bg-gradient-to-br from-[#000080] to-[#4338CA] text-white shadow-xl relative overflow-hidden">
-                            <div className="relative z-10">
-                                <h1 className="text-xl font-black mb-1 tracking-tighter">
-                                    Welcome Back, {(user?.profile?.full_name || user?.user_metadata?.full_name || 'User').split(' ')[0]}!
-                                </h1>
-                                <p className="text-white/70 font-bold text-[10px] max-w-sm">Agent processed {Object.values(data).flat().length} updates for you.</p>
-                                <div className="flex items-center mt-4 space-x-2">
-                                    <button onClick={loadUserData} className="px-4 py-2 bg-white text-[#000080] rounded-lg text-[9px] font-black shadow-md hover:scale-105 transition-all">Sync Now</button>
-                                </div>
-                            </div>
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-8 translate-x-12 blur-2xl"></div>
-                        </div>
+
 
                         <AnimatePresence mode="wait">
                             <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
@@ -203,20 +194,24 @@ const RecordCard = ({ record, type, formatDate, getStatusStyle }) => {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <h3 className="font-black text-slate-900 text-lg tracking-tight truncate">
-                            {record.title || (isHospital ? (record.doctors?.doctor_name || 'Medical Specialist') :
+                            {String(record.title || (isHospital ? (record.doctors?.doctor_name || 'Medical Specialist') :
                                 isRestaurant ? (`Table #${record.restaurant_tables?.table_number || 'TBD'}`) :
                                     isBusiness ? (record.staff?.name || 'HR/Manager Meeting') :
                                         isOrder ? (record.products?.name || 'E-Commerce Item') :
-                                            `Feedback Rating`)}
+                                            `Feedback Rating`)).replace(/[\[\]{}"']/g, '').replace(/(?:dish|item|name|product|title|guest|guests):\s*/gi, '').replace(/\s*\([^)]+\)/g, '').trim() || 'Reservation'}
                         </h3>
+                        {record.company_name && (
+                            <p className="text-[10px] font-black text-[#000080] uppercase tracking-widest opacity-70 mb-1">
+                                {record.company_name}
+                            </p>
+                        )}
                         <div className="flex items-center gap-4 text-xs font-bold text-slate-400 mt-1">
-                            {record.date && (
+                            {record.date && !record.date.includes('{') && !record.date.includes('?') && record.date.length < 50 && (
                                 <div className="flex items-center">
                                     <Clock size={14} className="mr-1.5" />
-                                    {formatDate(record.date)} • {record.time}
+                                    {formatDate(record.date)} {record.time && !record.time.includes('{') && !record.time.includes('?') && record.time.length < 50 ? `• ${record.time}` : ''}
                                 </div>
                             )}
-                            {isOrder && <span className="text-emerald-600 font-black">₹{record.total_price || record.products?.price}</span>}
                             {isFeedback && (
                                 <div className="flex items-center gap-1">
                                     {[...Array(5)].map((_, i) => (

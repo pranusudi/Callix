@@ -37,7 +37,7 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
   };
 
   const extractNameFromMessage = (message) => {
-    let extractedName = 'Guest';
+    let extractedName = null;
     const cleanMsg = message.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "").trim();
     const nameMatch = cleanMsg.match(/(?:name is|i am|i'm|call me|this is|my name is) ([a-zA-Z]+)/i);
 
@@ -47,7 +47,7 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
       const ignoreList = [
         'hi', 'hello', 'hey', 'my', 'name', 'is', 'the', 'a', 'an', 'yeah', 'yes', 'i', 'am', 'im',
         'నమస్కారం', 'పేరు', 'నా', 'నాకు', 'నేను', 'naa', 'na', 'naperu',
-        'नमस्ते', 'नाम', 'मेरा', 'मै', 'हूँ', 'mera', 'naam'
+        'नमस्ते', 'नाम', 'मेरा', 'मै', 'हूँ', 'mera', 'naam', 'book', 'table', 'appointment'
       ];
 
       const words = cleanMsg.split(/\s+/).filter(w => {
@@ -57,7 +57,7 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
 
       if (words.length > 0) {
         const capWords = words.filter(w => w[0] === w[0].toUpperCase() && /[a-zA-Z]/.test(w[0]) && w.length > 1);
-        extractedName = capWords.length > 0 ? capWords[capWords.length - 1] : words[words.length - 1];
+        if (capWords.length > 0) extractedName = capWords[capWords.length - 1];
       }
     }
     return extractedName;
@@ -209,12 +209,18 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
         setIsProcessing(true);
         try {
           setIsTranscribing(true);
+          // Try to transcribe with current language
           let text = await sttService.transcribe(audioBlob, curLang.code);
           console.log(`🎤 STT Result: "${text}"`);
 
           setIsTranscribing(false);
 
-          if (text && text.trim().length > 1) {
+          // Only process if it's more than a single short word or noise
+          const cleanText = (text || "").trim().toLowerCase();
+          if (cleanText.length > 2 && !['hi', 'hello', 'hey', 'yes', 'no'].includes(cleanText)) {
+            await handleUserMessage(text, true);
+          } else if (cleanText.length > 0) {
+            // Short greeting/affirmation - process normally
             await handleUserMessage(text, true);
           } else {
             setIsProcessing(false);
@@ -284,7 +290,7 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
             const volume = currentDataArray.reduce((num, i) => num + i) / currentDataArray.length;
             setPulseScale(1 + (volume / 255) * 0.4);
 
-            const isTalking = volume > 15;
+            const isTalking = volume > 15; // Reverted to 15
             setIsUserTalking(isTalking);
 
             if (isTalking) {
@@ -303,7 +309,7 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
                     mediaRecorderRef.current.stop();
                   }
                   silenceTimerRef.current = null;
-                }, 1200);
+                }, 1200); // Reverted to 1200ms
               }
             }
           }
@@ -434,7 +440,7 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
     let compKey = 'default';
 
     if (name.includes('hospital') || name.includes('aarogya')) compKey = 'hospital';
-    else if (name.includes('restaurant') || name.includes('garden')) compKey = 'restaurant';
+    else if (name.includes('restaurant') || name.includes('garden') || name.includes('aroma')) compKey = 'restaurant';
     else if (name.includes('kart') || name.includes('commerce')) compKey = 'ecommerce';
     else if (name.includes('mahindra')) compKey = 'tech_mahindra';
     else if (name.includes('voxsphere')) compKey = 'voxsphere';
@@ -478,11 +484,12 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
 
       if (curPhase === 'onboarding') {
         const extractedName = extractNameFromMessage(message);
-        setUserName(extractedName);
+        const nextName = extractedName || curName || 'Guest';
+        setUserName(nextName);
         setConvoPhase('chatting');
-        stateRef.current.userName = extractedName;
+        stateRef.current.userName = nextName;
         stateRef.current.convoPhase = 'chatting';
-        message = `${message} [SYSTEM: User name discovered as ${extractedName}]`;
+        message = `${message} [SYSTEM: User name discovered as ${nextName}]`;
       }
 
       // Main AI Flow starts here
@@ -515,7 +522,7 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
       const compName = selectedCompany?.name?.toLowerCase() || '';
 
       if (industry.includes('health') || compName.includes('hospital') || compName.includes('aarogya')) specializedPrompt = HospitalPrompt;
-      else if (industry.includes('restaur') || compName.includes('garden')) specializedPrompt = RestaurantPrompt;
+      else if (industry.includes('restaur') || compName.includes('garden') || compName.includes('aroma')) specializedPrompt = RestaurantPrompt;
       else if (industry.includes('commerce') || compName.includes('kart')) specializedPrompt = ECommercePrompt;
       else if (industry.includes('business') || industry.includes('tech')) specializedPrompt = BusinessPrompt;
 
@@ -523,26 +530,37 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
       const latestName = stateRef.current.userName || 'Guest';
 
       const systemPrompt = `
-IDENTITY: You are Callix, the professional voice representative for ${selectedCompany?.name}.
-${specializedPrompt}
+IDENTITY: You are Callix, the warm and professional Virtual Receptionist for ${selectedCompany?.name}.
+CURRENT DATE: ${new Date().toLocaleDateString('en-IN')} | CURRENT TIME: ${new Date().toLocaleTimeString('en-IN')}
+
+PERSONALITY & STYLE:
+- Polite, VIP Receptionist tone. Warm and helpful.
+- Respond in ${curLang.name} script only. Speak as a native ${curLang.name} speaker would.
+- Keep responses ultra-brief (max 20 words).
+
+CORE PROTOCOLS:
+1. **Details First**: If the user provides Date, Time, and guests, DO NOT ask for them again. Immediately use [BOOK_TABLE] or [BOOK_APPOINTMENT]. Only ask if any details are MISSING.
+2. **Action Execution**: When the user confirms they want to proceed with a booking or order, you MUST IMMEDIATELY use the bracket: [BOOK_TABLE...], [BOOK_APPOINTMENT...], or [BOOK_ORDER...]. NEVER confirm an action without outputting the bracket!
+3. **Discovery**: Use [QUERY_ENTITY_DATABASE] to check services/menu before guessing.
+4. **Post-Action**: After a booking is completed, you MUST explicitly ask: "Please rate my assistance from 1 to 5 stars."
+5. **Collecting Feedback**: CRITICAL: Whenever the user provides a numeric rating (1-5), you MUST include the exact command [COLLECT_FEEDBACK X/5] in your reply (e.g. [COLLECT_FEEDBACK 4.5/5]). The system cannot save feedback without this bracket.
+6. **Hang Up**: If the user says goodbye or no further assistance is needed, use [HANG_UP].
+7. **Language**: Use native ${curLang.name} script (Telugu script for Telugu, Devanagari for Hindi).
+
 LIVE KNOWLEDGE:
 ${liveCatalogue || 'Standard records active.'}
+
 BUSINESS CONTEXT:
 ${selectedCompany?.nlp_context || 'A premium provider.'}
+${specializedPrompt}
+
 USER CONTEXT:
-Customer Name: ${latestName}
-        CONVERSATIONAL PROTOCOL:
-        1. RECEPTIONIST GRADE: Professional and formal. Use "Sir/Ma'am" or "Mr/Ms" as needed. 
-        2. NO INFORMAL QUESTIONS: Avoid small talk or filler questions. 
-        3. ZERO META-COMMENTARY: NEVER mention internal actions like "searching slots" or "checking docs". 
-        4. ULTRA-BRIEF: Max 1-2 short sentences. Zero fluff.
-        5. COMMANDS: [BOOK_APPOINTMENT], [BOOK_TABLE], [BOOK_ORDER], [COLLECT_FEEDBACK], [GET_AVAILABLE_SLOTS], [QUERY_ENTITY_DATABASE], [HANG_UP].
-        ${languageInstruction}`;
+Customer Name: ${latestName}`;
 
       const rawResponse = await chatWithGroq(
         `User Message: ${message}`,
-        currentMessages.map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', text: m.text })),
-        { ...selectedCompany, userName: latestName, userEmail, sessionId, currLangCode: curLang.code },
+        currentMessages.map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', text: m.rawText || m.text })),
+        { ...selectedCompany, userName: latestName, userEmail, sessionId, currLangCode: curLang.code, currLangName: curLang.name },
         systemPrompt
       );
 
@@ -550,7 +568,7 @@ Customer Name: ${latestName}
       setIsThinking(false);
 
       const finalDisplay = cleanInternalCommands(rawResponse) || "Processing your request...";
-      addMessage('agent', finalDisplay);
+      addMessage('agent', finalDisplay, rawResponse);
 
       const shouldTerminate = rawResponse.toUpperCase().includes('HANG_UP');
       await speak(finalDisplay, curLang.code, shouldTerminate);
@@ -568,8 +586,8 @@ Customer Name: ${latestName}
     }
   };
 
-  const addMessage = (sender, text) => {
-    setMessages(prev => [...prev, { sender, text, timestamp: new Date() }]);
+  const addMessage = (sender, text, rawText = null) => {
+    setMessages(prev => [...prev, { sender, text, rawText: rawText || text, timestamp: new Date() }]);
   };
 
   const speak = (text, languageCode, shouldTerminate = false) => {
@@ -741,20 +759,10 @@ Customer Name: ${latestName}
     setConvoPhase(nextPhase);
     stateRef.current.convoPhase = nextPhase;
 
-    // Trigger AI to speak first
-    setTimeout(() => {
-      if (existingName) {
-        handleUserMessage('[INTERNAL_GREETING_START]');
-      } else {
-        const curLang = stateRef.current.selectedLanguage;
-        let onboardingMsg = "Hello! I am Callix, your virtual receptionist. May I know your name, please?";
-        if (curLang.code === 'te-IN') onboardingMsg = "నమస్కారం! నేను Callix, మీ వర్చువల్ రిసెప్షనిస్ట్‌ను. దయచేసి మీ పేరు తెలుసుకోవచ్చా?";
-        if (curLang.code === 'hi-IN') onboardingMsg = "नमस्ते! मैं Callix हूँ, आपकी वर्चुअल रिसेप्शनिस्ट। क्या मैं आपका नाम जान सकता हूँ?";
-
-        addMessage('agent', onboardingMsg);
-        speak(onboardingMsg, curLang.code);
-      }
-    }, 500);
+    // We no longer trigger an automatic message. 
+    // The STT will start automatically due to the callState useEffect, 
+    // and the AI will wait for the user to speak first.
+    console.log("📞 Call Connected. Waiting for user input...");
   };
 
   const endCall = () => {
