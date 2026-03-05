@@ -114,8 +114,15 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
             if (profileError) throw profileError;
 
             // 3. If they have an associated company, activate it too
+            // Attempt to activate via company_id, company_name, and contact_email to ensure robustness against trigger schema variations
             if (targetAdmin?.company_id) {
                 await supabase.from('companies').update({ status: 'active' }).eq('id', targetAdmin.company_id);
+            }
+            if (targetAdmin?.company_name) {
+                await supabase.from('companies').update({ status: 'active' }).eq('name', targetAdmin.company_name);
+            }
+            if (targetAdmin?.email) {
+                await supabase.from('companies').update({ status: 'active' }).eq('contact_email', targetAdmin.email);
             }
 
             addToast('Administrator and Organization approved successfully!', 'success');
