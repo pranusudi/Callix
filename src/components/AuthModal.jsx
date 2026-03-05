@@ -35,10 +35,10 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
             if (authMode === 'signup') {
                 if (userRole === 'admin') {
                     await database.signUpAdmin(formData.email, formData.password, formData.fullName, formData.companyName, formData.industry);
-                    alert('Registration submitted. The Superadmin has been notified for approval.');
+                    // Registration success message
                 } else {
                     await database.signUp(formData.email, formData.password, formData.fullName);
-                    alert('Registration successful!');
+                    // Registration success message
                 }
                 setAuthMode('signin');
             } else {
@@ -64,13 +64,13 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
     return (
         <AnimatePresence mode="wait">
             <motion.div
-                className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/95 backdrop-blur-sm p-3"
+                className="fixed inset-0 z-[10000] flex items-center justify-center bg-white/95 backdrop-blur-sm p-3"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
             >
                 <motion.div
-                    className="relative w-full max-w-sm bg-[#0A0F1E] rounded-[20px] border border-white/10 shadow-3xl overflow-hidden"
+                    className="relative w-full max-w-sm bg-white rounded-[20px] border border-slate-200 shadow-3xl overflow-hidden"
                     initial={{ scale: 0.98, opacity: 0, y: 10 }}
                     animate={{ scale: 1, opacity: 1, y: 0 }}
                 >
@@ -88,7 +88,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
                         </div>
 
                         <div className="mb-5">
-                            <h2 className="text-lg font-black text-white tracking-widest uppercase">
+                            <h2 className="text-lg font-black text-slate-900 tracking-widest uppercase">
                                 {authMode === 'signin' ? 'Sign In' : userRole === 'admin' ? 'Admin Registration' : 'Create Account'}
                             </h2>
                             <p className="text-slate-500 text-[9px] font-bold mt-0.5 uppercase tracking-tighter opacity-50">
@@ -137,7 +137,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
                                                         required
                                                         value={formData.companyName}
                                                         onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                                                        className="w-full bg-[#161C2C] border border-white/5 rounded-lg py-2 pl-9 pr-4 text-white text-[11px] focus:border-indigo-500 transition-all outline-none"
+                                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-4 text-slate-900 text-[11px] focus:border-indigo-500 transition-all outline-none"
                                                         placeholder="Company Name"
                                                     />
                                                 </div>
@@ -206,7 +206,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
                                         required
                                         value={formData.password}
                                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                        className="w-full bg-[#161C2C] border border-white/5 rounded-lg py-2 pl-9 pr-4 text-white text-[11px] focus:border-indigo-500 transition-all outline-none"
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-4 text-slate-900 text-[11px] focus:border-indigo-500 transition-all outline-none"
                                         placeholder="••••••••"
                                         minLength={6}
                                         autoComplete="current-password"
@@ -232,7 +232,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
                                         <button
                                             type="button"
                                             onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}
-                                            className="text-white hover:text-indigo-400 underline decoration-white/10 underline-offset-4 transition-colors ml-1"
+                                            className="text-slate-900 hover:text-indigo-600 underline decoration-slate-200 underline-offset-4 transition-colors ml-1"
                                         >
                                             {authMode === 'signin' ? 'Sign Up' : 'Sign In'}
                                         </button>

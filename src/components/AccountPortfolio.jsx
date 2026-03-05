@@ -29,7 +29,7 @@ const AccountPortfolio = ({ onDeployAgent, companies = [], loading = false, isLo
   };
 
   return (
-    <section id="portfolio" className="py-20 px-4 bg-[#0a0c10] relative overflow-hidden">
+    <section id="portfolio" className="py-20 px-4 bg-white relative overflow-hidden text-slate-900">
       {/* Subtle Background Glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-blue-600/5 blur-[120px] pointer-events-none"></div>
 
@@ -41,8 +41,8 @@ const AccountPortfolio = ({ onDeployAgent, companies = [], loading = false, isLo
           transition={{ duration: 0.5 }}
           className="mb-12"
         >
-          <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight">Portfolio</h2>
-          <p className="text-slate-400 text-sm font-medium mt-1">Manage and deploy your automated AI instances.</p>
+          <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">Portfolio</h2>
+          <p className="text-slate-500 text-sm font-medium mt-1">Manage and deploy your automated AI instances.</p>
         </motion.div>
 
         {loading ? (
@@ -52,10 +52,10 @@ const AccountPortfolio = ({ onDeployAgent, companies = [], loading = false, isLo
             ))}
           </div>
         ) : companies.length === 0 ? (
-          <div className="text-center py-20 bg-white/5 rounded-2xl border border-dashed border-white/10">
-            <Building2 size={32} className="mx-auto text-slate-600 mb-3" />
-            <h3 className="text-lg font-bold text-white">No active instances</h3>
-            <p className="text-slate-400 text-sm">Deploy your first company profile to see it here.</p>
+          <div className="text-center py-20 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+            <Building2 size={32} className="mx-auto text-slate-400 mb-3" />
+            <h3 className="text-lg font-bold text-slate-900">No active instances</h3>
+            <p className="text-slate-600 text-sm">Deploy your first company profile to see it here.</p>
           </div>
         ) : (
           <div className="relative group/portfolio">
@@ -63,7 +63,7 @@ const AccountPortfolio = ({ onDeployAgent, companies = [], loading = false, isLo
             <div className="absolute left-4 top-1/2 -translate-y-1/2 z-20 opacity-0 group-hover/portfolio:opacity-100 transition-all duration-300 pointer-events-none lg:pointer-events-auto">
               <button
                 onClick={() => scroll('left')}
-                className="w-12 h-12 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white hover:bg-white/20 hover:border-white/30 transition-all shadow-2xl backdrop-blur-2xl group/btn"
+                className="w-12 h-12 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-900 hover:bg-slate-50 transition-all shadow-xl backdrop-blur-2xl group/btn"
               >
                 <ChevronLeft size={24} className="group-hover/btn:-translate-x-0.5 transition-transform" />
               </button>
@@ -73,15 +73,15 @@ const AccountPortfolio = ({ onDeployAgent, companies = [], loading = false, isLo
             <div className="absolute right-4 top-1/2 -translate-y-1/2 z-20 opacity-0 group-hover/portfolio:opacity-100 transition-all duration-300 pointer-events-none lg:pointer-events-auto">
               <button
                 onClick={() => scroll('right')}
-                className="w-12 h-12 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white hover:bg-white/20 hover:border-white/30 transition-all shadow-2xl backdrop-blur-2xl group/btn"
+                className="w-12 h-12 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-900 hover:bg-slate-50 transition-all shadow-xl backdrop-blur-2xl group/btn"
               >
                 <ChevronRight size={24} className="group-hover/btn:translate-x-0.5 transition-transform" />
               </button>
             </div>
 
             {/* Fade Gradients for visual depth */}
-            <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-[#0a0c10] to-transparent z-10 pointer-events-none" />
-            <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-[#0a0c10] to-transparent z-10 pointer-events-none" />
+            <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none" />
+            <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none" />
 
             <div
               ref={scrollRef}
@@ -92,14 +92,14 @@ const AccountPortfolio = ({ onDeployAgent, companies = [], loading = false, isLo
                 return (
                   <motion.div
                     key={company.id || index}
-                    className="min-w-[280px] max-w-[280px] bg-white/[0.03] backdrop-blur-sm rounded-[2rem] p-5 border border-white/10 hover:border-blue-500/50 hover:bg-white/[0.05] transition-all duration-300 flex flex-col h-full group flex-shrink-0 snap-center"
+                    className="min-w-[280px] max-w-[280px] bg-white rounded-[2rem] p-5 border border-slate-200 hover:border-blue-500/50 hover:bg-slate-50 transition-all duration-300 flex flex-col h-full group flex-shrink-0 snap-center shadow-sm"
                     initial={{ opacity: 0, scale: 0.9, y: 20 }}
                     whileInView={{ opacity: 1, scale: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: index * 0.03, duration: 0.3 }}
                   >
                     <div className="flex items-start justify-between mb-4">
-                      <div className="w-12 h-12 rounded-2xl bg-[#0a0c10] border border-white/5 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform duration-500 shadow-2xl">
+                      <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform duration-500 shadow-sm">
                         {company.logo || '🏢'}
                       </div>
                       <div className={`px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${styles.bg} ${styles.text} border ${styles.border}`}>
@@ -107,11 +107,11 @@ const AccountPortfolio = ({ onDeployAgent, companies = [], loading = false, isLo
                       </div>
                     </div>
 
-                    <h3 className="text-lg font-black text-white leading-tight mb-3 tracking-tight">
+                    <h3 className="text-lg font-black text-slate-900 leading-tight mb-3 tracking-tight">
                       {company.name}
                     </h3>
 
-                    <div className="flex-1 bg-black p-3.5 rounded-2xl mb-4 border border-white/5">
+                    <div className="flex-1 bg-slate-50 p-3.5 rounded-2xl mb-4 border border-slate-200">
                       <div className="flex items-center gap-1.5 mb-2">
                         <Sparkles size={10} className="text-blue-400" />
                         <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Capabilities</span>
