@@ -65,13 +65,13 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
     return (
         <AnimatePresence mode="wait">
             <motion.div
-                className="fixed inset-0 z-[10000] flex items-center justify-center bg-white/95 backdrop-blur-sm p-3"
+                className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-500/10 backdrop-blur-md p-3"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
             >
                 <motion.div
-                    className="relative w-full max-w-sm bg-white rounded-[20px] border border-slate-200 shadow-3xl overflow-hidden"
+                    className="relative w-full max-w-sm bg-slate-50 rounded-[32px] border border-slate-200 shadow-2xl shadow-indigo-100/50 overflow-hidden"
                     initial={{ scale: 0.98, opacity: 0, y: 10 }}
                     animate={{ scale: 1, opacity: 1, y: 0 }}
                 >
@@ -82,7 +82,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
                     <div className="p-6 flex flex-col relative text-center">
                         {/* Role Indicator Badge */}
                         <div className="flex justify-center mb-4">
-                            <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-[0.2em] leading-none ${userRole === 'admin' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/10'
+                            <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.2em] leading-none shadow-sm ${userRole === 'admin' ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-indigo-100 text-indigo-700 border border-indigo-200'
                                 }`}>
                                 {userRole === 'admin' ? 'Administration Access' : 'User Account'}
                             </span>
@@ -152,7 +152,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
                                         setShowVerificationInfo(false);
                                         setAuthMode('signin');
                                     }}
-                                    className="w-full py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all active:scale-[0.98]"
+                                    className="w-full py-4 bg-slate-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl shadow-slate-200 hover:bg-black transition-all active:scale-[0.98] mt-4 h-[52px] flex items-center justify-center gap-2"
                                 >
                                     Return to Authentication
                                 </button>
@@ -162,7 +162,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
                                 {authMode === 'signup' && (
                                     <>
                                         <div className="space-y-0.5">
-                                            <label className="text-[8px] font-black uppercase tracking-widest text-slate-600 ml-1">Full Name</label>
+                                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-900 ml-1">Full Name</label>
                                             <div className="relative">
                                                 <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600" size={12} />
                                                 <input
@@ -170,7 +170,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
                                                     required
                                                     value={formData.fullName}
                                                     onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-4 text-slate-900 text-[11px] focus:border-indigo-500 transition-all outline-none"
+                                                    className="w-full bg-white border border-slate-200 rounded-xl py-2.5 pl-9 pr-4 text-slate-900 text-[11px] focus:border-indigo-500 transition-all outline-none shadow-sm"
                                                     placeholder="First and Last Name"
                                                 />
                                             </div>
@@ -179,7 +179,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
                                         {userRole === 'admin' && (
                                             <div className="grid grid-cols-2 gap-2">
                                                 <div className="space-y-0.5">
-                                                    <label className="text-[8px] font-black uppercase tracking-widest text-slate-600 ml-1">Company Name</label>
+                                                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-900 ml-1">Company Name</label>
                                                     <div className="relative">
                                                         <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600" size={12} />
                                                         <input
@@ -187,13 +187,13 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
                                                             required
                                                             value={formData.companyName}
                                                             onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                                                            className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-4 text-slate-900 text-[11px] focus:border-indigo-500 transition-all outline-none"
+                                                            className="w-full bg-white border border-slate-200 rounded-xl py-2.5 pl-9 pr-4 text-slate-900 text-[11px] focus:border-indigo-500 transition-all outline-none shadow-sm"
                                                             placeholder="Company Name"
                                                         />
                                                     </div>
                                                 </div>
                                                 <div className="space-y-0.5">
-                                                    <label className="text-[8px] font-black uppercase tracking-widest text-slate-600 ml-1">Industry</label>
+                                                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-900 ml-1">Industry</label>
                                                     <div className="space-y-2">
                                                         <select
                                                             required
@@ -222,7 +222,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
                                                                 placeholder="Specify industry"
                                                                 value={formData.industry}
                                                                 onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
-                                                                className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-slate-900 text-[11px] focus:border-indigo-500 transition-all outline-none"
+                                                                className="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-3 text-slate-900 text-[11px] focus:border-indigo-500 transition-all outline-none shadow-sm"
                                                             />
                                                         )}
                                                     </div>
@@ -233,7 +233,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
                                 )}
 
                                 <div className="space-y-0.5">
-                                    <label className="text-[8px] font-black uppercase tracking-widest text-slate-600 ml-1">Email Address</label>
+                                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-900 ml-1">Email Address</label>
                                     <div className="relative">
                                         <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600" size={12} />
                                         <input
@@ -241,14 +241,14 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
                                             required
                                             value={formData.email}
                                             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                            className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-4 text-slate-900 text-[11px] focus:border-indigo-500 transition-all outline-none"
+                                            className="w-full bg-white border border-slate-200 rounded-xl py-2.5 pl-9 pr-4 text-slate-900 text-[11px] focus:border-indigo-500 transition-all outline-none shadow-sm"
                                             placeholder="email@example.com"
                                         />
                                     </div>
                                 </div>
 
                                 <div className="space-y-0.5">
-                                    <label className="text-[8px] font-black uppercase tracking-widest text-slate-600 ml-1">Password</label>
+                                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-900 ml-1">Password</label>
                                     <div className="relative">
                                         <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600" size={12} />
                                         <input
@@ -256,7 +256,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
                                             required
                                             value={formData.password}
                                             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                            className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-4 text-slate-900 text-[11px] focus:border-indigo-500 transition-all outline-none"
+                                            className="w-full bg-white border border-slate-200 rounded-xl py-2.5 pl-9 pr-4 text-slate-900 text-[11px] focus:border-indigo-500 transition-all outline-none shadow-sm"
                                             placeholder="••••••••"
                                             minLength={6}
                                             autoComplete="current-password"
@@ -267,22 +267,29 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
                                 <div className="pt-2">
                                     <motion.button
                                         type="submit"
-                                        className={`w-full text-white font-black text-[9px] uppercase tracking-[0.3em] py-3 rounded-lg shadow-xl transition-all flex items-center justify-center gap-2 group mb-4 disabled:opacity-50 ${userRole === 'admin' ? 'bg-amber-600 hover:bg-amber-500' : 'bg-indigo-600 hover:bg-indigo-500'
+                                        disabled={loading}
+                                        className={`w-full py-4 bg-slate-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl shadow-slate-200 hover:bg-black transition-all active:scale-[0.98] disabled:opacity-50 mt-4 h-[52px] flex items-center justify-center gap-2 ${userRole === 'admin' ? 'bg-amber-600 hover:bg-amber-500' : 'bg-indigo-600 hover:bg-indigo-500'
                                             }`}
                                         whileHover={{ y: -1 }}
                                         whileTap={{ scale: 0.99 }}
                                     >
-                                        {loading ? 'Processing...' : (authMode === 'signin' ? 'Sign In' : 'Create Account')}
-                                        <ChevronRight size={10} className="group-hover:translate-x-1 transition-transform" />
+                                        {loading ? (
+                                            <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                                        ) : (
+                                            <>
+                                                <span>{authMode === 'signin' ? 'Sign In' : 'Create Account'}</span>
+                                                <ChevronRight size={16} />
+                                            </>
+                                        )}
                                     </motion.button>
 
-                                    <div className="text-center">
-                                        <p className="text-slate-600 text-[8px] font-black uppercase tracking-widest">
-                                            {authMode === 'signin' ? "Need an account? " : 'Already have an account? '}
+                                    <div className="mt-8 text-center bg-white/50 py-3 rounded-2xl border border-slate-200/50">
+                                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">
+                                            {authMode === 'signin' ? "Need an account?" : "Already have an account?"}{' '}
                                             <button
                                                 type="button"
                                                 onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}
-                                                className="text-slate-900 hover:text-indigo-600 underline decoration-slate-200 underline-offset-4 transition-colors ml-1"
+                                                className="text-indigo-600 font-black hover:underline underline-offset-4 decoration-indigo-200"
                                             >
                                                 {authMode === 'signin' ? 'Sign Up' : 'Sign In'}
                                             </button>

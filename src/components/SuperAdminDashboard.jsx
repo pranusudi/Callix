@@ -289,7 +289,7 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
                                 </div>
 
                                 <div className="grid grid-cols-1 gap-4">
-                                    <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden">
+                                    <div className="bg-white/60 p-5 rounded-2xl border border-slate-200 text-left relative overflow-hidden group">
                                         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/5 blur-[100px] -mr-32 -mt-32 pointer-events-none" />
                                         <h3 className="text-base font-black mb-6 text-slate-900 flex items-center gap-3 uppercase tracking-widest">
                                             <TrendingUp size={18} className="text-indigo-600" />

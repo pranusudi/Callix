@@ -101,7 +101,7 @@ const CompanyOnboarding = ({ isOpen, onClose, onSuccess }) => {
           onClick={onClose}
         >
           <motion.div
-            className="bg-white rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-slate-200 shadow-2xl"
+            className="bg-slate-50 rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-slate-200 shadow-2xl"
             initial={{ scale: 0.9, y: 20 }}
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.9, y: 20 }}
@@ -136,7 +136,7 @@ const CompanyOnboarding = ({ isOpen, onClose, onSuccess }) => {
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:border-blue-500 focus:outline-none text-slate-900"
+                    className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 focus:border-blue-500 focus:outline-none text-slate-900 shadow-sm transition-all"
                     placeholder="e.g. Acme Corp"
                   />
                 </div>
@@ -151,7 +151,7 @@ const CompanyOnboarding = ({ isOpen, onClose, onSuccess }) => {
                     required
                     value={formData.industry}
                     onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:border-blue-500 focus:outline-none text-slate-900"
+                    className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 focus:border-blue-500 focus:outline-none text-slate-900 shadow-sm transition-all"
                   >
                     <option value="">Select Category</option>
                     {industries.map((industry) => (
@@ -171,7 +171,7 @@ const CompanyOnboarding = ({ isOpen, onClose, onSuccess }) => {
                   type="password"
                   value={formData.apiKey}
                   onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:border-blue-500 focus:outline-none text-slate-900"
+                  className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 focus:border-blue-500 focus:outline-none text-slate-900 shadow-sm transition-all"
                   placeholder="Your database connection key"
                 />
               </div>
@@ -187,7 +187,7 @@ const CompanyOnboarding = ({ isOpen, onClose, onSuccess }) => {
                   value={formData.contextSummary}
                   onChange={(e) => setFormData({ ...formData, contextSummary: e.target.value })}
                   rows={4}
-                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:border-blue-500 focus:outline-none text-slate-900 resize-none"
+                  className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 focus:border-blue-500 focus:outline-none text-slate-900 resize-none shadow-sm transition-all"
                   placeholder="Tell the AI what it should know about your business, products, and services..."
                 />
               </div>
