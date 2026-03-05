@@ -208,26 +208,26 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-screen bg-[#0F172A]">
+            <div className="flex items-center justify-center h-screen bg-slate-50">
                 <div className="text-center">
-                    <ShieldCheck size={48} className="animate-pulse text-indigo-500 mx-auto mb-4" />
-                    <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Initializing Identity Cluster...</p>
+                    <ShieldCheck size={48} className="animate-pulse text-indigo-600 mx-auto mb-4" />
+                    <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Initializing Identity Cluster...</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="flex min-h-screen bg-[#0F172A] text-white">
+        <div className="flex min-h-screen bg-slate-50 text-slate-900">
             {/* Sidebar */}
-            <aside className="w-64 bg-[#1E293B] border-r border-slate-800 p-4 flex flex-col h-screen sticky top-0 overflow-y-auto">
+            <aside className="w-64 bg-white border-r border-slate-200 p-4 flex flex-col h-screen sticky top-0 overflow-y-auto shadow-sm">
                 <div className="flex items-center space-x-2 px-1 mb-6">
-                    <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-xl shadow-indigo-500/20">
+                    <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-lg border border-indigo-500/20">
                         <ShieldCheck size={18} />
                     </div>
                     <div>
-                        <h2 className="text-sm font-black tracking-tight leading-tight">SuperAdmin</h2>
-                        <span className="text-[8px] font-bold text-indigo-400 uppercase tracking-widest">Master Access</span>
+                        <h2 className="text-sm font-black tracking-tight leading-tight text-slate-900">SuperAdmin</h2>
+                        <span className="text-[8px] font-bold text-indigo-600 uppercase tracking-widest">Master Access</span>
                     </div>
                 </div>
 
@@ -246,8 +246,8 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
                     <SuperNavItem icon={<CheckSquare size={14} />} label="Data Approval" active={view === 'approvals'} onClick={() => setView('approvals')} badge={approvalRequests.length} />
                 </nav>
 
-                <div className="pt-3 border-t border-slate-800 mt-auto">
-                    <button onClick={onLogout} className="flex items-center space-x-3 px-2 py-2 w-full text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all font-bold text-[10px]">
+                <div className="pt-3 border-t border-slate-100 mt-auto">
+                    <button onClick={onLogout} className="flex items-center space-x-3 px-2 py-2 w-full text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all font-bold text-[10px]">
                         <LogOut size={16} />
                         <span>Sign Out Platform</span>
                     </button>
@@ -257,22 +257,22 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
             {/* Main */}
             <main className="flex-1 p-4 overflow-y-auto">
                 <div className="max-w-6xl mx-auto">
-                    <header className="h-16 bg-[#1E293B]/90 backdrop-blur-xl border border-slate-800 flex items-center justify-between px-8 sticky top-0 z-40 mb-8 rounded-3xl shadow-2xl">
+                    <header className="h-16 bg-white/80 backdrop-blur-xl border border-slate-200 flex items-center justify-between px-8 sticky top-0 z-40 mb-8 rounded-3xl shadow-sm">
                         <div className="flex items-center gap-4">
                             <div className="w-1.5 h-6 bg-indigo-600 rounded-full" />
                             <div>
-                                <h1 className="text-base font-black uppercase tracking-[0.3em] text-white">
+                                <h1 className="text-base font-black uppercase tracking-[0.3em] text-slate-900">
                                     {view.replace('_', ' ')}
                                 </h1>
-                                <p className="text-[9px] text-indigo-400 font-bold uppercase tracking-widest leading-none mt-1">Global Authority Hub</p>
+                                <p className="text-[9px] text-indigo-600 font-bold uppercase tracking-widest leading-none mt-1">Global Authority Hub</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-6">
                             <div className="hidden md:flex flex-col items-end text-right">
-                                <span className="text-xs font-black uppercase tracking-widest text-indigo-100 leading-none">{user?.profile?.full_name || 'MASTER_ADMIN'}</span>
-                                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Platform Ranking: <span className="text-emerald-500">Global Master</span></span>
+                                <span className="text-xs font-black uppercase tracking-widest text-slate-900 leading-none">{user?.profile?.full_name || 'MASTER_ADMIN'}</span>
+                                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Platform Ranking: <span className="text-emerald-600">Global Master</span></span>
                             </div>
-                            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 border border-white/10 flex items-center justify-center text-white text-lg font-black shadow-lg shadow-indigo-600/20">
+                            <div className="w-11 h-11 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 text-lg font-black shadow-sm">
                                 {user?.profile?.full_name?.charAt(0) || 'S'}
                             </div>
                         </div>
@@ -289,31 +289,31 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
                                 </div>
 
                                 <div className="grid grid-cols-1 gap-4">
-                                    <div className="bg-[#1E293B] p-8 rounded-3xl border border-slate-800 shadow-2xl relative overflow-hidden">
+                                    <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden">
                                         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/5 blur-[100px] -mr-32 -mt-32 pointer-events-none" />
-                                        <h3 className="text-base font-black mb-6 flex items-center gap-3 uppercase tracking-widest">
-                                            <TrendingUp size={18} className="text-indigo-500" />
+                                        <h3 className="text-base font-black mb-6 text-slate-900 flex items-center gap-3 uppercase tracking-widest">
+                                            <TrendingUp size={18} className="text-indigo-600" />
                                             Platform Infrastructure Insights
                                         </h3>
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                                            <div className="bg-[#0F172A] p-6 rounded-2xl border border-slate-800 shadow-inner">
-                                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Database Cluster</p>
-                                                <p className="text-xl font-black text-white">NOMINAL</p>
-                                                <div className="mt-4 h-1 w-full bg-slate-800 rounded-full overflow-hidden">
+                                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 shadow-inner">
+                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Database Cluster</p>
+                                                <p className="text-xl font-black text-slate-900">NOMINAL</p>
+                                                <div className="mt-4 h-1 w-full bg-slate-200 rounded-full overflow-hidden">
                                                     <div className="h-full bg-emerald-500 w-[92%]" />
                                                 </div>
                                             </div>
-                                            <div className="bg-[#0F172A] p-6 rounded-2xl border border-slate-800 shadow-inner">
-                                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Queue Mesh</p>
-                                                <p className="text-xl font-black text-emerald-500">SYNCHRONIZED</p>
-                                                <div className="mt-4 h-1 w-full bg-slate-800 rounded-full overflow-hidden">
+                                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 shadow-inner">
+                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Queue Mesh</p>
+                                                <p className="text-xl font-black text-emerald-600">SYNCHRONIZED</p>
+                                                <div className="mt-4 h-1 w-full bg-slate-200 rounded-full overflow-hidden">
                                                     <div className="h-full bg-emerald-500 w-full animate-pulse" />
                                                 </div>
                                             </div>
-                                            <div className="bg-[#0F172A] p-6 rounded-2xl border border-slate-800 shadow-inner">
-                                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Latency Relay</p>
-                                                <p className="text-xl font-black text-indigo-400">12ms</p>
-                                                <div className="mt-4 h-1 w-full bg-slate-800 rounded-full overflow-hidden">
+                                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 shadow-inner">
+                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Latency Relay</p>
+                                                <p className="text-xl font-black text-indigo-600">12ms</p>
+                                                <div className="mt-4 h-1 w-full bg-slate-200 rounded-full overflow-hidden">
                                                     <div className="h-full bg-indigo-500 w-[15%]" />
                                                 </div>
                                             </div>
@@ -324,23 +324,23 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
                         )}
 
                         {view === 'companies' && (
-                            <motion.div key="registry" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-[#1E293B] rounded-[24px] border border-slate-800 overflow-hidden shadow-2xl">
-                                <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-                                    <h3 className="text-sm font-black uppercase tracking-widest text-indigo-400">Active Organization Registry</h3>
+                            <motion.div key="registry" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm">
+                                <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                    <h3 className="text-sm font-black uppercase tracking-widest text-indigo-600">Active Organization Registry</h3>
                                     <div className="relative">
-                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                                         <input
                                             type="text"
                                             placeholder="Filter companies..."
                                             value={userSearchTerm}
                                             onChange={(e) => setUserSearchTerm(e.target.value)}
-                                            className="bg-[#0F172A] border border-slate-800 rounded-lg py-2 pl-9 pr-4 text-[10px] font-bold outline-none focus:border-indigo-500 w-48"
+                                            className="bg-white border border-slate-200 rounded-lg py-2 pl-9 pr-4 text-[10px] font-bold outline-none focus:border-indigo-500 w-48 shadow-sm"
                                         />
                                     </div>
                                 </div>
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left">
-                                        <thead className="bg-[#0F172A]/50 text-[9px] font-black uppercase tracking-widest text-slate-500 border-b border-slate-800">
+                                        <thead className="bg-slate-50 text-[9px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-200">
                                             <tr>
                                                 <th className="px-4 py-3">Organization</th>
                                                 <th className="px-4 py-3">Industry</th>
@@ -348,28 +348,28 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
                                                 <th className="px-4 py-3 text-right">Cluster Controls</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-slate-800">
+                                        <tbody className="divide-y divide-slate-100">
                                             {companies
                                                 .filter(c => c.status === 'active')
                                                 .filter(c => userSearchTerm === '' || c.name.toLowerCase().includes(userSearchTerm.toLowerCase()) || c.industry.toLowerCase().includes(userSearchTerm.toLowerCase()))
                                                 .map((c) => (
-                                                    <tr key={c.id} className="hover:bg-white/5 transition-colors group">
+                                                    <tr key={c.id} className="hover:bg-indigo-50/50 transition-colors group">
                                                         <td className="px-4 py-2.5">
                                                             <div className="flex items-center gap-3">
-                                                                <div className="w-9 h-9 bg-[#0F172A] rounded-xl flex items-center justify-center text-lg shadow-inner border border-slate-800">{c.logo || '🏢'}</div>
+                                                                <div className="w-9 h-9 bg-slate-50 rounded-xl flex items-center justify-center text-lg shadow-sm border border-slate-100">{c.logo || '🏢'}</div>
                                                                 <div>
-                                                                    <h4 className="font-black text-xs tracking-tight">{c.name}</h4>
-                                                                    <p className="text-[7px] text-slate-500 uppercase font-black">{c.id.slice(0, 8)}...-NODE</p>
+                                                                    <h4 className="font-black text-xs tracking-tight text-slate-900">{c.name}</h4>
+                                                                    <p className="text-[7px] text-slate-400 uppercase font-black">{c.id.slice(0, 8)}...-NODE</p>
                                                                 </div>
                                                             </div>
                                                         </td>
                                                         <td className="px-4 py-2.5">
-                                                            <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">{c.industry}</span>
+                                                            <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">{c.industry}</span>
                                                         </td>
                                                         <td className="px-4 py-2.5 text-center">
                                                             <button
                                                                 onClick={() => handleToggleCompanyStatus(c.id, c.status)}
-                                                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[7px] font-black uppercase tracking-widest transition-all ${c.status === 'active' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'}`}
+                                                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[7px] font-black uppercase tracking-widest transition-all ${c.status === 'active' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-amber-50 text-amber-600 border border-amber-200'}`}
                                                             >
                                                                 {c.status === 'active' ? <Eye size={10} /> : <EyeOff size={10} />}
                                                                 {c.status}
@@ -625,17 +625,17 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
                                                 <tr key={bk.id} className="hover:bg-white/5 transition-colors group">
                                                     <td className="px-6 py-4">
                                                         <div className="flex items-center gap-3">
-                                                            <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-lg">{bk.companies?.logo || '🏢'}</div>
+                                                            <div className="w-9 h-9 bg-slate-50 rounded-xl flex items-center justify-center text-lg border border-slate-100">{bk.companies?.logo || '🏢'}</div>
                                                             <div>
-                                                                <p className="font-black text-xs leading-none mb-1">{bk.companies?.name}</p>
+                                                                <p className="font-black text-xs leading-none mb-1 text-slate-900">{bk.companies?.name}</p>
                                                                 <p className="text-[8px] text-slate-500 uppercase tracking-widest">{bk.companies?.industry}</p>
                                                             </div>
                                                         </div>
                                                     </td>
                                                     <td className="px-6 py-4">
                                                         <div>
-                                                            <p className="text-xs font-black text-white">{bk.title}</p>
-                                                            <p className="text-[9px] text-indigo-400 font-bold uppercase">{bk.sub_title}</p>
+                                                            <p className="text-xs font-black text-slate-900">{bk.title}</p>
+                                                            <p className="text-[8px] text-indigo-600 font-bold uppercase tracking-widest">{bk.sub_title || bk.type}</p>
                                                             {(bk.date || bk.time) && <p className="text-[8px] text-slate-400 mt-1 font-bold">{bk.date} @ {bk.time}</p>}
                                                         </div>
                                                     </td>
@@ -850,18 +850,32 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
 };
 
 const SuperNavItem = ({ icon, label, active, onClick, badge }) => (
-    <button onClick={onClick} className={`flex items-center space-x-2 px-2.5 py-2 w-full rounded-lg transition-all group relative ${active ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
-        <span>{icon}</span>
-        <span className="font-black text-[10px] tracking-tight">{label}</span>
-        {badge > 0 && <span className="ml-auto bg-rose-500 text-white text-[8px] font-black px-1 py-0.5 rounded-md">{badge}</span>}
+    <button
+        onClick={onClick}
+        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-300 group ${active ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-slate-500 hover:bg-indigo-50 hover:text-indigo-600'}`}
+    >
+        <div className="flex items-center space-x-3">
+            <span className={`${active ? 'text-white' : 'text-slate-400 group-hover:text-indigo-600'} transition-colors`}>{icon}</span>
+            <span className="text-[10px] font-black uppercase tracking-widest">{label}</span>
+        </div>
+        {badge > 0 && (
+            <span className={`text-[8px] font-black px-2 py-0.5 rounded-full ${active ? 'bg-white text-indigo-600' : 'bg-indigo-600 text-white'}`}>
+                {badge}
+            </span>
+        )}
     </button>
 );
 
 const PlatformMetric = ({ label, value, icon, color }) => (
-    <div className="bg-[#1E293B] p-4 rounded-xl border border-slate-800 shadow-xl">
-        <div className={`p-2 rounded-lg mb-2 bg-[#0F172A] inline-block ${color}`}>{icon}</div>
-        <p className="text-slate-500 text-[8px] font-black uppercase tracking-widest mb-1">{label}</p>
-        <p className="text-xl font-black tracking-tighter text-white">{value}</p>
+    <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm transition-all hover:shadow-md group relative overflow-hidden">
+        <div className="absolute -right-4 -top-4 w-12 h-12 bg-indigo-500/5 rounded-full blur-2xl group-hover:bg-indigo-500/10 transition-all" />
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 duration-500 bg-slate-50 border border-slate-100 ${color}`}>
+            {icon}
+        </div>
+        <div className="space-y-1">
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em]">{label}</p>
+            <p className="text-xl font-black text-slate-900 tracking-tight">{value}</p>
+        </div>
     </div>
 );
 

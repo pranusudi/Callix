@@ -221,18 +221,18 @@ function App() {
     } else if (role === 'admin') {
       if (isPending) {
         return (
-          <div className="min-h-screen bg-[#020617] flex items-center justify-center p-6 text-center">
+          <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 text-center">
             <div className="max-w-md">
-              <div className="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-amber-500/20">
-                <ShieldCheck size={40} className="text-amber-500" />
+              <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-6 border border-amber-200 shadow-sm">
+                <ShieldCheck size={40} className="text-amber-600" />
               </div>
-              <h2 className="text-2xl font-black text-white mb-2 uppercase tracking-tighter">Access Deferred</h2>
-              <p className="text-white/60 text-sm mb-8 leading-relaxed">
-                Your company registration for <span className="text-white font-bold">{user.profile?.company_name || 'your organization'}</span> is currently being reviewed by our Global Compliance team.
+              <h2 className="text-2xl font-black text-slate-900 mb-2 uppercase tracking-tighter">Access Deferred</h2>
+              <p className="text-slate-500 text-sm mb-8 leading-relaxed font-medium">
+                Your company registration for <span className="text-indigo-600 font-bold">{user.profile?.company_name || 'your organization'}</span> is currently being reviewed by our Global Compliance team.
               </p>
               <button
                 onClick={handleLogout}
-                className="px-8 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all border border-white/10"
+                className="px-8 py-3 bg-white hover:bg-slate-50 text-slate-900 rounded-xl font-bold text-xs uppercase tracking-widest transition-all border border-slate-200 shadow-sm"
               >
                 Sign Out & Return Home
               </button>

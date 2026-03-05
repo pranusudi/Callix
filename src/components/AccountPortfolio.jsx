@@ -21,11 +21,11 @@ const AccountPortfolio = ({ onDeployAgent, companies = [], loading = false, isLo
 
   const getIndustryStyles = (industry = '') => {
     const ind = industry.toLowerCase();
-    if (ind.includes('health')) return { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20' };
-    if (ind.includes('food') || ind.includes('restaur')) return { bg: 'bg-orange-500/10', text: 'text-orange-400', border: 'border-orange-500/20' };
-    if (ind.includes('tech')) return { bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/20' };
-    if (ind.includes('commerce')) return { bg: 'bg-purple-500/10', text: 'text-purple-400', border: 'border-purple-500/20' };
-    return { bg: 'bg-slate-500/10', text: 'text-slate-400', border: 'border-slate-500/20' };
+    if (ind.includes('health')) return { bg: 'bg-emerald-500/10', text: 'text-emerald-600', border: 'border-emerald-500/20' };
+    if (ind.includes('food') || ind.includes('restaur')) return { bg: 'bg-orange-500/10', text: 'text-orange-600', border: 'border-orange-500/20' };
+    if (ind.includes('tech')) return { bg: 'bg-blue-500/10', text: 'text-blue-600', border: 'border-blue-500/20' };
+    if (ind.includes('commerce')) return { bg: 'bg-purple-500/10', text: 'text-purple-600', border: 'border-purple-500/20' };
+    return { bg: 'bg-slate-500/10', text: 'text-slate-600', border: 'border-slate-500/20' };
   };
 
   return (

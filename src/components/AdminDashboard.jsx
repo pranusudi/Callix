@@ -12,7 +12,7 @@ import { supabase } from '../utils/supabase';
 const AdminNavItem = ({ icon, label, active, onClick }) => (
     <button
         onClick={onClick}
-        className={`flex items-center space-x-2 px-3 py-2 w-full rounded-xl transition-all duration-300 group relative ${active ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-500/30 shadow-[0_0_15px_rgba(79,70,229,0.1)]' : 'text-slate-400 hover:text-white hover:bg-slate-800/50'}`}
+        className={`flex items-center space-x-2 px-3 py-2 w-full rounded-xl transition-all duration-300 group relative ${active ? 'bg-indigo-600 text-white shadow-[0_4px_12px_rgba(79,70,229,0.2)]' : 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50'}`}
         style={{ fontFamily: "'Outfit', 'Inter', sans-serif" }}
     >
         <span className={`${active ? 'text-indigo-400' : 'group-hover:text-indigo-400'} transition-colors`}>{icon}</span>
@@ -22,11 +22,11 @@ const AdminNavItem = ({ icon, label, active, onClick }) => (
 );
 
 const InsightCard = ({ label, value, icon, color }) => (
-    <div className="bg-[#1E293B]/60 backdrop-blur-sm p-4 rounded-2xl border border-slate-800/50 shadow-xl transition-all hover:border-slate-700/50 group overflow-hidden relative" style={{ fontFamily: "'Outfit', 'Inter', sans-serif" }}>
+    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm transition-all hover:shadow-md group overflow-hidden relative" style={{ fontFamily: "'Outfit', 'Inter', sans-serif" }}>
         <div className="absolute -right-4 -top-4 w-12 h-12 bg-indigo-500/5 rounded-full blur-2xl group-hover:bg-indigo-500/10 transition-all" />
-        <div className={`p-2 rounded-xl mb-3 inline-block bg-[#0F172A] border border-slate-800/80 shadow-inner ${color}`}>{icon}</div>
-        <p className="text-slate-500 text-[8px] font-bold uppercase tracking-[0.15em] mb-1">{label}</p>
-        <p className="text-lg font-black text-white tracking-tight">{value}</p>
+        <div className={`p-2 rounded-xl mb-3 inline-block bg-slate-50 border border-slate-100 ${color}`}>{icon}</div>
+        <p className="text-slate-400 text-[8px] font-bold uppercase tracking-[0.15em] mb-1">{label}</p>
+        <p className="text-lg font-black text-slate-900 tracking-tight">{value}</p>
     </div>
 );
 
@@ -191,30 +191,30 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
     const hasIdentity = user?.profile || user?.user_metadata?.role;
     if (loading || !hasIdentity) {
         return (
-            <div className="flex items-center justify-center h-screen bg-[#0F172A]" style={{ fontFamily: "'Outfit', 'Inter', sans-serif" }}>
+            <div className="flex items-center justify-center h-screen bg-slate-50" style={{ fontFamily: "'Outfit', 'Inter', sans-serif" }}>
                 <div className="text-center">
-                    <Loader size={30} className="animate-spin text-indigo-500 mx-auto mb-2" />
-                    <p className="text-slate-500 font-bold uppercase tracking-widest text-[7px]">Initializing Node...</p>
+                    <Loader size={30} className="animate-spin text-indigo-600 mx-auto mb-2" />
+                    <p className="text-slate-400 font-bold uppercase tracking-widest text-[7px]">Initializing Node...</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="flex h-screen bg-[#0F172A] text-white overflow-hidden text-[12px]" style={{ fontFamily: "'Outfit', 'Inter', sans-serif" }}>
+        <div className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden text-[12px]" style={{ fontFamily: "'Outfit', 'Inter', sans-serif" }}>
             {/* Sidebar */}
-            <aside className="w-56 bg-[#1E293B]/80 backdrop-blur-xl border-r border-white/5 p-4 flex flex-col h-screen shrink-0 relative">
+            <aside className="w-56 bg-white border-r border-slate-200 p-4 flex flex-col h-screen shrink-0 relative">
                 <div className="absolute top-0 left-0 w-full h-32 bg-indigo-600/5 blur-[80px] -mt-16 pointer-events-none" />
 
                 <div className="flex items-center space-x-3 px-2 mb-8 relative z-10">
-                    <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(79,70,229,0.3)] border border-white/10">
+                    <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg border border-indigo-500/20">
                         <Database size={16} className="text-white" />
                     </div>
                     <div className="min-w-0">
-                        <h2 className="text-[12px] font-black text-white truncate uppercase tracking-tight">{company?.name || 'Hub'}</h2>
+                        <h2 className="text-[12px] font-black text-slate-900 truncate uppercase tracking-tight">{company?.name || 'Hub'}</h2>
                         <div className="flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{company?.industry}</span>
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{company?.industry}</span>
                         </div>
                     </div>
                 </div>
@@ -226,10 +226,10 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
                     <AdminNavItem icon={<TrendingUp size={14} />} label="Intelligence" active={view === 'analytics'} onClick={() => setView('analytics')} />
                 </nav>
 
-                <div className="pt-4 border-t border-slate-800/50 mt-auto relative z-10">
+                <div className="pt-4 border-t border-slate-100 mt-auto relative z-10">
                     <button
                         onClick={() => setShowLogoutConfirm(true)}
-                        className="flex items-center space-x-3 px-3 py-2.5 w-full text-slate-400 hover:text-rose-400 hover:bg-rose-500/5 rounded-xl transition-all font-black uppercase text-[9px] tracking-widest group"
+                        className="flex items-center space-x-3 px-3 py-2.5 w-full text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all font-black uppercase text-[9px] tracking-widest group"
                     >
                         <LogOut size={16} className="group-hover:translate-x-0.5 transition-transform" />
                         <span>Terminate Session</span>
@@ -238,29 +238,29 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
             </aside>
 
             {/* Main Content Area */}
-            <main className="flex-1 p-4 overflow-y-auto bg-[#0F172A] relative custom-scrollbar">
+            <main className="flex-1 p-4 overflow-y-auto bg-slate-50 relative custom-scrollbar">
                 <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-600/5 blur-[150px] -mr-64 -mt-64 pointer-events-none" />
 
                 <div className="max-w-5xl mx-auto space-y-4 relative z-10">
-                    <header className="h-14 bg-[#1E293B]/60 backdrop-blur-xl border border-white/5 flex items-center justify-between px-6 sticky top-0 z-40 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.2)]">
+                    <header className="h-14 bg-white/80 backdrop-blur-xl border border-slate-200 flex items-center justify-between px-6 sticky top-0 z-40 rounded-2xl shadow-sm">
                         <div className="flex items-center gap-4">
                             <div className="flex flex-col">
-                                <h1 className="text-[10px] font-black text-indigo-100 uppercase tracking-[0.2em] leading-none mb-1">
+                                <h1 className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] leading-none mb-1">
                                     {view === 'data' ? 'STUDIO_ENGINE' : view.toUpperCase()}
                                 </h1>
                                 <div className="flex items-center gap-2">
-                                    <span className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">Active Node:</span>
-                                    <span className="text-[8px] text-indigo-400 font-black uppercase truncate max-w-[120px]">{company?.name}</span>
+                                    <span className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">Active Node:</span>
+                                    <span className="text-[8px] text-slate-900 font-black uppercase truncate max-w-[120px]">{company?.name}</span>
                                 </div>
                             </div>
                         </div>
 
                         <div className="flex items-center gap-4">
                             <div className="text-right leading-none hidden sm:block">
-                                <p className="text-[10px] font-black text-white uppercase tracking-tight mb-0.5">{user?.profile?.full_name}</p>
-                                <p className="text-[7px] font-bold text-indigo-400/70 uppercase tracking-[0.1em]">Root Administrator</p>
+                                <p className="text-[10px] font-black text-slate-900 uppercase tracking-tight mb-0.5">{user?.profile?.full_name}</p>
+                                <p className="text-[7px] font-bold text-indigo-600/70 uppercase tracking-[0.1em]">Root Administrator</p>
                             </div>
-                            <div className="w-9 h-9 rounded-xl bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 text-sm font-black shadow-inner">
+                            <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 text-sm font-black shadow-sm">
                                 {user?.profile?.full_name?.charAt(0)}
                             </div>
                         </div>
@@ -281,19 +281,19 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
                                     <InsightCard label="Avg Sentiment" value={feedback.length > 0 ? (feedback.reduce((a, b) => a + b.rating, 0) / feedback.length).toFixed(1) + " / 5" : "N/A"} icon={<MessageSquare size={18} />} color="text-amber-400" />
                                     <InsightCard label="Neural Nodes" value={users.length} icon={<Users size={18} />} color="text-rose-400" />
                                 </div>
-                                <div className="bg-[#1E293B]/60 backdrop-blur-sm rounded-[2rem] border border-white/5 p-6 shadow-2xl relative overflow-hidden">
+                                <div className="bg-white rounded-[2rem] border border-slate-200 p-6 shadow-sm relative overflow-hidden">
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600/5 blur-3xl -mr-16 -mt-16" />
                                     <h3 className="text-[10px] font-black text-slate-400 mb-6 flex items-center gap-2 uppercase tracking-widest">
-                                        <TrendingUp size={14} className="text-indigo-500" /> Real-time Performance Metrics
+                                        <TrendingUp size={14} className="text-indigo-600" /> Real-time Performance Metrics
                                     </h3>
                                     <div className="flex items-end gap-2 h-24">
                                         {[30, 60, 45, 80, 50, 90, 70, 40, 65, 85, 30, 40, 55, 75, 50, 60, 45, 80, 50, 90].map((v, i) => (
-                                            <div key={i} className="flex-1 bg-indigo-500/5 rounded-t-lg overflow-hidden group/bar relative">
+                                            <div key={i} className="flex-1 bg-indigo-50 rounded-t-lg overflow-hidden group/bar relative">
                                                 <motion.div
                                                     initial={{ height: 0 }}
                                                     animate={{ height: `${v}%` }}
                                                     transition={{ duration: 1, delay: i * 0.05 }}
-                                                    className="absolute bottom-0 w-full bg-gradient-to-t from-indigo-600 to-indigo-400 group-hover:from-indigo-500 group-hover:to-indigo-300 transition-all shadow-[0_0_15px_rgba(79,70,229,0.3)]"
+                                                    className="absolute bottom-0 w-full bg-gradient-to-t from-indigo-500 to-indigo-400 group-hover:from-indigo-400 group-hover:to-indigo-300 transition-all shadow-sm"
                                                 />
                                             </div>
                                         ))}
@@ -311,29 +311,29 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
                                 className="space-y-4"
                             >
                                 {/* Studio Control Panel */}
-                                <section className="bg-[#1E293B]/40 backdrop-blur-xl rounded-[2rem] border border-white/5 p-5 shadow-[0_20px_50px_rgba(0,0,0,0.3)] relative overflow-hidden">
+                                <section className="bg-white rounded-[2rem] border border-slate-200 p-5 shadow-sm relative overflow-hidden">
                                     <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/5 blur-[100px] -mr-32 -mt-32 pointer-events-none" />
 
                                     <div className="flex items-center justify-between mb-6">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 bg-indigo-600/10 rounded-2xl flex items-center justify-center border border-indigo-500/20 shadow-inner">
-                                                <Database size={18} className="text-indigo-400" />
+                                            <div className="w-10 h-10 bg-indigo-50 rounded-2xl flex items-center justify-center border border-indigo-100 shadow-sm">
+                                                <Database size={18} className="text-indigo-600" />
                                             </div>
                                             <div>
-                                                <h2 className="text-sm font-black text-white uppercase tracking-wider">Studio Engine</h2>
-                                                <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest leading-none">Knowledge Orchestration Layer</p>
+                                                <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">Studio Engine</h2>
+                                                <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest leading-none">Knowledge Orchestration Layer</p>
                                             </div>
                                         </div>
 
-                                        <div className="flex bg-[#0F172A]/80 backdrop-blur-md rounded-xl p-1 border border-slate-800/50 gap-1 shadow-inner">
+                                        <div className="flex bg-slate-100 rounded-xl p-1 border border-slate-200 gap-1 shadow-inner">
                                             {['schema', 'entry', 'sql', 'identity'].map(tab => (
                                                 <button
                                                     key={tab}
                                                     onClick={() => setActiveStudioTab(tab)}
-                                                    className={`px-4 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all duration-300 relative ${activeStudioTab === tab ? 'text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                                                    className={`px-4 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all duration-300 relative ${activeStudioTab === tab ? 'text-white' : 'text-slate-500 hover:text-slate-700'}`}
                                                 >
                                                     {activeStudioTab === tab && (
-                                                        <motion.div layoutId="studio-active-tab" className="absolute inset-0 bg-indigo-600 rounded-lg shadow-[0_0_15px_rgba(79,70,229,0.4)]" />
+                                                        <motion.div layoutId="studio-active-tab" className="absolute inset-0 bg-indigo-600 rounded-lg shadow-sm" />
                                                     )}
                                                     <span className="relative z-10">{tab === 'schema' ? 'Blueprint' : tab === 'entry' ? 'Ingest' : tab}</span>
                                                 </button>
@@ -345,34 +345,34 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
                                         {activeStudioTab === 'schema' && (
                                             <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
                                                 <div className="md:col-span-2 space-y-4">
-                                                    <div className="p-4 bg-indigo-500/5 border border-indigo-500/10 rounded-[1.5rem] relative group">
-                                                        <div className="absolute top-0 right-0 p-3 opacity-20 group-hover:opacity-40 transition-opacity"><Database size={40} className="text-indigo-400" /></div>
-                                                        <p className="text-[9px] text-indigo-200/70 italic leading-relaxed uppercase font-black tracking-wide">
+                                                    <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-[1.5rem] relative group">
+                                                        <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity"><Database size={40} className="text-indigo-600" /></div>
+                                                        <p className="text-[9px] text-indigo-900 italic leading-relaxed uppercase font-black tracking-wide">
                                                             Phase 1: Database Provisioning.<br />
                                                             <span className="text-slate-500">Define the schema personality. Every table is automatically indexed with your unique company identifier
-                                                                <span className="text-indigo-400"> (c_{user?.profile?.company_id?.split('-')[0]}_)</span> to prevent collisions in the global mesh.</span>
+                                                                <span className="text-indigo-600"> (c_{user?.profile?.company_id?.split('-')[0]}_)</span> to prevent collisions in the global mesh.</span>
                                                         </p>
                                                     </div>
                                                     <form onSubmit={handleCreateSchema} className="space-y-4">
                                                         <div className="space-y-1.5">
-                                                            <label className="text-[7px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">Entity Identifier</label>
+                                                            <label className="text-[7px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Entity Identifier</label>
                                                             <input
                                                                 type="text" required
                                                                 placeholder="e.g. SERVICE_CATALOG"
-                                                                className="w-full px-4 py-3 rounded-2xl bg-[#0F172A] border border-slate-800 font-bold text-[10px] text-white outline-none focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all placeholder:text-slate-800 shadow-inner"
+                                                                className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 font-bold text-[10px] text-slate-900 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all placeholder:text-slate-300 shadow-sm"
                                                                 value={tableSchema.name}
                                                                 onChange={e => setTableSchema({ ...tableSchema, name: e.target.value })}
                                                             />
                                                         </div>
-                                                        <button type="submit" className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-[9px] font-black uppercase tracking-widest shadow-[0_10px_20px_rgba(79,70,229,0.2)] transition-all active:scale-[0.98]">
+                                                        <button type="submit" className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-[9px] font-black uppercase tracking-widest shadow-md transition-all active:scale-[0.98]">
                                                             Provision Schema
                                                         </button>
                                                     </form>
                                                 </div>
 
-                                                <div className="md:col-span-3 space-y-3 bg-[#0F172A]/40 p-5 rounded-[2rem] border border-slate-800/40">
-                                                    <label className="text-[7px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1 flex items-center gap-2">
-                                                        <Activity size={10} className="text-indigo-500" />
+                                                <div className="md:col-span-3 space-y-3 bg-slate-50 p-5 rounded-[2rem] border border-slate-200">
+                                                    <label className="text-[7px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1 flex items-center gap-2">
+                                                        <Activity size={10} className="text-indigo-600" />
                                                         Attribute Definitions
                                                     </label>
                                                     <div className="grid grid-cols-2 gap-3 max-h-[180px] overflow-y-auto pr-2 custom-scrollbar">
@@ -381,12 +381,12 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
                                                                 <input
                                                                     type="text"
                                                                     placeholder={`Column Name...`}
-                                                                    className="w-full px-4 py-2.5 bg-[#0F172A] border border-slate-800 rounded-xl text-[9px] font-bold text-indigo-100 outline-none focus:border-indigo-500/50 shadow-inner transition-all"
+                                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[9px] font-bold text-slate-900 outline-none focus:border-indigo-500/50 shadow-sm transition-all"
                                                                     value={col}
                                                                     onChange={e => handleColumnChange(idx, e.target.value)}
                                                                 />
                                                                 {tableSchema.columns.length > 1 && (
-                                                                    <button type="button" onClick={() => handleRemoveColumnField(idx)} className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-[#1E293B] border border-slate-700 text-rose-500 rounded-full flex items-center justify-center opacity-0 group-hover/col:opacity-100 transition-all hover:bg-rose-500 hover:text-white shadow-xl">
+                                                                    <button type="button" onClick={() => handleRemoveColumnField(idx)} className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-white border border-slate-200 text-rose-500 rounded-full flex items-center justify-center opacity-0 group-hover/col:opacity-100 transition-all hover:bg-rose-500 hover:text-white shadow-sm">
                                                                         <X size={10} strokeWidth={3} />
                                                                     </button>
                                                                 )}
@@ -395,7 +395,7 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
                                                         <button
                                                             type="button"
                                                             onClick={handleAddColumnField}
-                                                            className="border-2 border-slate-800/50 border-dashed rounded-xl py-2.5 text-slate-600 hover:text-indigo-400 hover:border-indigo-500/30 transition-all text-[8px] font-black uppercase tracking-widest hover:bg-indigo-500/5"
+                                                            className="border-2 border-slate-200 border-dashed rounded-xl py-2.5 text-slate-400 hover:text-indigo-600 hover:border-indigo-500/30 transition-all text-[8px] font-black uppercase tracking-widest hover:bg-white"
                                                         >
                                                             + Add Attribute
                                                         </button>
@@ -530,40 +530,40 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
 
                                 {/* Registry View */}
                                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-                                    <div className="lg:col-span-3 bg-[#1E293B]/40 backdrop-blur-xl rounded-[2rem] border border-white/5 overflow-hidden shadow-2xl relative">
-                                        <div className="px-5 py-4 border-b border-slate-800/50 flex items-center justify-between bg-[#1E293B]/20">
+                                    <div className="lg:col-span-3 bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm relative">
+                                        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                                             <div className="flex items-center gap-2">
-                                                <Database size={14} className="text-emerald-400" />
-                                                <h3 className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Knowledge Registry</h3>
+                                                <Database size={14} className="text-emerald-600" />
+                                                <h3 className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Knowledge Registry</h3>
                                             </div>
-                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)] animate-pulse" />
+                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
                                         </div>
                                         <div className="max-h-48 overflow-y-auto custom-scrollbar">
                                             <table className="w-full text-left">
-                                                <thead className="sticky top-0 bg-[#0F172A] border-b border-slate-800/80 z-10">
+                                                <thead className="sticky top-0 bg-slate-50 border-b border-slate-200 z-10">
                                                     <tr>
-                                                        <th className="px-6 py-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">Entity Instance</th>
-                                                        <th className="px-6 py-3 text-[8px] font-black text-slate-500 uppercase tracking-widest">Data Payload</th>
-                                                        <th className="px-10 py-3 text-[8px] font-black text-slate-500 text-right uppercase tracking-widest">Sync State</th>
+                                                        <th className="px-6 py-3 text-[8px] font-black text-slate-400 uppercase tracking-widest">Entity Instance</th>
+                                                        <th className="px-6 py-3 text-[8px] font-black text-slate-400 uppercase tracking-widest">Data Payload</th>
+                                                        <th className="px-10 py-3 text-[8px] font-black text-slate-400 text-right uppercase tracking-widest">Sync State</th>
                                                     </tr>
                                                 </thead>
-                                                <tbody className="divide-y divide-slate-800/30">
+                                                <tbody className="divide-y divide-slate-100">
                                                     {registryData.length === 0 ? (
-                                                        <tr><td colSpan="3" className="px-6 py-12 text-center text-slate-600 font-black uppercase text-[8px] tracking-[0.4em] italic opacity-30">No Registry Data Indexed</td></tr>
+                                                        <tr><td colSpan="3" className="px-6 py-12 text-center text-slate-300 font-black uppercase text-[8px] tracking-[0.4em] italic opacity-30">No Registry Data Indexed</td></tr>
                                                     ) : registryData.map(item => (
-                                                        <tr key={item.id} className="hover:bg-indigo-500/5 transition-all duration-300 group">
-                                                            <td className="px-6 py-4 font-black text-[10px] text-indigo-400 uppercase tracking-tight">{item.display_name || item.table_name}</td>
+                                                        <tr key={item.id} className="hover:bg-indigo-50/50 transition-all duration-300 group">
+                                                            <td className="px-6 py-4 font-black text-[10px] text-indigo-600 uppercase tracking-tight">{item.display_name || item.table_name}</td>
                                                             <td className="px-6 py-4">
                                                                 <div className="flex flex-wrap gap-2">
                                                                     {Object.entries(item.data || {}).map(([k, v]) => (
-                                                                        <span key={k} className="px-2 py-0.5 bg-[#0F172A] border border-slate-800 rounded-md text-[8px] font-bold text-slate-400 group-hover:border-indigo-500/30 group-hover:text-indigo-200 transition-all">
-                                                                            <span className="text-indigo-500/50 mr-1">{k}:</span>{v}
+                                                                        <span key={k} className="px-2 py-0.5 bg-slate-50 border border-slate-200 rounded-md text-[8px] font-bold text-slate-600 group-hover:border-indigo-200 group-hover:text-indigo-600 transition-all">
+                                                                            <span className="text-indigo-600/50 mr-1">{k}:</span>{v}
                                                                         </span>
                                                                     ))}
                                                                 </div>
                                                             </td>
                                                             <td className="px-6 py-4 text-right">
-                                                                <span className={`px-3 py-1 rounded-full text-[7px] font-black uppercase tracking-widest shadow-sm ${item.status === 'approved' ? 'text-emerald-400 bg-emerald-400/5 border border-emerald-400/20' : 'text-amber-400 bg-amber-400/5 border border-amber-400/20'}`}>
+                                                                <span className={`px-3 py-1 rounded-full text-[7px] font-black uppercase tracking-widest shadow-sm ${item.status === 'approved' ? 'text-emerald-600 bg-emerald-50 border border-emerald-200' : 'text-amber-600 bg-amber-50 border border-amber-200'}`}>
                                                                     {item.status}
                                                                 </span>
                                                             </td>
@@ -574,15 +574,15 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
                                         </div>
                                     </div>
 
-                                    <div className="bg-indigo-600 rounded-[2rem] p-5 flex flex-col justify-between shadow-2xl relative overflow-hidden group">
-                                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-3xl pointer-events-none -mr-16 -mt-16 group-hover:bg-white/20 transition-all" />
+                                    <div className="bg-indigo-600 rounded-[2rem] p-5 flex flex-col justify-between shadow-lg relative overflow-hidden group">
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-3xl pointer-events-none -mr-16 -mt-16" />
 
                                         <div className="relative z-10">
                                             <div className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center text-white mb-4 border border-white/10">
                                                 <Settings size={20} />
                                             </div>
                                             <h4 className="text-sm font-black uppercase tracking-wider text-white mb-1">Neural Sync</h4>
-                                            <p className="text-[8px] text-indigo-100/60 font-medium leading-relaxed">System state is currently synchronized with the global primary logic mesh.</p>
+                                            <p className="text-[8px] text-indigo-100/80 font-medium leading-relaxed">System state is currently synchronized with the global primary logic mesh.</p>
                                         </div>
 
                                         <div className="space-y-2 mt-6 relative z-10">
@@ -609,28 +609,28 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -10 }}
-                                className="bg-[#1E293B]/40 backdrop-blur-xl rounded-[2rem] border border-white/5 overflow-hidden shadow-2xl"
+                                className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm"
                             >
-                                <div className="px-6 py-5 border-b border-slate-800/50 flex items-center justify-between bg-[#1E293B]/20">
+                                <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 bg-indigo-600/10 rounded-xl flex items-center justify-center border border-indigo-500/20">
-                                            <Clock size={16} className="text-indigo-400" />
+                                        <div className="w-8 h-8 bg-indigo-50 rounded-xl flex items-center justify-center border border-indigo-100">
+                                            <Clock size={16} className="text-indigo-600" />
                                         </div>
-                                        <h3 className="text-[10px] font-black uppercase tracking-widest text-white">Transaction Ledger</h3>
+                                        <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-900">Transaction Ledger</h3>
                                     </div>
-                                    <span className="text-[7px] font-black text-indigo-400 bg-indigo-400/10 border border-indigo-400/20 px-3 py-1 rounded-full uppercase tracking-[0.2em]">Relay: Active</span>
+                                    <span className="text-[7px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full uppercase tracking-[0.2em]">Relay: Active</span>
                                 </div>
                                 <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
                                     <table className="w-full text-left">
-                                        <thead className="bg-[#0F172A] sticky top-0 z-10">
+                                        <thead className="bg-slate-50 sticky top-0 z-10">
                                             <tr>
-                                                <th className="px-6 py-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">User Identity</th>
-                                                <th className="px-6 py-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">Resource Node</th>
-                                                <th className="px-6 py-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">Schedule</th>
-                                                <th className="px-6 py-4 text-[8px] font-black text-slate-500 text-right uppercase tracking-widest">Phase</th>
+                                                <th className="px-6 py-4 text-[8px] font-black text-slate-400 uppercase tracking-widest">User Identity</th>
+                                                <th className="px-6 py-4 text-[8px] font-black text-slate-400 uppercase tracking-widest">Resource Node</th>
+                                                <th className="px-6 py-4 text-[8px] font-black text-slate-400 uppercase tracking-widest">Schedule</th>
+                                                <th className="px-6 py-4 text-[8px] font-black text-slate-400 text-right uppercase tracking-widest">Phase</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-slate-800/30">
+                                        <tbody className="divide-y divide-slate-100">
                                             {bookings.length === 0 && feedback.length === 0 ? (
                                                 <tr><td colSpan="4" className="px-6 py-12 text-center text-slate-600 font-black uppercase text-[8px] tracking-[0.4em] italic opacity-30">No Universal Interactions Found</td></tr>
                                             ) : (
@@ -638,23 +638,23 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
                                                     {bookings.map(b => (
                                                         <tr key={b.id} className="hover:bg-indigo-500/5 transition-all group">
                                                             <td className="px-6 py-4">
-                                                                <div className="font-bold text-slate-300 group-hover:text-white transition-colors truncate max-w-[150px]">{b.user_name || 'Customer'}</div>
-                                                                <div className="text-[7px] text-slate-500 font-bold uppercase tracking-widest">{b.user_email}</div>
+                                                                <div className="font-bold text-slate-600 group-hover:text-slate-900 transition-colors truncate max-w-[150px]">{b.user_name || 'Customer'}</div>
+                                                                <div className="text-[7px] text-slate-400 font-bold uppercase tracking-widest">{b.user_email}</div>
                                                             </td>
                                                             <td className="px-6 py-4">
-                                                                <div className="font-black text-[10px] text-white uppercase tracking-tight">{b.title}</div>
-                                                                <div className="text-[8px] text-indigo-400 font-bold uppercase tracking-widest">{b.sub_title || b.type}</div>
+                                                                <div className="font-black text-[10px] text-slate-900 uppercase tracking-tight">{b.title}</div>
+                                                                <div className="text-[8px] text-indigo-600 font-bold uppercase tracking-widest">{b.sub_title || b.type}</div>
                                                             </td>
                                                             <td className="px-6 py-4">
-                                                                <div className="text-[10px] font-black text-indigo-400">
+                                                                <div className="text-[10px] font-black text-indigo-600">
                                                                     {b.date && !b.date.includes('{') ? new Date(b.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'SCHEDULED'}
                                                                 </div>
-                                                                <div className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter mt-0.5">
+                                                                <div className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">
                                                                     {b.time && !b.time.includes('{') ? b.time : 'TIME TBD'}
                                                                 </div>
                                                             </td>
                                                             <td className="px-6 py-4 text-right">
-                                                                <span className={`px-4 py-1.5 rounded-full text-[7px] font-black uppercase tracking-widest shadow-sm ${b.status === 'confirmed' || b.status === 'completed' ? 'text-emerald-400 bg-emerald-400/5 border border-emerald-400/20' : 'text-slate-500 bg-slate-800/50 border border-slate-700/50'}`}>
+                                                                <span className={`px-4 py-1.5 rounded-full text-[7px] font-black uppercase tracking-widest shadow-sm ${b.status === 'confirmed' || b.status === 'completed' ? 'text-emerald-600 bg-emerald-50 border border-emerald-100' : 'text-slate-500 bg-slate-100 border border-slate-200'}`}>
                                                                     {b.status}
                                                                 </span>
                                                             </td>
@@ -704,25 +704,25 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
                                 className="space-y-4"
                             >
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="bg-[#1E293B]/60 backdrop-blur-xl p-6 rounded-[2rem] border border-white/5 shadow-2xl">
+                                    <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
                                         <h4 className="text-[10px] font-black uppercase mb-6 text-slate-400 tracking-widest flex items-center gap-2">
-                                            <Activity size={14} className="text-indigo-500" /> Node Load Distribution
+                                            <Activity size={14} className="text-indigo-600" /> Node Load Distribution
                                         </h4>
                                         <div className="space-y-6">
                                             {[
-                                                { label: 'AI-CORE-PRIMUS (70B)', value: 78, color: 'bg-indigo-500' },
-                                                { label: 'LAMA-DERIVATIVE (8B)', value: 22, color: 'bg-emerald-500' }
+                                                { label: 'AI-CORE-PRIMUS (70B)', value: 78, color: 'bg-indigo-600' },
+                                                { label: 'LAMA-DERIVATIVE (8B)', value: 22, color: 'bg-emerald-600' }
                                             ].map((m) => (
                                                 <div key={m.label} className="space-y-2">
                                                     <div className="flex justify-between text-[8px] font-black uppercase tracking-widest">
                                                         <span className="text-slate-400">{m.label}</span>
-                                                        <span className="text-white">{m.value}%</span>
+                                                        <span className="text-slate-900">{m.value}%</span>
                                                     </div>
-                                                    <div className="h-1.5 bg-[#0F172A] rounded-full overflow-hidden shadow-inner">
+                                                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden shadow-inner">
                                                         <motion.div
                                                             initial={{ width: 0 }}
                                                             animate={{ width: `${m.value}%` }}
-                                                            className={`h-full ${m.color} shadow-[0_0_10px_rgba(79,70,229,0.5)]`}
+                                                            className={`h-full ${m.color} shadow-sm`}
                                                         />
                                                     </div>
                                                 </div>
@@ -730,13 +730,13 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
                                         </div>
                                     </div>
 
-                                    <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 p-8 rounded-[2rem] flex flex-col justify-between shadow-2xl relative overflow-hidden group">
+                                    <div className="bg-gradient-to-br from-indigo-500 to-indigo-700 p-8 rounded-[2rem] flex flex-col justify-between shadow-lg relative overflow-hidden group">
                                         <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-3xl pointer-events-none -mr-16 -mt-16 group-hover:bg-white/20 transition-all" />
                                         <div className="flex justify-between items-start relative z-10">
                                             <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center text-white border border-white/10">
                                                 <CheckCircle size={24} />
                                             </div>
-                                            <span className="text-[8px] font-black uppercase bg-emerald-500 text-white px-3 py-1 rounded-full shadow-lg">System Optimal</span>
+                                            <span className="text-[8px] font-black uppercase bg-emerald-500 text-white px-3 py-1 rounded-full shadow-md">System Optimal</span>
                                         </div>
                                         <div className="relative z-10">
                                             <p className="text-4xl font-black tracking-tighter leading-none text-white mb-2">99.9%</p>
@@ -754,16 +754,16 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
             <AnimatePresence>
                 {showLogoutConfirm && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-3">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowLogoutConfirm(false)} className="absolute inset-0 bg-[#0F172A]/80 backdrop-blur-xl" />
-                        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-[#1E293B]/90 backdrop-blur-2xl border border-white/10 w-full max-w-[280px] rounded-[2rem] p-8 relative z-10 shadow-[0_30px_60px_rgba(0,0,0,0.5)] text-center">
-                            <div className="w-14 h-14 bg-rose-500/10 rounded-2xl flex items-center justify-center text-rose-500 mb-6 mx-auto border border-rose-500/20 shadow-inner">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowLogoutConfirm(false)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-md" />
+                        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-white border border-slate-200 w-full max-w-[280px] rounded-[2rem] p-8 relative z-10 shadow-2xl text-center">
+                            <div className="w-14 h-14 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-500 mb-6 mx-auto border border-rose-100 shadow-sm">
                                 <LogOut size={28} />
                             </div>
-                            <h3 className="text-sm font-black text-white mb-2 uppercase tracking-widest">Terminate Access?</h3>
-                            <p className="text-slate-400 text-[9px] mb-8 uppercase font-bold tracking-[0.2em] leading-relaxed">Your administrative session will be purged from the active mesh.</p>
+                            <h3 className="text-sm font-black text-slate-900 mb-2 uppercase tracking-widest">Terminate Access?</h3>
+                            <p className="text-slate-500 text-[9px] mb-8 uppercase font-bold tracking-[0.2em] leading-relaxed">Your administrative session will be purged from the active mesh.</p>
                             <div className="space-y-3">
-                                <button onClick={onLogout} className="w-full py-3.5 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg transition-all active:scale-[0.98]">Confirm Purge</button>
-                                <button onClick={() => setShowLogoutConfirm(false)} className="w-full py-3.5 bg-slate-800/50 text-slate-400 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-slate-700/50 hover:bg-slate-800 hover:text-white transition-all">Abort</button>
+                                <button onClick={onLogout} className="w-full py-3.5 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-rose-200 transition-all active:scale-[0.98]">Confirm Purge</button>
+                                <button onClick={() => setShowLogoutConfirm(false)} className="w-full py-3.5 bg-slate-50 text-slate-400 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-slate-200 hover:bg-white hover:text-slate-600 transition-all">Abort</button>
                             </div>
                         </motion.div>
                     </div>

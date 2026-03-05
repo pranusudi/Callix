@@ -9,6 +9,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
     const [userRole, setUserRole] = useState(initialRole);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [showVerificationInfo, setShowVerificationInfo] = useState(false);
 
     const [formData, setFormData] = useState({
         email: '',
@@ -35,12 +36,12 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
             if (authMode === 'signup') {
                 if (userRole === 'admin') {
                     await database.signUpAdmin(formData.email, formData.password, formData.fullName, formData.companyName, formData.industry);
-                    addToast('Registration submitted. The Superadmin has been notified for approval.', 'success');
+                    setShowVerificationInfo(true);
                 } else {
                     await database.signUp(formData.email, formData.password, formData.fullName);
-                    addToast('Registration successful!', 'success');
+                    addToast('Registration successful! Please sign in.', 'success');
+                    setAuthMode('signin');
                 }
-                setAuthMode('signin');
             } else {
                 const user = await database.signIn(formData.email, formData.password);
                 localStorage.setItem('user', JSON.stringify(user));
@@ -108,138 +109,174 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
                         )}
 
 
-                        <form onSubmit={handleSubmit} className="space-y-3 text-left">
-                            {authMode === 'signup' && (
-                                <>
-                                    <div className="space-y-0.5">
-                                        <label className="text-[8px] font-black uppercase tracking-widest text-slate-600 ml-1">Full Name</label>
-                                        <div className="relative">
-                                            <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600" size={12} />
-                                            <input
-                                                type="text"
-                                                required
-                                                value={formData.fullName}
-                                                onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                                                className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-4 text-slate-900 text-[11px] focus:border-indigo-500 transition-all outline-none"
-                                                placeholder="First and Last Name"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {userRole === 'admin' && (
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <div className="space-y-0.5">
-                                                <label className="text-[8px] font-black uppercase tracking-widest text-slate-600 ml-1">Company Name</label>
-                                                <div className="relative">
-                                                    <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600" size={12} />
-                                                    <input
-                                                        type="text"
-                                                        required
-                                                        value={formData.companyName}
-                                                        onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-4 text-slate-900 text-[11px] focus:border-indigo-500 transition-all outline-none"
-                                                        placeholder="Company Name"
-                                                    />
-                                                </div>
+                        {showVerificationInfo ? (
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="space-y-6 py-4"
+                            >
+                                <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-500 mx-auto border border-emerald-100 shadow-sm mb-2">
+                                    <ShieldCheck size={32} />
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-2">Verification Pending</h3>
+                                    <p className="text-[10px] text-slate-500 font-bold leading-relaxed uppercase tracking-wide">
+                                        Your request to join as an administrator for <span className="text-indigo-600">{formData.companyName}</span> has been received.
+                                    </p>
+                                </div>
+                                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-left">
+                                    <p className="text-[9px] text-slate-600 font-black flex items-center gap-2 uppercase tracking-tight">
+                                        <AlertCircle size={14} className="text-amber-500" />
+                                        Important Notice
+                                    </p>
+                                    <p className="text-[8px] text-slate-500 mt-2 font-bold leading-tight">
+                                        Security protocols require a Superadmin to manually verify and grant access to your account. You will be able to sign in once the approval process is complete.
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setShowVerificationInfo(false);
+                                        setAuthMode('signin');
+                                    }}
+                                    className="w-full py-3 bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-200 hover:bg-indigo-500 transition-all"
+                                >
+                                    Proceed to Sign In
+                                </button>
+                            </motion.div>
+                        ) : (
+                            <form onSubmit={handleSubmit} className="space-y-3 text-left">
+                                {authMode === 'signup' && (
+                                    <>
+                                        <div className="space-y-0.5">
+                                            <label className="text-[8px] font-black uppercase tracking-widest text-slate-600 ml-1">Full Name</label>
+                                            <div className="relative">
+                                                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600" size={12} />
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    value={formData.fullName}
+                                                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-4 text-slate-900 text-[11px] focus:border-indigo-500 transition-all outline-none"
+                                                    placeholder="First and Last Name"
+                                                />
                                             </div>
-                                            <div className="space-y-0.5">
-                                                <label className="text-[8px] font-black uppercase tracking-widest text-slate-600 ml-1">Industry</label>
-                                                <div className="space-y-2">
-                                                    <select
-                                                        required
-                                                        value={['Healthcare', 'Food & Beverage', 'E-Commerce', 'Technology'].includes(formData.industry) ? formData.industry : 'Other'}
-                                                        onChange={(e) => {
-                                                            const val = e.target.value;
-                                                            if (val === 'Other') {
-                                                                setFormData({ ...formData, industry: '' });
-                                                            } else {
-                                                                setFormData({ ...formData, industry: val });
-                                                            }
-                                                        }}
-                                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-2 text-slate-900 text-[11px] focus:border-indigo-500 transition-all outline-none"
-                                                    >
-                                                        <option value="Healthcare">Healthcare</option>
-                                                        <option value="Food & Beverage">Food & Beverage</option>
-                                                        <option value="E-Commerce">E-Commerce</option>
-                                                        <option value="Technology">Technology</option>
-                                                        <option value="Other">Other...</option>
-                                                    </select>
+                                        </div>
 
-                                                    {!['Healthcare', 'Food & Beverage', 'E-Commerce', 'Technology'].includes(formData.industry) && (
+                                        {userRole === 'admin' && (
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div className="space-y-0.5">
+                                                    <label className="text-[8px] font-black uppercase tracking-widest text-slate-600 ml-1">Company Name</label>
+                                                    <div className="relative">
+                                                        <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600" size={12} />
                                                         <input
                                                             type="text"
                                                             required
-                                                            placeholder="Specify industry"
-                                                            value={formData.industry}
-                                                            onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
-                                                            className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-slate-900 text-[11px] focus:border-indigo-500 transition-all outline-none"
+                                                            value={formData.companyName}
+                                                            onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                                                            className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-4 text-slate-900 text-[11px] focus:border-indigo-500 transition-all outline-none"
+                                                            placeholder="Company Name"
                                                         />
-                                                    )}
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-0.5">
+                                                    <label className="text-[8px] font-black uppercase tracking-widest text-slate-600 ml-1">Industry</label>
+                                                    <div className="space-y-2">
+                                                        <select
+                                                            required
+                                                            value={['Healthcare', 'Food & Beverage', 'E-Commerce', 'Technology'].includes(formData.industry) ? formData.industry : 'Other'}
+                                                            onChange={(e) => {
+                                                                const val = e.target.value;
+                                                                if (val === 'Other') {
+                                                                    setFormData({ ...formData, industry: '' });
+                                                                } else {
+                                                                    setFormData({ ...formData, industry: val });
+                                                                }
+                                                            }}
+                                                            className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-2 text-slate-900 text-[11px] focus:border-indigo-500 transition-all outline-none"
+                                                        >
+                                                            <option value="Healthcare">Healthcare</option>
+                                                            <option value="Food & Beverage">Food & Beverage</option>
+                                                            <option value="E-Commerce">E-Commerce</option>
+                                                            <option value="Technology">Technology</option>
+                                                            <option value="Other">Other...</option>
+                                                        </select>
+
+                                                        {!['Healthcare', 'Food & Beverage', 'E-Commerce', 'Technology'].includes(formData.industry) && (
+                                                            <input
+                                                                type="text"
+                                                                required
+                                                                placeholder="Specify industry"
+                                                                value={formData.industry}
+                                                                onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
+                                                                className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-slate-900 text-[11px] focus:border-indigo-500 transition-all outline-none"
+                                                            />
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    )}
-                                </>
-                            )}
+                                        )}
+                                    </>
+                                )}
 
-                            <div className="space-y-0.5">
-                                <label className="text-[8px] font-black uppercase tracking-widest text-slate-600 ml-1">Email Address</label>
-                                <div className="relative">
-                                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600" size={12} />
-                                    <input
-                                        type="email"
-                                        required
-                                        value={formData.email}
-                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-4 text-slate-900 text-[11px] focus:border-indigo-500 transition-all outline-none"
-                                        placeholder="email@example.com"
-                                    />
+                                <div className="space-y-0.5">
+                                    <label className="text-[8px] font-black uppercase tracking-widest text-slate-600 ml-1">Email Address</label>
+                                    <div className="relative">
+                                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600" size={12} />
+                                        <input
+                                            type="email"
+                                            required
+                                            value={formData.email}
+                                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-4 text-slate-900 text-[11px] focus:border-indigo-500 transition-all outline-none"
+                                            placeholder="email@example.com"
+                                        />
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div className="space-y-0.5">
-                                <label className="text-[8px] font-black uppercase tracking-widest text-slate-600 ml-1">Password</label>
-                                <div className="relative">
-                                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600" size={12} />
-                                    <input
-                                        type="password"
-                                        required
-                                        value={formData.password}
-                                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-4 text-slate-900 text-[11px] focus:border-indigo-500 transition-all outline-none"
-                                        placeholder="••••••••"
-                                        minLength={6}
-                                        autoComplete="current-password"
-                                    />
+                                <div className="space-y-0.5">
+                                    <label className="text-[8px] font-black uppercase tracking-widest text-slate-600 ml-1">Password</label>
+                                    <div className="relative">
+                                        <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600" size={12} />
+                                        <input
+                                            type="password"
+                                            required
+                                            value={formData.password}
+                                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-4 text-slate-900 text-[11px] focus:border-indigo-500 transition-all outline-none"
+                                            placeholder="••••••••"
+                                            minLength={6}
+                                            autoComplete="current-password"
+                                        />
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div className="pt-2">
-                                <motion.button
-                                    type="submit"
-                                    className={`w-full text-white font-black text-[9px] uppercase tracking-[0.3em] py-3 rounded-lg shadow-xl transition-all flex items-center justify-center gap-2 group mb-4 disabled:opacity-50 ${userRole === 'admin' ? 'bg-amber-600 hover:bg-amber-500' : 'bg-indigo-600 hover:bg-indigo-500'
-                                        }`}
-                                    whileHover={{ y: -1 }}
-                                    whileTap={{ scale: 0.99 }}
-                                >
-                                    {loading ? 'Processing...' : (authMode === 'signin' ? 'Sign In' : 'Create Account')}
-                                    <ChevronRight size={10} className="group-hover:translate-x-1 transition-transform" />
-                                </motion.button>
+                                <div className="pt-2">
+                                    <motion.button
+                                        type="submit"
+                                        className={`w-full text-white font-black text-[9px] uppercase tracking-[0.3em] py-3 rounded-lg shadow-xl transition-all flex items-center justify-center gap-2 group mb-4 disabled:opacity-50 ${userRole === 'admin' ? 'bg-amber-600 hover:bg-amber-500' : 'bg-indigo-600 hover:bg-indigo-500'
+                                            }`}
+                                        whileHover={{ y: -1 }}
+                                        whileTap={{ scale: 0.99 }}
+                                    >
+                                        {loading ? 'Processing...' : (authMode === 'signin' ? 'Sign In' : 'Create Account')}
+                                        <ChevronRight size={10} className="group-hover:translate-x-1 transition-transform" />
+                                    </motion.button>
 
-                                <div className="text-center">
-                                    <p className="text-slate-600 text-[8px] font-black uppercase tracking-widest">
-                                        {authMode === 'signin' ? "Need an account? " : 'Already have an account? '}
-                                        <button
-                                            type="button"
-                                            onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}
-                                            className="text-slate-900 hover:text-indigo-600 underline decoration-slate-200 underline-offset-4 transition-colors ml-1"
-                                        >
-                                            {authMode === 'signin' ? 'Sign Up' : 'Sign In'}
-                                        </button>
-                                    </p>
+                                    <div className="text-center">
+                                        <p className="text-slate-600 text-[8px] font-black uppercase tracking-widest">
+                                            {authMode === 'signin' ? "Need an account? " : 'Already have an account? '}
+                                            <button
+                                                type="button"
+                                                onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}
+                                                className="text-slate-900 hover:text-indigo-600 underline decoration-slate-200 underline-offset-4 transition-colors ml-1"
+                                            >
+                                                {authMode === 'signin' ? 'Sign Up' : 'Sign In'}
+                                            </button>
+                                        </p>
+                                    </div>
                                 </div>
-                            </div>
-                        </form>
+                            </form>
+                        )}
                     </div>
                 </motion.div>
             </motion.div>
