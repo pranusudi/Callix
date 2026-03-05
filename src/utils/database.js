@@ -386,22 +386,21 @@ export const database = {
       }
 
       // 5. MERGE: Create a unique prioritized list of tables to scan
+      // We ALWAYS include the dynamic patterns so that any companyname_(tablename) combinations are checked for all companies indiscriminately.
       const tablesToTry = [...new Set([
         vaultTable,
         ...registeredTables,
-        ...rpcTables
+        ...rpcTables,
+        `${snakeName}_menu`,
+        `${snakeName}_vault`,
+        `${snakeName}_catalogue`,
+        `${snakeName}_products`,
+        `${snakeName}_services`,
+        `${snakeName}_staff`,
+        `${snakeName}_team`,
+        `${fullSnakeName}_menu`,
+        ...dynamicPatterns
       ])].filter(Boolean);
-
-      // Add dynamic patterns ONLY if we haven't found any known table
-      if (tablesToTry.length === 0) {
-        tablesToTry.push(...new Set([
-          `${snakeName}_menu`,
-          `${snakeName}_vault`,
-          `${snakeName}_catalogue`,
-          `${fullSnakeName}_menu`,
-          ...dynamicPatterns
-        ]));
-      }
 
       let finalData = [];
 
