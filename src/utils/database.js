@@ -357,34 +357,45 @@ export const database = {
 
       const registeredTables = (registry || []).map(r => r.table_name).filter(Boolean);
 
-      // 2. POSTGRES RPC: If the user added an RPC to dynamically list tables
-      let rpcTables = [];
+      // 2. DISCOVERY: Try to list all tables starting with the company prefix
+      let discoveredTables = [];
       try {
-        const { data: rpcData, error: rpcError } = await supabase.rpc('get_company_tables', { prefix: snakeName });
+        const prefix = `${noSpaceName}_`; // companyname_
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_company_tables', { prefix: prefix });
+
         if (!rpcError && rpcData) {
-          rpcTables = rpcData.map(t => t.table_name);
+          discoveredTables = rpcData.map(t => t.table_name);
+          console.log(`🔎 [${companyName}] RPC Discovered tables:`, discoveredTables);
+        } else {
+          if (rpcError) console.warn(`⚠️ [${companyName}] RPC Discovery Error (Ignore if not set up):`, rpcError.message);
         }
       } catch (e) {
-        // RPC might not exist, ignore and fallback
+        // Fallback silently if RPC is missing
       }
 
-      const commonSuffixes = ['_menu', '_products', '_services', '_doctors', '_staff', '_inventory', '_items'];
-      const fallbackTables = [];
-      commonSuffixes.forEach(s => {
-        fallbackTables.push(`${noSpaceName}${s}`);
-        if (snakeName && snakeName !== noSpaceName) fallbackTables.push(`${snakeName}${s}`);
-      });
+      // 3. FALLBACK PATTERNS: If RPC misses, we try the specified naming standard only
+      const commonSuffixes = ['menu', 'vault'];
 
-      // 3. MERGE: Create a prioritized list of specific tables vs global tables
-      // We explicitly check fallbacks to ensure tables named like 'companyname_menu' are found correctly
+      // Try companyname_menu and companyname_vault only
+      const fallbackTables = commonSuffixes.map(s => `${noSpaceName}_${s}`);
+
       const specificTablesToTry = [...new Set([
         ...registeredTables,
-        ...rpcTables,
+        ...discoveredTables,
         ...fallbackTables
-      ])].filter(Boolean);
+      ])].filter(table => {
+        if (!table) return false;
+        const lowTable = table.toLowerCase();
+        // The table must specifically be companyname_menu OR companyname_vault
+        return lowTable === `${noSpaceName}_menu` ||
+          lowTable === `${noSpaceName}_vault` ||
+          registeredTables.includes(table);
+      });
+
+      console.log(`🔍 [${companyName}] Potential specific tables to check:`, specificTablesToTry);
 
       // Global tables are checked with a company_id filter
-      const globalTablesToTry = ['products', 'restaurant_tables', 'services', 'doctors'];
+      const globalTablesToTry = ['products', 'restaurant_tables', 'services', 'doctors', 'menu', 'items'];
 
       let finalData = [];
 
@@ -394,22 +405,36 @@ export const database = {
         finalData.push({
           category: 'ORGANIZATION',
           label: companyMeta.name,
-          details: `Industry: ${companyMeta.industry}. Context: ${companyMeta.nlp_context || 'Professional Service'}. Website: ${companyMeta.website_url || 'N/A'}`,
+          details: `Industry: ${companyMeta.industry}. Context: ${companyMeta.nlp_context || 'Professional Service'}.`,
           type: 'CORE_IDENTITY'
         });
       }
 
-      // Try fetching from specific tables (assumes all rows belong to company)
+      // Try fetching from specific tables (only if they belong to this company)
       for (const table of specificTablesToTry) {
         try {
+          console.log(`📡 [${companyName}] Querying table: ${table}...`);
+          // Check if table exists and has data
           const { data, error } = await supabase.from(table).select('*').limit(50);
-          if (error) continue;
+          if (error) {
+            console.warn(`❌ [${companyName}] Table ${table} not found or inaccessible:`, error.message);
+            continue;
+          }
 
           if (data && data.length > 0) {
-            finalData = [...finalData, ...data];
-            console.log(`✅ Success: Aggregated data from specific table "${table}"`);
+            // Success: only add data that belongs to this company (if column exists)
+            const filteredData = data.filter(item => !item.company_id || item.company_id === companyId);
+            if (filteredData.length > 0) {
+              finalData = [...finalData, ...filteredData];
+              console.log(`✅ [${companyName}] Success: Aggregated ${filteredData.length} records from table "${table}"`);
+            } else {
+              console.log(`⚠️ [${companyName}] Table "${table}" has data, but 0 records matched company_id: ${companyId}`);
+            }
+          } else {
+            console.log(`ℹ️ [${companyName}] Table "${table}" is empty.`);
           }
         } catch (e) {
+          console.error(`💥 [${companyName}] Error querying table ${table}:`, e);
           continue;
         }
       }
@@ -417,20 +442,27 @@ export const database = {
       // Try fetching from global shared tables ONLY if we haven't found any specific data
       // This prevents cross-contamination (e.g. pulling "medical services" globally for a restaurant)
       if (finalData.length === 1) { // 1 means only the CORE_IDENTITY is in there
+        console.log(`🌐 [${companyName}] No specific tables found. Falling back to global search in:`, globalTablesToTry);
         for (const table of globalTablesToTry) {
           try {
+            console.log(`🌍 [${companyName}] Searching global table: ${table} for company_id: ${companyId}`);
             const { data, error } = await supabase.from(table).select('*').eq('company_id', companyId).limit(50);
-            if (error) continue;
+            if (error) {
+              console.warn(`❌ [${companyName}] Global table ${table} error:`, error.message);
+              continue;
+            }
 
             if (data && data.length > 0) {
               finalData = [...finalData, ...data];
-              console.log(`✅ Success: Aggregated data from global table "${table}"`);
+              console.log(`✅ [${companyName}] Success: Found ${data.length} records in global table "${table}"`);
             }
           } catch (e) {
             continue;
           }
         }
       }
+
+      console.log(`📊 [${companyName}] FINAL DATA COLLECTION SUMMARY: Collected ${finalData.length - 1} records from the vault.`);
 
       if (finalData.length <= 1) {
         return `DATA_NOT_FOUND: No service or product information is available in the database for ${companyName}. Verify the tables exist and have active RLS policies.`;
