@@ -368,11 +368,19 @@ export const database = {
         // RPC might not exist, ignore and fallback
       }
 
+      const commonSuffixes = ['_menu', '_products', '_services', '_doctors', '_staff', '_inventory', '_items'];
+      const fallbackTables = [];
+      commonSuffixes.forEach(s => {
+        fallbackTables.push(`${noSpaceName}${s}`);
+        if (snakeName && snakeName !== noSpaceName) fallbackTables.push(`${snakeName}${s}`);
+      });
+
       // 3. MERGE: Create a prioritized list of specific tables vs global tables
-      // We only try specific tables if they are registered or fetched via RPC to prevent 404 spam.
+      // We explicitly check fallbacks to ensure tables named like 'companyname_menu' are found correctly
       const specificTablesToTry = [...new Set([
         ...registeredTables,
-        ...rpcTables
+        ...rpcTables,
+        ...fallbackTables
       ])].filter(Boolean);
 
       // Global tables are checked with a company_id filter
@@ -406,24 +414,26 @@ export const database = {
         }
       }
 
-      // Try fetching from global shared tables (filters by company_id)
-      for (const table of globalTablesToTry) {
-        try {
-          // Wrapped because global tables might also not be created yet
-          const { data, error } = await supabase.from(table).select('*').eq('company_id', companyId).limit(50);
-          if (error) continue;
+      // Try fetching from global shared tables ONLY if we haven't found any specific data
+      // This prevents cross-contamination (e.g. pulling "medical services" globally for a restaurant)
+      if (finalData.length === 1) { // 1 means only the CORE_IDENTITY is in there
+        for (const table of globalTablesToTry) {
+          try {
+            const { data, error } = await supabase.from(table).select('*').eq('company_id', companyId).limit(50);
+            if (error) continue;
 
-          if (data && data.length > 0) {
-            finalData = [...finalData, ...data];
-            console.log(`✅ Success: Aggregated data from global table "${table}"`);
+            if (data && data.length > 0) {
+              finalData = [...finalData, ...data];
+              console.log(`✅ Success: Aggregated data from global table "${table}"`);
+            }
+          } catch (e) {
+            continue;
           }
-        } catch (e) {
-          continue;
         }
       }
 
-      if (finalData.length === 0) {
-        return `DATA_NOT_FOUND: No service or product information is available in the database for ${companyName}. Verify the table "${vaultTable || tablesToTry[0]}" exists and has active RLS policies.`;
+      if (finalData.length <= 1) {
+        return `DATA_NOT_FOUND: No service or product information is available in the database for ${companyName}. Verify the tables exist and have active RLS policies.`;
       }
 
       // De-duplicate if same items appear in multiple tables
