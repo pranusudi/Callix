@@ -347,34 +347,7 @@ export const database = {
 
       const registeredTables = (registry || []).map(r => r.table_name).filter(Boolean);
 
-      // 2. PATTERNS: Common naming conventions starting with company name
-      const dynamicPatterns = [
-        `${snakeName}_vault`,
-        `${snakeName}_menu`,
-        `${snakeName}_catalogue`,
-        `${snakeName}_products`,
-        `${snakeName}_services`,
-        `${fullSnakeName}_vault`,
-        `${fullSnakeName}_menu`,
-        `${noSpaceName}_vault`,
-        `${noSpaceName}_menu`,
-        `${noSpaceName}_catalogue`,
-        `${noSpaceName}_products`,
-        `${noSpaceName}_services`,
-        `${fullNoSpaceName}_vault`,
-        `${fullNoSpaceName}_menu`
-      ];
-
-      // 3. LEGACY: Hardcoded mappings (Absolute Truth for known companies)
-      let vaultTable = '';
-      if (name.includes('aarogya')) vaultTable = 'aarogya_hospital_vault';
-      else if (name.includes('technova')) vaultTable = 'technova_solutions_vault';
-      else if (name.includes('spice')) vaultTable = 'spice_garden_vault';
-      else if (name.includes('quickkart')) vaultTable = 'quickkart_electronics_vault';
-      else if (name.includes('aroma')) vaultTable = 'aroma_menu';
-      else if (name.includes('city')) vaultTable = 'city_general_vault';
-
-      // 4. DYNAMIC POSTGRES RPC: If the user added an RPC to dynamically list tables
+      // 2. POSTGRES RPC: If the user added an RPC to dynamically list tables
       let rpcTables = [];
       try {
         const { data: rpcData, error: rpcError } = await supabase.rpc('get_company_tables', { prefix: snakeName });
@@ -385,22 +358,15 @@ export const database = {
         // RPC might not exist, ignore and fallback
       }
 
-      // 5. MERGE: Create a unique prioritized list of tables to scan
-      // We ALWAYS include the dynamic patterns so that any companyname_(tablename) combinations are checked for all companies indiscriminately.
-      const tablesToTry = [...new Set([
-        vaultTable,
+      // 3. MERGE: Create a prioritized list of specific tables vs global tables
+      // We only try specific tables if they are registered or fetched via RPC to prevent 404 spam.
+      const specificTablesToTry = [...new Set([
         ...registeredTables,
-        ...rpcTables,
-        `${snakeName}_menu`,
-        `${snakeName}_vault`,
-        `${snakeName}_catalogue`,
-        `${snakeName}_products`,
-        `${snakeName}_services`,
-        `${snakeName}_staff`,
-        `${snakeName}_team`,
-        `${fullSnakeName}_menu`,
-        ...dynamicPatterns
+        ...rpcTables
       ])].filter(Boolean);
+
+      // Global tables are checked with a company_id filter
+      const globalTablesToTry = ['products', 'restaurant_tables', 'services', 'doctors'];
 
       let finalData = [];
 
@@ -415,14 +381,31 @@ export const database = {
         });
       }
 
-      for (const table of tablesToTry) {
+      // Try fetching from specific tables (assumes all rows belong to company)
+      for (const table of specificTablesToTry) {
         try {
           const { data, error } = await supabase.from(table).select('*').limit(50);
           if (error) continue;
 
           if (data && data.length > 0) {
             finalData = [...finalData, ...data];
-            console.log(`✅ Success: Aggregated data from "${table}"`);
+            console.log(`✅ Success: Aggregated data from specific table "${table}"`);
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+
+      // Try fetching from global shared tables (filters by company_id)
+      for (const table of globalTablesToTry) {
+        try {
+          // Wrapped because global tables might also not be created yet
+          const { data, error } = await supabase.from(table).select('*').eq('company_id', companyId).limit(50);
+          if (error) continue;
+
+          if (data && data.length > 0) {
+            finalData = [...finalData, ...data];
+            console.log(`✅ Success: Aggregated data from global table "${table}"`);
           }
         } catch (e) {
           continue;

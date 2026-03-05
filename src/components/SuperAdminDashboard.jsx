@@ -249,21 +249,37 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
     };
 
     const handleToggleCompanyStatus = async (companyId, currentStatus) => {
-        const newStatus = currentStatus === 'active' ? 'pending' : 'active';
+        const newStatus = currentStatus === 'active' ? 'inactive' : 'active'; // Fix: typically toggling 'active' goes to 'inactive' or vice versa.
+
+        console.log(`[Toggle] Attempting to change company ${companyId} from ${currentStatus} to ${newStatus}`);
+
         try {
             setLoading(true);
-            const { error, count } = await supabase
+            const { data, error } = await supabase
                 .from('companies')
                 .update({ status: newStatus })
-                .eq('id', companyId);
+                .eq('id', companyId)
+                .select();
 
-            if (error) throw error;
+            console.log('[Toggle] Supabase Update Data:', data);
+
+            if (error) {
+                console.error('[Toggle] Supabase Update Error:', error);
+                throw error;
+            }
+
+            if (!data || data.length === 0) {
+                console.warn('[Toggle] Update returned NO ROWS! Either the ID doesn\'t exist or RLS blocked the SUPERADMIN from updating the companies table.');
+                addToast('Warning: Status change failed in DB (RLS blocked or no record found). Try hard-refreshing.', 'error');
+                return; // Don't mistakenly update local state if DB failed
+            }
 
             setCompanies(prev => prev.map(c =>
                 c.id === companyId ? { ...c, status: newStatus } : c
             ));
-            addToast(`Organization is now ${newStatus === 'active' ? 'VISIBLE' : 'HIDDEN'}.`, 'info');
+            addToast(`Organization is now ${newStatus === 'active' ? 'VISIBLE AND ACTIVE' : 'ARCHIVED'}.`, 'success');
         } catch (err) {
+            console.error('[Toggle] Fatal Error:', err);
             addToast('Toggle failed: ' + err.message, 'error');
         } finally {
             setLoading(false);
