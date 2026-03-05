@@ -157,7 +157,7 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
     if (!response.ok) throw new Error(`Groq Error: ${response.status}`);
 
     const data = await response.json();
-    const assistantMessage = data.choices[0]?.message?.content || '';
+    let assistantMessage = data.choices[0]?.message?.content || '';
 
     // Handle Intent - Much more inclusive detection
     const msgUpper = assistantMessage.toUpperCase();
