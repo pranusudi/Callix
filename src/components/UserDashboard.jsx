@@ -64,10 +64,10 @@ const UserDashboard = ({ user, onClose, onLogout, addToast }) => {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-[60vh]">
+            <div className="flex items-center justify-center h-[60vh] bg-slate-50">
                 <div className="text-center">
-                    <Loader size={48} className="animate-spin text-[#000080] mx-auto mb-4" />
-                    <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Syncing with Cloud...</p>
+                    <Loader size={48} className="animate-spin text-indigo-600 mx-auto mb-4" />
+                    <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Syncing with Cloud...</p>
                 </div>
             </div>
         );
@@ -78,16 +78,16 @@ const UserDashboard = ({ user, onClose, onLogout, addToast }) => {
     return (
         <div className="flex min-h-screen bg-[#F8FAFC]">
             {/* Extended Sidebar */}
-            <div className="sidebar-container-custom hidden lg:flex w-64 flex-col bg-[#000080] p-4 text-white min-h-screen">
+            <div className="sidebar-container-custom hidden lg:flex w-64 flex-col bg-white p-4 text-slate-900 border-r border-slate-200 min-h-screen">
                 <div className="px-2 mb-8">
-                    <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-white mb-3 shadow-xl border border-white/20">
+                    <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white mb-3 shadow-lg border border-indigo-500/20">
                         <ShoppingBag size={24} />
                     </div>
-                    <h2 className="text-white text-lg font-black tracking-tight">Callix AI</h2>
+                    <h2 className="text-slate-900 text-lg font-black tracking-tight">Callix AI</h2>
 
                     <button
                         onClick={onClose}
-                        className="mt-4 flex items-center space-x-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg transition-all border border-white/10 group text-white/70 hover:text-white"
+                        className="mt-4 flex items-center space-x-2 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 rounded-lg transition-all border border-slate-200 group text-slate-500 hover:text-slate-900"
                     >
                         <Home size={14} className="group-hover:scale-110 transition-transform" />
                         <span className="font-bold text-[9px] uppercase tracking-widest">Return Home</span>
@@ -102,9 +102,9 @@ const UserDashboard = ({ user, onClose, onLogout, addToast }) => {
                     <TabButton active={activeTab === 'feedback'} onClick={() => setActiveTab('feedback')} icon={<Star size={20} />} label="Ratings" count={data?.feedback?.length || 0} />
                 </nav>
 
-                <div className="mt-auto pt-4 border-t border-white/10">
-                    <button onClick={onLogout} className="w-full flex items-center space-x-3 px-3 py-2.5 text-white/50 hover:text-rose-300 hover:bg-white/5 rounded-xl transition-all font-bold text-xs uppercase tracking-widest leading-none">
-                        <LogOut size={16} className="text-white" />
+                <div className="mt-auto pt-4 border-t border-slate-100">
+                    <button onClick={onLogout} className="w-full flex items-center space-x-3 px-3 py-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all font-bold text-xs uppercase tracking-widest leading-none">
+                        <LogOut size={16} />
                         <span>Sign Out Account</span>
                     </button>
                 </div>
@@ -124,7 +124,7 @@ const UserDashboard = ({ user, onClose, onLogout, addToast }) => {
                             </p>
                             <p className="text-[8px] text-slate-400 font-bold tracking-widest uppercase">{user?.email}</p>
                         </div>
-                        <div className="w-7 h-7 rounded-lg bg-[#000080] flex items-center justify-center text-white text-xs font-black shadow-md">
+                        <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-xs font-black shadow-md">
                             {(user?.profile?.full_name || user?.user_metadata?.full_name || 'U').charAt(0)}
                         </div>
                     </div>
@@ -201,7 +201,7 @@ const RecordCard = ({ record, type, formatDate, getStatusStyle }) => {
                                             `Feedback Rating`)).replace(/[\[\]{}"']/g, '').replace(/(?:dish|item|name|product|title|guest|guests):\s*/gi, '').replace(/\s*\([^)]+\)/g, '').trim() || 'Reservation'}
                         </h3>
                         {record.company_name && (
-                            <p className="text-[10px] font-black text-[#000080] uppercase tracking-widest opacity-70 mb-1">
+                            <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest opacity-80 mb-1">
                                 {record.company_name}
                             </p>
                         )}
@@ -241,11 +241,11 @@ const RecordCard = ({ record, type, formatDate, getStatusStyle }) => {
 const TabButton = ({ active, onClick, icon, label, count }) => (
     <button
         onClick={onClick}
-        className={`w-full flex items-center px-4 py-3 rounded-xl transition-all duration-300 group ${active ? 'bg-white text-[#000080] shadow-xl' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
+        className={`w-full flex items-center px-4 py-3 rounded-xl transition-all duration-300 group ${active ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50'}`}
     >
-        <span className={`${active ? 'text-[#000080]' : 'text-white/20 group-hover:text-white'}`}>{icon}</span>
+        <span className={`${active ? 'text-white' : 'text-slate-400 group-hover:text-indigo-600'}`}>{icon}</span>
         <span className="flex-1 text-left font-black ml-3 text-xs tracking-tight">{label}</span>
-        {count > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${active ? 'bg-indigo-100 text-[#000080]' : 'bg-white/10 text-white'}`}>{count}</span>}
+        {count > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${active ? 'bg-white text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>{count}</span>}
     </button>
 );
 

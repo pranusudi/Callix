@@ -409,52 +409,52 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
                         )}
 
                         {view === 'archived_companies' && (
-                            <motion.div key="archived_registry" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-[#1E293B] rounded-[24px] border border-slate-800 overflow-hidden shadow-2xl">
-                                <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-                                    <h3 className="text-sm font-black uppercase tracking-widest text-amber-500">Archived Organization Registry</h3>
+                            <motion.div key="archived_registry" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm">
+                                <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                    <h3 className="text-sm font-black uppercase tracking-widest text-amber-600">Archived Organization Registry</h3>
                                     <div className="relative">
-                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                                         <input
                                             type="text"
                                             placeholder="Search archives..."
                                             value={userSearchTerm}
                                             onChange={(e) => setUserSearchTerm(e.target.value)}
-                                            className="bg-[#0F172A] border border-slate-800 rounded-lg py-2 pl-9 pr-4 text-[10px] font-bold outline-none focus:border-indigo-500 w-48"
+                                            className="bg-white border border-slate-200 rounded-lg py-2 pl-9 pr-4 text-[10px] font-bold outline-none focus:border-indigo-500 w-48 shadow-sm"
                                         />
                                     </div>
                                 </div>
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left">
-                                        <thead className="bg-[#0F172A]/50 text-[9px] font-black uppercase tracking-widest text-slate-500 border-b border-slate-800">
+                                        <thead className="bg-slate-50 text-[9px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-200">
                                             <tr>
                                                 <th className="px-4 py-3">Organization</th>
                                                 <th className="px-4 py-3">Industry</th>
-                                                <th className="px-4 py-3">Visibility</th>
+                                                <th className="px-4 py-3 text-center">Visibility</th>
                                                 <th className="px-4 py-3 text-right">Cluster Controls</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-slate-800">
+                                        <tbody className="divide-y divide-slate-100">
                                             {companies
                                                 .filter(c => c.status === 'pending' || c.status === 'inactive')
                                                 .filter(c => userSearchTerm === '' || c.name.toLowerCase().includes(userSearchTerm.toLowerCase()))
                                                 .map((c) => (
-                                                    <tr key={c.id} className="hover:bg-white/5 transition-colors group opacity-70 hover:opacity-100">
+                                                    <tr key={c.id} className="hover:bg-amber-50/30 transition-colors group opacity-80 hover:opacity-100">
                                                         <td className="px-4 py-2.5">
                                                             <div className="flex items-center gap-3">
-                                                                <div className="w-9 h-9 bg-[#0F172A] rounded-xl flex items-center justify-center text-lg grayscale group-hover:grayscale-0 transition-all border border-slate-800">{c.logo || '🏢'}</div>
+                                                                <div className="w-9 h-9 bg-slate-50 rounded-xl flex items-center justify-center text-lg grayscale group-hover:grayscale-0 transition-all border border-slate-100 shadow-sm">{c.logo || '🏢'}</div>
                                                                 <div>
-                                                                    <h4 className="font-black text-xs tracking-tight text-slate-300">{c.name}</h4>
-                                                                    <p className="text-[7px] text-amber-500 uppercase font-black">ARCHIVED NO-NODE</p>
+                                                                    <h4 className="font-black text-xs tracking-tight text-slate-900">{c.name}</h4>
+                                                                    <p className="text-[7px] text-amber-600 uppercase font-black">ARCHIVED NO-NODE</p>
                                                                 </div>
                                                             </div>
                                                         </td>
                                                         <td className="px-4 py-2.5">
                                                             <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{c.industry}</span>
                                                         </td>
-                                                        <td className="px-4 py-2.5">
+                                                        <td className="px-4 py-2.5 text-center">
                                                             <button
                                                                 onClick={() => handleToggleCompanyStatus(c.id, c.status)}
-                                                                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[7px] font-black uppercase tracking-widest bg-amber-500/10 text-amber-500 border border-amber-500/20 hover:bg-emerald-500/10 hover:text-emerald-500 hover:border-emerald-500/20 transition-all"
+                                                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[7px] font-black uppercase tracking-widest bg-amber-50 text-amber-600 border border-amber-200 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-all shadow-sm"
                                                             >
                                                                 <EyeOff size={10} />
                                                                 Restore
@@ -464,7 +464,7 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
                                                             <div className="flex items-center justify-end gap-2">
                                                                 <button
                                                                     onClick={() => handleDeleteCompany(c.id, c.name)}
-                                                                    className="p-1.5 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all"
+                                                                    className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
                                                                     title="Purge Node"
                                                                 >
                                                                     <Trash2 size={14} />
@@ -487,34 +487,34 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
                         )}
 
                         {view === 'pending_admins' && (
-                            <motion.div key="pending_admins" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-[#1E293B] rounded-[24px] border border-slate-800 overflow-hidden shadow-2xl">
-                                <div className="p-6 border-b border-slate-800">
-                                    <h3 className="text-sm font-black uppercase tracking-widest">Pending Admin Access</h3>
+                            <motion.div key="pending_admins" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm">
+                                <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+                                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Pending Admin Access</h3>
                                 </div>
                                 {pendingAdmins.length === 0 ? (
-                                    <div className="p-12 text-center text-slate-500 text-[10px] font-black uppercase tracking-widest">
+                                    <div className="p-12 text-center text-slate-400 text-[10px] font-black uppercase tracking-widest">
                                         No pending administrator requests
                                     </div>
                                 ) : (
-                                    <div className="divide-y divide-slate-800">
+                                    <div className="divide-y divide-slate-100">
                                         {pendingAdmins.map((adm) => (
-                                            <div key={adm.id} className="p-6 flex items-center justify-between">
+                                            <div key={adm.id} className="p-6 flex items-center justify-between hover:bg-indigo-50/30 transition-colors">
                                                 <div className="flex items-center gap-4">
-                                                    <div className="w-12 h-12 rounded-2xl bg-indigo-600/10 flex items-center justify-center text-indigo-500 font-black border border-indigo-500/20">
+                                                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-black border border-indigo-100 shadow-sm">
                                                         {adm.full_name?.charAt(0)}
                                                     </div>
                                                     <div>
-                                                        <h4 className="font-black text-sm">{adm.full_name}</h4>
-                                                        <p className="text-[10px] text-slate-500">{adm.email}</p>
+                                                        <h4 className="font-black text-sm text-slate-900">{adm.full_name}</h4>
+                                                        <p className="text-[10px] text-slate-500 font-bold">{adm.email}</p>
                                                         <div className="flex items-center gap-2 mt-1">
-                                                            <span className="text-[8px] bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded uppercase font-black">{adm.companies?.name || 'New Company'}</span>
-                                                            <span className="text-[8px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded uppercase font-black">{adm.industry || 'Technology'}</span>
+                                                            <span className="text-[8px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded uppercase font-black border border-indigo-100">{adm.companies?.name || 'New Company'}</span>
+                                                            <span className="text-[8px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded uppercase font-black border border-slate-200">{adm.industry || 'Technology'}</span>
                                                         </div>
                                                     </div>
                                                 </div>
                                                 <div className="flex gap-2">
-                                                    <button onClick={() => handleRejectAdmin(adm.id)} className="px-4 py-2 bg-slate-800 text-rose-500 rounded-xl text-[9px] font-black uppercase hover:bg-rose-500/10 transition-all">Reject</button>
-                                                    <button onClick={() => handleApproveAdmin(adm.id)} className="px-6 py-2 bg-indigo-600 text-white rounded-xl text-[9px] font-black uppercase hover:bg-indigo-700 shadow-lg shadow-indigo-600/30 transition-all">Approve Access</button>
+                                                    <button onClick={() => handleRejectAdmin(adm.id)} className="px-4 py-2 bg-slate-50 text-slate-500 rounded-xl text-[9px] font-black uppercase hover:bg-rose-50 hover:text-rose-500 transition-all border border-slate-200">Reject</button>
+                                                    <button onClick={() => handleApproveAdmin(adm.id)} className="px-6 py-2 bg-indigo-600 text-white rounded-xl text-[9px] font-black uppercase hover:bg-indigo-500 shadow-lg shadow-indigo-200 transition-all">Approve Access</button>
                                                 </div>
                                             </div>
                                         ))}
@@ -524,26 +524,26 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
                         )}
 
                         {view === 'users' && (
-                            <motion.div key="authority" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-[#1E293B] rounded-[24px] border border-slate-800 overflow-hidden shadow-2xl">
-                                <div className="p-6 border-b border-slate-800 flex items-center justify-between">
+                            <motion.div key="authority" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm">
+                                <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                                     <div className="relative">
-                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                                         <input
                                             type="text"
                                             placeholder="Search authority..."
                                             value={userSearchTerm}
                                             onChange={(e) => setUserSearchTerm(e.target.value)}
-                                            className="bg-[#0F172A] border border-slate-800 rounded-lg py-2 pl-9 pr-4 text-[10px] font-bold outline-none focus:border-indigo-500 w-48"
+                                            className="bg-white border border-slate-200 rounded-lg py-2 pl-9 pr-4 text-[10px] font-bold outline-none focus:border-indigo-500 w-48 shadow-sm"
                                         />
                                     </div>
-                                    <button onClick={() => setProvisionMode(true)} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all">
+                                    <button onClick={() => setProvisionMode(true)} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-indigo-500 shadow-lg shadow-indigo-100 transition-all">
                                         <UserPlus size={14} />
                                         <span>Provision</span>
                                     </button>
                                 </div>
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left">
-                                        <thead className="bg-[#0F172A]/50 text-[9px] font-black uppercase tracking-widest text-slate-500 border-b border-slate-800">
+                                        <thead className="bg-slate-50 text-[9px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-200">
                                             <tr>
                                                 <th className="px-6 py-4">Identity</th>
                                                 <th className="px-6 py-4">Role</th>
@@ -551,7 +551,7 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
                                                 <th className="px-6 py-4 text-right">Actions</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-slate-800">
+                                        <tbody className="divide-y divide-slate-100">
                                             {allUsers
                                                 .filter(u =>
                                                     userSearchTerm === '' ||
@@ -561,36 +561,36 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
                                                     u.status?.toLowerCase().includes(userSearchTerm.toLowerCase())
                                                 )
                                                 .map((u) => (
-                                                    <tr key={u.id} className="hover:bg-white/5 transition-colors group">
+                                                    <tr key={u.id} className="hover:bg-indigo-50/30 transition-colors group">
                                                         <td className="px-6 py-4">
                                                             <div className="flex items-center gap-3">
-                                                                <div className="w-8 h-8 rounded-lg bg-[#334155] flex items-center justify-center font-black text-[10px] text-indigo-400 border border-slate-700">
+                                                                <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center font-black text-[10px] text-indigo-600 border border-slate-200 shadow-sm">
                                                                     {u.full_name?.charAt(0)}
                                                                 </div>
                                                                 <div>
-                                                                    <p className="font-black text-xs">{u.full_name}</p>
-                                                                    <p className="text-[9px] text-slate-500">{u.email}</p>
+                                                                    <p className="font-black text-xs text-slate-900">{u.full_name}</p>
+                                                                    <p className="text-[9px] text-slate-500 font-bold">{u.email}</p>
                                                                 </div>
                                                             </div>
                                                         </td>
                                                         <td className="px-6 py-4">
-                                                            <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${u.role === 'superadmin' ? 'bg-indigo-500/20 text-indigo-400' :
-                                                                u.role === 'admin' ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'
+                                                            <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${u.role === 'superadmin' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' :
+                                                                u.role === 'admin' ? 'bg-amber-50 text-amber-600 border border-amber-200' : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
                                                                 }`}>
                                                                 {u.role}
                                                             </span>
                                                         </td>
                                                         <td className="px-6 py-4">
-                                                            <span className="text-[10px] text-slate-400 font-bold">{u.status || 'Active'}</span>
+                                                            <span className="text-[10px] text-slate-500 font-bold">{u.status || 'Active'}</span>
                                                         </td>
                                                         <td className="px-6 py-4 text-right">
                                                             <div className="flex items-center justify-end gap-2">
                                                                 {u.status !== 'pending' ? (
-                                                                    <button onClick={() => handleSuspendUser(u.id)} className="text-amber-500 hover:bg-amber-500/10 p-2 rounded-lg transition-all" title="Move to Pending">
+                                                                    <button onClick={() => handleSuspendUser(u.id)} className="text-amber-500 hover:bg-amber-50 p-2 rounded-lg transition-all" title="Move to Pending">
                                                                         <X size={16} />
                                                                     </button>
                                                                 ) : (
-                                                                    <button onClick={() => handleApproveAdmin(u.id)} className="text-emerald-500 hover:bg-emerald-500/10 p-2 rounded-lg transition-all" title="Reactivate Access">
+                                                                    <button onClick={() => handleApproveAdmin(u.id)} className="text-emerald-500 hover:bg-emerald-50 p-2 rounded-lg transition-all" title="Reactivate Access">
                                                                         <Check size={16} />
                                                                     </button>
                                                                 )}
@@ -605,14 +605,14 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
                         )}
 
                         {view === 'all_bookings' && (
-                            <motion.div key="all_bookings" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-[#1E293B] rounded-[24px] border border-slate-800 overflow-hidden shadow-2xl">
-                                <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-                                    <h3 className="text-sm font-black uppercase tracking-widest text-indigo-400">Platform Interaction Ledger</h3>
-                                    <span className="text-[10px] bg-indigo-500/10 text-indigo-400 px-3 py-1 rounded-full font-black">MASTER SYNC</span>
+                            <motion.div key="all_bookings" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm">
+                                <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                    <h3 className="text-sm font-black uppercase tracking-widest text-indigo-600">Platform Interaction Ledger</h3>
+                                    <span className="text-[10px] bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full font-black border border-indigo-100 uppercase">Master Sync</span>
                                 </div>
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left">
-                                        <thead className="bg-[#0F172A]/50 text-[9px] font-black uppercase tracking-widest text-slate-500 border-b border-slate-800">
+                                        <thead className="bg-slate-50 text-[9px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-200">
                                             <tr>
                                                 <th className="px-6 py-4">Context</th>
                                                 <th className="px-6 py-4">Interaction Details</th>
@@ -620,15 +620,15 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
                                                 <th className="px-6 py-4 text-right">Activity Type</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-slate-800">
+                                        <tbody className="divide-y divide-slate-100">
                                             {allBookings.map((bk) => (
-                                                <tr key={bk.id} className="hover:bg-white/5 transition-colors group">
+                                                <tr key={bk.id} className="hover:bg-indigo-50/30 transition-colors group">
                                                     <td className="px-6 py-4">
                                                         <div className="flex items-center gap-3">
-                                                            <div className="w-9 h-9 bg-slate-50 rounded-xl flex items-center justify-center text-lg border border-slate-100">{bk.companies?.logo || '🏢'}</div>
+                                                            <div className="w-9 h-9 bg-slate-50 rounded-xl flex items-center justify-center text-lg border border-slate-200 shadow-sm">{bk.companies?.logo || '🏢'}</div>
                                                             <div>
                                                                 <p className="font-black text-xs leading-none mb-1 text-slate-900">{bk.companies?.name}</p>
-                                                                <p className="text-[8px] text-slate-500 uppercase tracking-widest">{bk.companies?.industry}</p>
+                                                                <p className="text-[8px] text-slate-400 uppercase tracking-widest font-bold">{bk.companies?.industry}</p>
                                                             </div>
                                                         </div>
                                                     </td>
@@ -640,13 +640,13 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
                                                         </div>
                                                     </td>
                                                     <td className="px-6 py-4">
-                                                        <p className="text-[10px] font-black text-slate-100">{bk.user_name || 'Customer'}</p>
-                                                        <p className="text-[9px] text-slate-500 lowercase">{bk.user_email}</p>
+                                                        <p className="text-[10px] font-black text-slate-900">{bk.user_name || 'Customer'}</p>
+                                                        <p className="text-[9px] text-slate-500 lowercase font-medium">{bk.user_email}</p>
                                                     </td>
                                                     <td className="px-6 py-4 text-right">
-                                                        <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${bk.type === 'order' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' :
-                                                            bk.type === 'reservation' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' :
-                                                                'bg-indigo-500/10 text-indigo-500 border border-indigo-500/20'
+                                                        <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${bk.type === 'order' ? 'bg-amber-50 text-amber-600 border border-amber-200' :
+                                                            bk.type === 'reservation' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' :
+                                                                'bg-indigo-50 text-indigo-600 border border-indigo-100'
                                                             }`}>
                                                             {bk.type || 'Activity'}
                                                         </span>
@@ -665,31 +665,31 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
                         )}
 
                         {view === 'approvals' && (
-                            <motion.div key="approvals" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-[#1E293B] rounded-[24px] border border-slate-800 overflow-hidden shadow-2xl">
-                                <div className="p-6 border-b border-slate-800">
-                                    <h3 className="text-sm font-black uppercase tracking-widest">Pending Deployments</h3>
+                            <motion.div key="approvals" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm">
+                                <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+                                    <h3 className="text-sm font-black uppercase tracking-widest text-indigo-600">Pending Deployments</h3>
                                 </div>
                                 {approvalRequests.length === 0 ? (
                                     <div className="p-12 text-center">
                                         <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">No pending operations</p>
                                     </div>
                                 ) : (
-                                    <div className="divide-y divide-slate-800">
+                                    <div className="divide-y divide-slate-100">
                                         {approvalRequests.map((req) => (
-                                            <div key={req.id} className="p-6 flex items-center justify-between gap-4">
+                                            <div key={req.id} className="p-6 flex items-center justify-between gap-4 hover:bg-slate-50/80 transition-colors">
                                                 <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 bg-[#0F172A] rounded-xl flex items-center justify-center text-indigo-500 border border-slate-800">
+                                                    <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 border border-indigo-100 shadow-sm">
                                                         <Database size={20} />
                                                     </div>
                                                     <div>
-                                                        <h4 className="font-black text-sm leading-none mb-1 uppercase tracking-tight">Push to {req.table_name}</h4>
-                                                        <p className="text-[10px] text-slate-500">Requested by <span className="text-indigo-400 font-bold">{req.profiles?.full_name}</span> for <span className="text-white font-bold">{req.companies?.name}</span></p>
+                                                        <h4 className="font-black text-sm leading-none mb-1 uppercase tracking-tight text-slate-900">Push to {req.table_name}</h4>
+                                                        <p className="text-[10px] text-slate-500 font-bold">Requested by <span className="text-indigo-600">{req.profiles?.full_name}</span> for <span className="text-slate-900">{req.companies?.name}</span></p>
                                                     </div>
                                                 </div>
                                                 <div className="flex gap-2">
-                                                    <button onClick={() => setViewingRequest(req)} className="px-4 py-2 bg-slate-800 text-indigo-400 rounded-lg text-[9px] font-black uppercase hover:bg-slate-700 transition-all">Review Data</button>
-                                                    <button onClick={() => handleApproval(req.id, 'rejected')} className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg"><X size={18} /></button>
-                                                    <button onClick={() => handleApproval(req.id, 'approved')} className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-[9px] font-black uppercase hover:bg-indigo-700 shadow-lg shadow-indigo-600/30 transition-all">Approve</button>
+                                                    <button onClick={() => setViewingRequest(req)} className="px-4 py-2 bg-slate-50 text-indigo-600 rounded-lg text-[9px] font-black uppercase hover:bg-indigo-50 transition-all border border-slate-200">Review Data</button>
+                                                    <button onClick={() => handleApproval(req.id, 'rejected')} className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-all border border-transparent hover:border-rose-100"><X size={18} /></button>
+                                                    <button onClick={() => handleApproval(req.id, 'approved')} className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-[9px] font-black uppercase hover:bg-indigo-500 shadow-lg shadow-indigo-100 transition-all">Approve</button>
                                                 </div>
                                             </div>
                                         ))}
@@ -706,20 +706,20 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
             {/* Modal */}
             <AnimatePresence>
                 {provisionMode && (
-                    <div className="fixed inset-0 bg-[#0F172A]/90 backdrop-blur-md z-[100] flex items-center justify-center p-4">
-                        <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-[#1E293B] border border-slate-800 rounded-3xl p-8 max-w-sm w-full shadow-2xl">
-                            <h3 className="text-lg font-black mb-6 uppercase tracking-widest">Manual Provisioning</h3>
+                    <div className="fixed inset-0 bg-white/60 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+                        <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white border border-slate-200 rounded-3xl p-8 max-w-sm w-full shadow-2xl">
+                            <h3 className="text-lg font-black mb-6 uppercase tracking-widest text-slate-900">Manual Provisioning</h3>
                             <form onSubmit={handleProvisionUser} className="space-y-4">
-                                <input required type="text" value={provisionData.full_name} onChange={e => setProvisionData({ ...provisionData, full_name: e.target.value })} className="w-full bg-[#0F172A] border border-slate-800 rounded-xl py-3 px-4 text-xs font-bold focus:border-indigo-500 outline-none" placeholder="Target Name" />
-                                <input required type="email" value={provisionData.email} onChange={e => setProvisionData({ ...provisionData, email: e.target.value })} className="w-full bg-[#0F172A] border border-slate-800 rounded-xl py-3 px-4 text-xs font-bold focus:border-indigo-500 outline-none" placeholder="Email Address" />
-                                <select value={provisionData.role} onChange={e => setProvisionData({ ...provisionData, role: e.target.value })} className="w-full bg-[#0F172A] border border-slate-800 rounded-xl py-3 px-4 text-xs font-bold focus:border-indigo-500 outline-none">
+                                <input required type="text" value={provisionData.full_name} onChange={e => setProvisionData({ ...provisionData, full_name: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-xs font-bold focus:border-indigo-500 outline-none text-slate-900" placeholder="Target Name" />
+                                <input required type="email" value={provisionData.email} onChange={e => setProvisionData({ ...provisionData, email: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-xs font-bold focus:border-indigo-500 outline-none text-slate-900" placeholder="Email Address" />
+                                <select value={provisionData.role} onChange={e => setProvisionData({ ...provisionData, role: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-xs font-bold focus:border-indigo-500 outline-none text-slate-900">
                                     <option value="user">Standard User</option>
                                     <option value="admin">Company Admin</option>
                                     <option value="superadmin">Global Master</option>
                                 </select>
                                 <div className="flex gap-3 pt-4">
-                                    <button type="button" onClick={() => setProvisionMode(false)} className="flex-1 py-3 bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase">Cancel</button>
-                                    <button type="submit" className="flex-1 py-3 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase">Add User</button>
+                                    <button type="button" onClick={() => setProvisionMode(false)} className="flex-1 py-3 bg-slate-100 text-slate-500 rounded-xl text-[10px] font-black uppercase border border-slate-200 hover:bg-slate-200">Cancel</button>
+                                    <button type="submit" className="flex-1 py-3 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-indigo-100">Add User</button>
                                 </div>
                             </form>
                         </motion.div>
@@ -730,30 +730,30 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
             {/* Company Detail Popup - Landscape Layout */}
             <AnimatePresence>
                 {selectedCompany && (
-                    <div className="fixed inset-0 bg-[#0F172A]/90 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+                    <div className="fixed inset-0 bg-white/60 backdrop-blur-md z-[100] flex items-center justify-center p-4">
                         <motion.div
                             initial={{ scale: 0.95, opacity: 0, x: -20 }}
                             animate={{ scale: 1, opacity: 1, x: 0 }}
                             exit={{ scale: 0.95, opacity: 0, x: 20 }}
-                            className="bg-[#1E293B] border border-white/5 rounded-[2.5rem] p-0 max-w-4xl w-full shadow-[0_50px_100px_rgba(0,0,0,0.5)] relative overflow-hidden text-[#E2E8F0] flex flex-col md:flex-row h-full max-h-[500px]"
+                            className="bg-white border border-slate-200 rounded-[2.5rem] p-0 max-w-4xl w-full shadow-2xl relative overflow-hidden text-slate-900 flex flex-col md:flex-row h-full max-h-[500px]"
                             style={{ fontFamily: "'Outfit', 'Inter', sans-serif" }}
                         >
                             {/* Left Side: Brand & Overview */}
-                            <div className="w-full md:w-2/5 p-10 bg-[#0F172A]/50 border-r border-white/5 flex flex-col justify-between">
+                            <div className="w-full md:w-2/5 p-10 bg-slate-50 border-r border-slate-100 flex flex-col justify-between">
                                 <div className="space-y-6">
-                                    <div className="w-24 h-24 bg-[#1E293B] rounded-[2rem] flex items-center justify-center text-5xl shadow-2xl border border-white/5 mx-auto md:mx-0">
+                                    <div className="w-24 h-24 bg-white rounded-[2rem] flex items-center justify-center text-5xl shadow-sm border border-slate-200 mx-auto md:mx-0">
                                         {selectedCompany.logo || '🏢'}
                                     </div>
                                     <div>
-                                        <h3 className="text-3xl font-black tracking-tighter mb-2 text-white">{selectedCompany.name}</h3>
+                                        <h3 className="text-3xl font-black tracking-tighter mb-2 text-slate-900">{selectedCompany.name}</h3>
                                         <div className="flex flex-wrap gap-2">
-                                            <span className="px-4 py-1.5 bg-indigo-600/10 text-indigo-400 rounded-full text-[10px] font-black tracking-widest uppercase border border-indigo-500/20">
+                                            <span className="px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black tracking-widest uppercase border border-indigo-100">
                                                 {selectedCompany.industry}
                                             </span>
                                         </div>
                                     </div>
                                 </div>
-                                <div className="pt-8 text-[9px] font-black text-slate-600 uppercase tracking-[0.2em]">
+                                <div className="pt-8 text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">
                                     Global Master Registry
                                 </div>
                             </div>
@@ -761,33 +761,33 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
                             {/* Right Side: Details & Actions */}
                             <div className="flex-1 p-10 overflow-y-auto custom-scrollbar flex flex-col relative">
                                 <div className="absolute top-0 right-0 p-6">
-                                    <button onClick={() => setSelectedCompany(null)} className="text-slate-500 hover:text-white transition-all p-2">
+                                    <button onClick={() => setSelectedCompany(null)} className="text-slate-400 hover:text-rose-500 transition-all p-2">
                                         <X size={24} />
                                     </button>
                                 </div>
 
                                 <div className="flex-1 space-y-8">
                                     <div className="space-y-4">
-                                        <h4 className="text-[10px] font-black uppercase text-indigo-400 tracking-[0.3em] flex items-center gap-2">
+                                        <h4 className="text-[10px] font-black uppercase text-indigo-600 tracking-[0.3em] flex items-center gap-2">
                                             <Activity size={14} /> Organization Intel
                                         </h4>
-                                        <p className="text-sm font-medium text-slate-300 leading-relaxed italic border-l-2 border-indigo-600/30 pl-4 py-1 bg-white/5 rounded-r-xl pr-4">
+                                        <p className="text-sm font-medium text-slate-600 leading-relaxed italic border-l-2 border-indigo-200 pl-4 py-1 bg-slate-50/50 rounded-r-xl pr-4">
                                             {selectedCompany.description || "No official description profile available for this organization yet. Data syncing with global registry active."}
                                         </p>
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-6">
-                                        <div className="bg-[#0F172A] p-5 rounded-3xl border border-white/5 shadow-inner group transition-all hover:bg-white/5">
-                                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                        <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100 shadow-inner group transition-all hover:bg-white hover:border-indigo-100">
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
                                                 <Globe size={12} /> Communication
                                             </p>
-                                            <p className="text-xs font-bold text-white truncate">{selectedCompany.contact_email || 'N/A'}</p>
+                                            <p className="text-xs font-bold text-slate-900 truncate">{selectedCompany.contact_email || 'N/A'}</p>
                                         </div>
-                                        <div className="bg-[#0F172A] p-5 rounded-3xl border border-white/5 shadow-inner group transition-all hover:bg-white/5">
-                                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                        <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100 shadow-inner group transition-all hover:bg-white hover:border-indigo-100">
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
                                                 <ShieldCheck size={12} /> Onboard Date
                                             </p>
-                                            <p className="text-xs font-bold text-white">{new Date(selectedCompany.created_at).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                                            <p className="text-xs font-bold text-slate-900">{new Date(selectedCompany.created_at).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</p>
                                         </div>
                                     </div>
 
@@ -802,35 +802,35 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
             {/* Data Review Modal */}
             <AnimatePresence>
                 {viewingRequest && (
-                    <div className="fixed inset-0 bg-[#0F172A]/90 backdrop-blur-xl z-[110] flex items-center justify-center p-4">
-                        <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-[#1E293B] border border-white/5 rounded-[2rem] p-8 max-w-2xl w-full shadow-[0_50px_100px_rgba(0,0,0,0.5)] relative overflow-hidden">
+                    <div className="fixed inset-0 bg-white/60 backdrop-blur-xl z-[110] flex items-center justify-center p-4">
+                        <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white border border-slate-200 rounded-[2rem] p-8 max-w-2xl w-full shadow-2xl relative overflow-hidden">
                             <div className="absolute top-0 right-0 p-6">
-                                <button onClick={() => setViewingRequest(null)} className="text-slate-500 hover:text-white transition-all"><X size={24} /></button>
+                                <button onClick={() => setViewingRequest(null)} className="text-slate-400 hover:text-rose-500 transition-all"><X size={24} /></button>
                             </div>
 
                             <div className="flex items-center gap-4 mb-8">
-                                <div className="w-14 h-14 bg-indigo-600/10 rounded-2xl flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+                                <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 border border-indigo-100 shadow-sm">
                                     <Database size={24} />
                                 </div>
                                 <div>
-                                    <h3 className="text-xl font-black text-white uppercase tracking-tight">Data Payload Review</h3>
-                                    <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest">Target: {viewingRequest.table_name}</p>
+                                    <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Data Payload Review</h3>
+                                    <p className="text-[10px] text-indigo-600 font-black uppercase tracking-widest">Target: {viewingRequest.table_name}</p>
                                 </div>
                             </div>
 
-                            <div className="bg-[#0F172A]/50 rounded-2xl border border-slate-800/50 overflow-hidden mb-8">
+                            <div className="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden mb-8 shadow-inner">
                                 <table className="w-full text-left">
-                                    <thead className="bg-[#0F172A] border-b border-slate-800">
+                                    <thead className="bg-white border-b border-slate-200">
                                         <tr>
-                                            <th className="px-6 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Attribute</th>
-                                            <th className="px-6 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Value</th>
+                                            <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Attribute</th>
+                                            <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Value</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-slate-800/30">
+                                    <tbody className="divide-y divide-slate-100">
                                         {Object.entries(viewingRequest.data || {}).map(([key, value]) => (
-                                            <tr key={key} className="hover:bg-white/5 transition-colors">
-                                                <td className="px-6 py-4 text-[10px] font-black text-indigo-400 uppercase tracking-tight">{key}</td>
-                                                <td className="px-6 py-4 text-[11px] font-bold text-slate-300">{typeof value === 'object' ? JSON.stringify(value) : String(value)}</td>
+                                            <tr key={key} className="hover:bg-white transition-colors">
+                                                <td className="px-6 py-4 text-[10px] font-black text-indigo-600 uppercase tracking-tight">{key}</td>
+                                                <td className="px-6 py-4 text-[11px] font-bold text-slate-600">{typeof value === 'object' ? JSON.stringify(value) : String(value)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -838,14 +838,14 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
                             </div>
 
                             <div className="flex gap-4">
-                                <button onClick={() => { handleApproval(viewingRequest.id, 'approved'); setViewingRequest(null); }} className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl transition-all">Authorize Deployment</button>
-                                <button onClick={() => setViewingRequest(null)} className="px-8 py-4 bg-slate-800 text-slate-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 hover:text-white transition-all">Close</button>
+                                <button onClick={() => { handleApproval(viewingRequest.id, 'approved'); setViewingRequest(null); }} className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-100 transition-all">Authorize Deployment</button>
+                                <button onClick={() => setViewingRequest(null)} className="px-8 py-4 bg-slate-100 text-slate-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 hover:text-slate-700 transition-all border border-slate-200">Close</button>
                             </div>
                         </motion.div>
                     </div>
                 )}
             </AnimatePresence>
-        </div>
+        </div >
     );
 };
 

@@ -29,7 +29,7 @@ const AccountPortfolio = ({ onDeployAgent, companies = [], loading = false, isLo
   };
 
   return (
-    <section id="portfolio" className="py-20 px-4 bg-white relative overflow-hidden text-slate-900">
+    <section id="portfolio" className="py-20 px-4 bg-slate-50/50 relative overflow-hidden text-slate-900">
       {/* Subtle Background Glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-blue-600/5 blur-[120px] pointer-events-none"></div>
 
@@ -111,12 +111,12 @@ const AccountPortfolio = ({ onDeployAgent, companies = [], loading = false, isLo
                       {company.name}
                     </h3>
 
-                    <div className="flex-1 bg-slate-50 p-3.5 rounded-2xl mb-4 border border-slate-200">
+                    <div className="flex-1 bg-slate-50 p-3.5 rounded-2xl mb-4 border border-slate-100">
                       <div className="flex items-center gap-1.5 mb-2">
-                        <Sparkles size={10} className="text-blue-400" />
-                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Capabilities</span>
+                        <Sparkles size={10} className="text-blue-500" />
+                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Capabilities</span>
                       </div>
-                      <p className="text-[11px] text-slate-300 font-medium leading-normal line-clamp-2">
+                      <p className="text-[11px] text-slate-600 font-bold leading-normal line-clamp-2 uppercase tracking-tight">
                         {company.contextSummary || 'Standard AI Intelligence Pattern'}
                       </p>
                     </div>
@@ -134,8 +134,8 @@ const AccountPortfolio = ({ onDeployAgent, companies = [], loading = false, isLo
                     <button
                       onClick={() => isLoggedIn ? handleDeploy(company) : onLoginRequired()}
                       className={`w-full py-3 rounded-2xl font-black text-[9px] uppercase tracking-widest flex items-center justify-center space-x-2 transition-all duration-300 ${isLoggedIn
-                        ? 'bg-blue-600 text-white hover:bg-blue-500 shadow-xl shadow-blue-500/20'
-                        : 'bg-transparent border border-white/20 text-white hover:bg-white/10'}`}
+                        ? 'bg-blue-600 text-white hover:bg-blue-500 shadow-xl shadow-blue-500/10'
+                        : 'bg-slate-100 border border-slate-200 text-slate-500 hover:bg-slate-200 hover:text-slate-900 shadow-sm'}`}
                     >
                       <Bot size={14} />
                       <span>{isLoggedIn ? 'Launch Agent' : 'Sign In To Deploy'}</span>

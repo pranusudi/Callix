@@ -115,32 +115,46 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
                                 animate={{ opacity: 1, y: 0 }}
                                 className="space-y-6 py-4"
                             >
-                                <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-500 mx-auto border border-emerald-100 shadow-sm mb-2">
-                                    <ShieldCheck size={32} />
+                                <div className="space-y-4">
+                                    <div className="w-20 h-20 bg-emerald-50 rounded-3xl flex items-center justify-center text-emerald-500 mx-auto border border-emerald-100 shadow-sm mb-4 relative">
+                                        <ShieldCheck size={40} />
+                                        <motion.div
+                                            initial={{ scale: 0 }}
+                                            animate={{ scale: 1 }}
+                                            className="absolute -top-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center border border-emerald-100 shadow-sm"
+                                        >
+                                            <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse" />
+                                        </motion.div>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-base font-black text-slate-900 uppercase tracking-[0.2em] mb-2">Request Transmitted</h3>
+                                        <p className="text-[10px] text-slate-500 font-bold leading-relaxed uppercase tracking-wide">
+                                            Administrative credentials for <span className="text-indigo-600 underline underline-offset-4 decoration-indigo-100">{formData.companyName}</span> are now in the verification queue.
+                                        </p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-2">Verification Pending</h3>
-                                    <p className="text-[10px] text-slate-500 font-bold leading-relaxed uppercase tracking-wide">
-                                        Your request to join as an administrator for <span className="text-indigo-600">{formData.companyName}</span> has been received.
-                                    </p>
+
+                                <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-200 text-left relative overflow-hidden group">
+                                    <div className="absolute top-0 right-0 p-2 opacity-5 italic text-[40px] font-black pointer-events-none uppercase">Admin</div>
+                                    <div className="relative z-10">
+                                        <p className="text-[9px] text-slate-900 font-black flex items-center gap-2 uppercase tracking-widest mb-2">
+                                            <Zap size={14} className="text-amber-500" />
+                                            Superadmin Authorization Required
+                                        </p>
+                                        <p className="text-[8px] text-slate-500 font-bold leading-relaxed uppercase tracking-tight">
+                                            To maintain platform integrity, a <span className="text-slate-900">Superadmin</span> must manually audit and activate your workspace. You will receive access once the security handshake is complete.
+                                        </p>
+                                    </div>
                                 </div>
-                                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-left">
-                                    <p className="text-[9px] text-slate-600 font-black flex items-center gap-2 uppercase tracking-tight">
-                                        <AlertCircle size={14} className="text-amber-500" />
-                                        Important Notice
-                                    </p>
-                                    <p className="text-[8px] text-slate-500 mt-2 font-bold leading-tight">
-                                        Security protocols require a Superadmin to manually verify and grant access to your account. You will be able to sign in once the approval process is complete.
-                                    </p>
-                                </div>
+
                                 <button
                                     onClick={() => {
                                         setShowVerificationInfo(false);
                                         setAuthMode('signin');
                                     }}
-                                    className="w-full py-3 bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-200 hover:bg-indigo-500 transition-all"
+                                    className="w-full py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all active:scale-[0.98]"
                                 >
-                                    Proceed to Sign In
+                                    Return to Authentication
                                 </button>
                             </motion.div>
                         ) : (

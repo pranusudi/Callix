@@ -406,15 +406,15 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
 
                                         {activeStudioTab === 'entry' && (
                                             <div className="space-y-6">
-                                                <div className="flex items-center justify-between bg-[#0F172A]/40 p-3 rounded-2xl border border-slate-800/40">
+                                                <div className="flex items-center justify-between bg-slate-100 p-3 rounded-2xl border border-slate-200">
                                                     <div className="flex items-center gap-2">
-                                                        <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] animate-pulse" />
-                                                        <p className="text-[8px] font-black text-white uppercase tracking-widest">Tabular Data Ingestion</p>
+                                                        <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)] animate-pulse" />
+                                                        <p className="text-[8px] font-black text-slate-900 uppercase tracking-widest">Tabular Data Ingestion</p>
                                                     </div>
                                                     <div className="flex items-center gap-3">
                                                         <span className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">Selected Personality:</span>
                                                         <select
-                                                            className="bg-[#0F172A] border border-slate-800 text-[9px] font-black text-indigo-400 rounded-xl px-4 py-2 outline-none focus:border-indigo-500 shadow-xl cursor-pointer hover:bg-slate-900 transition-all appearance-none"
+                                                            className="bg-white border border-slate-200 text-[9px] font-black text-indigo-600 rounded-xl px-4 py-2 outline-none focus:border-indigo-500 shadow-sm cursor-pointer hover:bg-slate-50 transition-all appearance-none"
                                                             value={selectedTable}
                                                             onChange={e => setSelectedTable(e.target.value)}
                                                         >
@@ -428,22 +428,22 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
 
                                                 {selectedTable ? (
                                                     <form onSubmit={handleAddRow} className="space-y-4">
-                                                        <div className="bg-[#0F172A] rounded-3xl border border-slate-800/80 overflow-hidden shadow-2xl">
+                                                        <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
                                                             <table className="w-full text-left border-collapse">
                                                                 <thead>
-                                                                    <tr className="bg-[#1E293B]/50">
+                                                                    <tr className="bg-slate-50">
                                                                         {(definedSchemas[selectedTable] || []).map(col => (
-                                                                            <th key={col} className="p-4 text-[7px] font-black uppercase text-slate-500 tracking-[0.2em] border-b border-slate-800">{col}</th>
+                                                                            <th key={col} className="p-4 text-[7px] font-black uppercase text-slate-400 tracking-[0.2em] border-b border-slate-100">{col}</th>
                                                                         ))}
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
                                                                     <tr className="group">
                                                                         {(definedSchemas[selectedTable] || []).map((col, idx) => (
-                                                                            <td key={col} className={`p-0 border-b border-slate-800 bg-[#0F172A]/50 ${idx !== (definedSchemas[selectedTable].length - 1) ? 'border-r border-slate-800/30' : ''}`}>
+                                                                            <td key={col} className={`p-0 border-b border-slate-100 bg-white ${idx !== (definedSchemas[selectedTable].length - 1) ? 'border-r border-slate-50' : ''}`}>
                                                                                 <input
                                                                                     placeholder={`Enter Value...`}
-                                                                                    className="w-full h-14 bg-transparent border-none outline-none px-4 text-xs font-bold text-white placeholder:text-slate-800 focus:bg-indigo-500/5 transition-all"
+                                                                                    className="w-full h-14 bg-transparent border-none outline-none px-4 text-xs font-bold text-slate-900 placeholder:text-slate-200 focus:bg-indigo-50/30 transition-all"
                                                                                     value={rowData[col] || ''}
                                                                                     onChange={e => setRowData({ ...rowData, [col]: e.target.value })}
                                                                                 />
@@ -454,8 +454,8 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
                                                             </table>
                                                         </div>
                                                         <div className="flex justify-end gap-3">
-                                                            <button type="button" onClick={() => setRowData({})} className="px-6 py-3 bg-slate-800/50 text-slate-400 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-slate-800 hover:text-white transition-all">Clear</button>
-                                                            <button type="submit" className="px-10 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-[9px] font-black uppercase tracking-widest shadow-[0_10px_20px_rgba(16,185,129,0.2)] transition-all active:scale-[0.98]">
+                                                            <button type="button" onClick={() => setRowData({})} className="px-6 py-3 bg-slate-50 text-slate-500 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-slate-100 hover:text-slate-700 transition-all border border-slate-200">Clear</button>
+                                                            <button type="submit" className="px-10 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-emerald-100 transition-all active:scale-[0.98]">
                                                                 Commit to Ledger
                                                             </button>
                                                         </div>
@@ -473,23 +473,23 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
                                             <div className="space-y-4">
                                                 <div className="flex items-center justify-between px-2">
                                                     <div className="flex items-center gap-2">
-                                                        <Terminal size={14} className="text-indigo-400" />
-                                                        <span className="text-[9px] font-black uppercase text-white tracking-widest">Neural Terminal</span>
+                                                        <Terminal size={14} className="text-indigo-600" />
+                                                        <span className="text-[9px] font-black uppercase text-slate-900 tracking-widest">Neural Terminal</span>
                                                     </div>
                                                     <button
                                                         onClick={() => setShowSchemaGuide(true)}
-                                                        className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600/10 border border-indigo-500/20 rounded-lg text-indigo-400 hover:bg-indigo-600 hover:text-white transition-all text-[8px] font-black uppercase tracking-widest"
+                                                        className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 border border-indigo-100 rounded-lg text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all text-[8px] font-black uppercase tracking-widest"
                                                     >
                                                         <Sparkles size={12} />
                                                         Get AI Schema Prompt
                                                     </button>
                                                 </div>
-                                                <div className="bg-[#0F172A] rounded-3xl border border-slate-800 p-4 shadow-inner">
+                                                <div className="bg-slate-50 rounded-3xl border border-slate-200 p-4 shadow-inner">
                                                     <textarea
                                                         value={sqlQuery}
                                                         onChange={e => setSqlQuery(e.target.value)}
                                                         placeholder="-- PASTE SQL GENERATED BY GROK HERE..."
-                                                        className="w-full h-32 bg-transparent border-none font-mono text-[9px] text-indigo-300 outline-none resize-none placeholder:text-slate-800"
+                                                        className="w-full h-32 bg-transparent border-none font-mono text-[9px] text-indigo-600 outline-none resize-none placeholder:text-slate-300"
                                                     />
                                                 </div>
                                                 <div className="flex items-center gap-4">
@@ -505,18 +505,18 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
                                         {activeStudioTab === 'identity' && (
                                             <div className="space-y-4">
                                                 <div className="space-y-1.5 px-2">
-                                                    <label className="text-[7px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
+                                                    <label className="text-[7px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
                                                         <Activity size={10} />
                                                         Neural Personality Context
                                                     </label>
                                                     <p className="text-[8px] text-slate-500 font-bold uppercase leading-relaxed mb-2">Tune the AI's core logic based on your organization's unique operational identity.</p>
                                                 </div>
-                                                <div className="bg-[#0F172A] rounded-3xl border border-slate-800 p-4 shadow-inner">
+                                                <div className="bg-slate-50 rounded-3xl border border-slate-200 p-4 shadow-inner">
                                                     <textarea
                                                         value={company?.nlp_context || ''}
                                                         onChange={e => setCompany({ ...company, nlp_context: e.target.value })}
                                                         placeholder="Describe company operations for primary AI tuning..."
-                                                        className="w-full h-32 bg-transparent border-none text-[10px] font-bold text-slate-300 outline-none resize-none placeholder:text-slate-800 leading-relaxed"
+                                                        className="w-full h-32 bg-transparent border-none text-[10px] font-bold text-slate-700 outline-none resize-none placeholder:text-slate-300 leading-relaxed"
                                                     />
                                                 </div>
                                                 <button onClick={async () => {
@@ -661,27 +661,27 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
                                                         </tr>
                                                     ))}
                                                     {feedback.map(f => (
-                                                        <tr key={f.id} className="hover:bg-amber-500/5 transition-all group border-l-2 border-amber-500/20">
+                                                        <tr key={f.id} className="hover:bg-amber-50/50 transition-all group border-l-2 border-amber-500/20">
                                                             <td className="px-6 py-4">
-                                                                <div className="font-bold text-amber-100 group-hover:text-white transition-colors truncate max-w-[150px]">{f.user_name || 'Reviewer'}</div>
-                                                                <div className="text-[7px] text-slate-500 font-bold uppercase tracking-widest">{f.user_email}</div>
+                                                                <div className="font-bold text-slate-900 group-hover:text-amber-600 transition-colors truncate max-w-[150px]">{f.user_name || 'Reviewer'}</div>
+                                                                <div className="text-[7px] text-slate-400 font-bold uppercase tracking-widest">{f.user_email}</div>
                                                             </td>
                                                             <td className="px-6 py-4">
                                                                 <div className="flex items-center gap-1">
                                                                     {[...Array(5)].map((_, i) => (
-                                                                        <Star key={i} size={8} className={i < f.rating ? "text-amber-400 fill-amber-400" : "text-slate-800"} />
+                                                                        <Star key={i} size={8} className={i < f.rating ? "text-amber-400 fill-amber-400" : "text-slate-200"} />
                                                                     ))}
                                                                 </div>
-                                                                <div className="text-[8px] text-slate-400 italic mt-1 truncate max-w-[200px]">"{f.comment}"</div>
+                                                                <div className="text-[8px] text-slate-500 italic mt-1 truncate max-w-[200px]">"{f.comment}"</div>
                                                             </td>
                                                             <td className="px-6 py-4">
-                                                                <div className="text-[10px] font-black text-amber-400">FEEDBACK</div>
-                                                                <div className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter mt-0.5">
+                                                                <div className="text-[10px] font-black text-amber-600">FEEDBACK</div>
+                                                                <div className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">
                                                                     {new Date(f.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                                                                 </div>
                                                             </td>
                                                             <td className="px-6 py-4 text-right">
-                                                                <span className="px-4 py-1.5 rounded-full text-[7px] font-black uppercase tracking-widest shadow-sm text-amber-400 bg-amber-400/5 border border-amber-400/20">
+                                                                <span className="px-4 py-1.5 rounded-full text-[7px] font-black uppercase tracking-widest shadow-sm text-amber-600 bg-amber-50 border border-amber-100">
                                                                     SUBMITTED
                                                                 </span>
                                                             </td>
@@ -772,40 +772,40 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
             {/* Schema Guide Modal */}
             <AnimatePresence>
                 {showSchemaGuide && (
-                    <div className="fixed inset-0 bg-[#0F172A]/95 backdrop-blur-xl z-[100] flex items-center justify-center p-4">
-                        <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-[#1E293B] border border-white/5 rounded-[2.5rem] p-8 max-w-2xl w-full shadow-[0_50px_100px_rgba(0,0,0,0.5)] relative overflow-hidden">
+                    <div className="fixed inset-0 bg-white/60 backdrop-blur-xl z-[100] flex items-center justify-center p-4">
+                        <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white border border-slate-200 rounded-[2.5rem] p-8 max-w-2xl w-full shadow-2xl relative overflow-hidden">
                             <div className="absolute top-0 right-0 p-6">
-                                <button onClick={() => setShowSchemaGuide(false)} className="text-slate-500 hover:text-white transition-all"><X size={24} /></button>
+                                <button onClick={() => setShowSchemaGuide(false)} className="text-slate-400 hover:text-rose-500 transition-all"><X size={24} /></button>
                             </div>
 
                             <div className="flex items-center gap-4 mb-8">
-                                <div className="w-14 h-14 bg-indigo-600/10 rounded-2xl flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+                                <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 border border-indigo-100 shadow-sm">
                                     <Sparkles size={24} />
                                 </div>
                                 <div className="flex-1">
-                                    <h3 className="text-xl font-black text-white uppercase tracking-tight">AI Schema Blueprint Helper</h3>
-                                    <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest">Recommended Structures for {company?.industry}</p>
+                                    <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">AI Schema Blueprint Helper</h3>
+                                    <p className="text-[10px] text-indigo-600 font-black uppercase tracking-widest">Recommended Structures for {company?.industry}</p>
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                                <div className="p-5 bg-[#0F172A]/50 rounded-2xl border border-slate-800/50">
-                                    <h4 className="text-[10px] font-black text-white uppercase tracking-widest mb-3 flex items-center gap-2">
-                                        <Database size={14} className="text-emerald-400" /> RECOMMENDED: orders
+                                <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 shadow-inner">
+                                    <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                        <Database size={14} className="text-emerald-500" /> RECOMMENDED: orders
                                     </h4>
-                                    <ul className="text-[10px] text-slate-400 space-y-2 font-bold uppercase tracking-tight">
-                                        <li className="flex justify-between"><span>order_id</span> <span className="text-slate-600">UUID</span></li>
-                                        <li className="flex justify-between"><span>customer_name</span> <span className="text-slate-600">TEXT</span></li>
-                                        <li className="flex justify-between"><span>order_date</span> <span className="text-slate-600">DATE</span></li>
-                                        <li className="flex justify-between"><span>total_amount</span> <span className="text-slate-600">DECIMAL</span></li>
-                                        <li className="flex justify-between"><span>status</span> <span className="text-slate-600">TEXT</span></li>
+                                    <ul className="text-[10px] text-slate-500 space-y-2 font-bold uppercase tracking-tight">
+                                        <li className="flex justify-between"><span>order_id</span> <span className="text-slate-900/50">UUID</span></li>
+                                        <li className="flex justify-between"><span>customer_name</span> <span className="text-slate-900/50">TEXT</span></li>
+                                        <li className="flex justify-between"><span>order_date</span> <span className="text-slate-900/50">DATE</span></li>
+                                        <li className="flex justify-between"><span>total_amount</span> <span className="text-slate-900/50">DECIMAL</span></li>
+                                        <li className="flex justify-between"><span>status</span> <span className="text-slate-900/50">TEXT</span></li>
                                     </ul>
                                 </div>
-                                <div className="p-5 bg-indigo-600/5 rounded-2xl border border-indigo-500/10 flex flex-col justify-between">
+                                <div className="p-5 bg-indigo-50 rounded-2xl border border-indigo-100 flex flex-col justify-between">
                                     <div>
-                                        <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2">How to handle collisions?</h4>
+                                        <h4 className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-2">How to handle collisions?</h4>
                                         <p className="text-[9px] text-slate-500 font-bold uppercase leading-relaxed">
-                                            The system automatically prefixes your table names with <span className="text-white">c_{user?.profile?.company_id?.split('-')[0]}_</span>.
+                                            The system automatically prefixes your table names with <span className="text-slate-900 font-black">c_{user?.profile?.company_id?.split('-')[0]}_</span>.
                                             This ensures that if another company also names their table 'orders', your data remains isolated and unique.
                                         </p>
                                     </div>
@@ -813,9 +813,9 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
                             </div>
 
                             <div className="space-y-4">
-                                <div className="p-4 bg-[#0F172A] rounded-2xl border border-slate-800">
-                                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Grok AI Prompt (Copy & Paste)</p>
-                                    <p className="text-[11px] font-mono text-indigo-300 leading-relaxed bg-indigo-500/5 p-3 rounded-lg border border-indigo-500/10">
+                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Grok AI Prompt (Copy & Paste)</p>
+                                    <p className="text-[11px] font-mono text-indigo-600 leading-relaxed bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
                                         "Generate a PostgreSQL CREATE TABLE script for my company {company?.name} in {company?.industry}.
                                         The table name should be c_{user?.profile?.company_id?.split('-')[0]}_orders.
                                         Include columns for order details, status, and company_id.
@@ -827,7 +827,7 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
                                         navigator.clipboard.writeText(`Generate a PostgreSQL CREATE TABLE script for my company ${company?.name} in ${company?.industry}. The table name should be c_${user?.profile?.company_id?.split('-')[0]}_orders. Include columns for order details, status, and company_id. Format it for Supabase and use UUID for primary keys.`);
                                         addToast("Grok Prompt copied to clipboard!", "success");
                                     }}
-                                    className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl transition-all flex items-center justify-center gap-2"
+                                    className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-100 transition-all flex items-center justify-center gap-2"
                                 >
                                     <Copy size={14} />
                                     Copy Grok AI Prompt
