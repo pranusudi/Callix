@@ -128,9 +128,22 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
             console.log("✅ Profile Update Success:", profileData);
 
             // 3. If they have an associated company, activate it too
-            const resolvedCompanyId = targetAdmin?.company_id || targetAdmin?.companies?.id || profileData?.[0]?.company_id;
+            const profileCompanyId = targetAdmin?.company_id || targetAdmin?.companies?.id || profileData?.[0]?.company_id;
             const resolvedEmail = targetAdmin?.email || targetAdmin?.contact_email || targetAdmin?.companies?.contact_email || profileData?.[0]?.email;
             const resolvedName = targetAdmin?.company_name || targetAdmin?.companies?.name || profileData?.[0]?.company_name;
+
+            // 4. BIG FIX: If we only have an email or name from signup, SEARCH the full companies array from the DB to get the TRUE UUID
+            let resolvedCompanyId = profileCompanyId;
+            if (!resolvedCompanyId) {
+                const foundCompany = companies.find(c =>
+                    (resolvedEmail && c.contact_email && c.contact_email.toLowerCase() === resolvedEmail.toLowerCase()) ||
+                    (resolvedName && c.name && c.name.toLowerCase() === resolvedName.toLowerCase())
+                );
+                if (foundCompany) {
+                    resolvedCompanyId = foundCompany.id;
+                    console.log("🔍 Success: Found company UUID from local state by matching email/name:", resolvedCompanyId);
+                }
+            }
 
             console.log("4. Extracted Company Identifiers for Activation:");
             console.log("   - Company ID:", resolvedCompanyId);
@@ -140,13 +153,13 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
             let companyUpdateResult = null;
 
             if (resolvedCompanyId) {
-                console.log(`5. Attempting to update company by ID: ${resolvedCompanyId}`);
+                console.log(`5. Attempting to update company strictly by UUID: ${resolvedCompanyId}`);
                 companyUpdateResult = await supabase.from('companies').update({ status: 'active' }).eq('id', resolvedCompanyId).select();
             } else if (resolvedEmail) {
-                console.log(`5. Attempting to update company by Email: ${resolvedEmail}`);
+                console.log(`5. Attempting to update company by Email fallback: ${resolvedEmail}`);
                 companyUpdateResult = await supabase.from('companies').update({ status: 'active' }).eq('contact_email', resolvedEmail).select();
             } else if (resolvedName) {
-                console.log(`5. Attempting to update company by Name: ${resolvedName}`);
+                console.log(`5. Attempting to update company by Name fallback: ${resolvedName}`);
                 companyUpdateResult = await supabase.from('companies').update({ status: 'active' }).eq('name', resolvedName).select();
             } else {
                 console.warn("⚠️ 5. NO identifiers found to target a company! Skipping company activation.");
