@@ -78,16 +78,16 @@ const UserDashboard = ({ user, onClose, onLogout, addToast }) => {
     return (
         <div className="flex min-h-screen bg-[#F8FAFC]">
             {/* Extended Sidebar */}
-            <div className="sidebar-container-custom hidden lg:flex w-64 flex-col bg-white p-4 text-slate-900 border-r border-slate-200 min-h-screen">
+            <div className="sidebar-container-custom hidden lg:flex w-64 flex-col p-4 border-r border-white/10 min-h-screen">
                 <div className="px-2 mb-8">
-                    <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white mb-3 shadow-lg border border-indigo-500/20">
+                    <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-white mb-3 shadow-lg border border-white/20">
                         <ShoppingBag size={24} />
                     </div>
-                    <h2 className="text-slate-900 text-lg font-black tracking-tight">Callix AI</h2>
+                    <h2 className="text-white text-lg font-black tracking-tight">Callix AI</h2>
 
                     <button
                         onClick={onClose}
-                        className="mt-4 flex items-center space-x-2 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 rounded-lg transition-all border border-slate-200 group text-slate-500 hover:text-slate-900"
+                        className="mt-4 flex items-center space-x-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg transition-all border border-white/10 group text-white/70 hover:text-white"
                     >
                         <Home size={14} className="group-hover:scale-110 transition-transform" />
                         <span className="font-bold text-[9px] uppercase tracking-widest">Return Home</span>
@@ -103,7 +103,7 @@ const UserDashboard = ({ user, onClose, onLogout, addToast }) => {
                 </nav>
 
                 <div className="mt-auto pt-4 border-t border-slate-100">
-                    <button onClick={onLogout} className="w-full flex items-center space-x-3 px-3 py-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all font-bold text-xs uppercase tracking-widest leading-none">
+                    <button onClick={onLogout} className="w-full flex items-center space-x-3 px-3 py-2.5 text-white/60 hover:text-white hover:bg-white/10 rounded-xl transition-all font-bold text-xs uppercase tracking-widest leading-none">
                         <LogOut size={16} />
                         <span>Sign Out Account</span>
                     </button>
@@ -241,11 +241,11 @@ const RecordCard = ({ record, type, formatDate, getStatusStyle }) => {
 const TabButton = ({ active, onClick, icon, label, count }) => (
     <button
         onClick={onClick}
-        className={`w-full flex items-center px-4 py-3 rounded-xl transition-all duration-300 group ${active ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50/50'}`}
+        className={`w-full flex items-center px-4 py-3 rounded-xl transition-all duration-300 group ${active ? 'bg-white text-indigo-700' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
     >
-        <span className={`${active ? 'text-indigo-600' : 'text-slate-400 group-hover:text-indigo-600'}`}>{icon}</span>
-        <span className={`flex-1 text-left font-black ml-3 text-xs tracking-tight ${active ? 'text-indigo-600' : ''}`}>{label}</span>
-        {count > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${active ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'}`}>{count}</span>}
+        <span className={`${active ? 'text-indigo-700' : 'text-white/60 group-hover:text-white'}`}>{icon}</span>
+        <span className={`flex-1 text-left font-black ml-3 text-xs tracking-tight ${active ? 'text-indigo-700' : 'text-white/60 group-hover:text-white'}`}>{label}</span>
+        {count > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${active ? 'bg-indigo-100 text-indigo-800' : 'bg-white/20 text-white'}`}>{count}</span>}
     </button>
 );
 

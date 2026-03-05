@@ -129,8 +129,8 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
     ACTION BRACKETS:
     - [QUERY_ENTITY_DATABASE for topic]
     - [GET_AVAILABLE_SLOTS for date]
-    - [BOOK_APPOINTMENT for person on date at time]
-    - [BOOK_TABLE for guests on date at time]
+    - [BOOK_APPOINTMENT for person on YYYY-MM-DD at time]
+    - [BOOK_TABLE for guests on YYYY-MM-DD at time]
     - [BOOK_ORDER for item (price)]
     - [COLLECT_FEEDBACK rating/5]
     - [HANG_UP]
@@ -227,13 +227,21 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
       let criticalInstructions = `
               1. Provide a warm, professional receptionist confirmation.
               2. DO NOT repeat internal keywords or brackets.
-              3. Max 20 words. Be concise but charming.`;
+              3. Keep it conversational. If listing items, list 2-3 clearly with prices.`;
 
       if (['collect_feedback', 'hang_up', 'query_entity_database', 'get_available_slots'].includes(intent.name)) {
         criticalInstructions = `
               - Speak normally to the user as a helpful virtual assistant.
-              - Absolutely NO internal brackets or command data in your response.
-              - Max 20 words. No robotic explanations. Just natural conversation.`;
+              - The LATEST_DATA will contain exact records in brackets like [MENU] or [CARDIOLOGY].
+              - YOU MUST ONLY READ OUT exact titles and prices from the data.
+              - CRITICAL ANTI-HALLUCINATION: NEVER invent or hallucinate names, doctors, or items that are not explicitly provided in the LATEST_DATA. If there are no specific doctor names provided, just read out the service or consultation titles exactly as they represent.
+              - Don't be too short if you need to explain things.`;
+      } else if (['book_appointment', 'book_table', 'book_order'].includes(intent.name)) {
+        criticalInstructions = `
+              - EXTREMELY BRIEF CONFIRMATION: Just concisely confirm the exact date, time, and service/name based on LATEST_DATA.
+              - Do NOT read out all the extra hospital/business descriptors continuously.
+              - Keep it to 2 short sentences max.
+              - Provide a warm, professional confirmation.`;
       }
 
       const finalResponse = await fetchWithRetry(GROQ_API_URL, {
@@ -247,8 +255,8 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
             {
               role: 'user',
               content: `[SYSTEM ALERT: TASK EXECUTION LOG]
-              LATEST_TASK_OUTCOME: ${result.success ? 'COMPLETED' : 'ERROR'}. 
-              LATEST_DATA: ${JSON.stringify(result)}. 
+              LATEST_TASK_OUTCOME: ${(result && !result.error && (result.success || typeof result === 'string')) ? 'COMPLETED' : 'ERROR'}. 
+              LATEST_DATA: ${typeof result === 'string' ? result : JSON.stringify(result)}. 
               
               CRITICAL INSTRUCTIONS:${criticalInstructions}`
             }
@@ -301,7 +309,6 @@ const detectIntent = (message, context) => {
   const userEmail = context?.userEmail || storedUser.email || '';
   const userName = context?.userName || storedUser.full_name || 'Guest';
 
-  // Helper to clean extracted values from leaks/placeholders
   const cleanArg = (val, fallback = '') => {
     if (!val) return fallback;
     let cleaned = val.replace(/[\[\]{}"']/g, '').replace(/(?:dish|item|name|product|title|guest|guests):\s*/gi, '').trim();
@@ -310,6 +317,21 @@ const detectIntent = (message, context) => {
     if (low.includes('available time') || low.includes('any time') || low.includes('select time') || low.includes('tbd')) return fallback;
     if (low === 'date' || low === 'time' || low === 'guests') return fallback;
     return cleaned || fallback;
+  };
+
+  const parseRelativeDate = (dateStr) => {
+    if (!dateStr || dateStr.toUpperCase() === 'TBD') return 'TBD';
+    const low = dateStr.toLowerCase().trim();
+    const today = new Date();
+    if (low === 'today') {
+      return today.toISOString().split('T')[0];
+    }
+    if (low === 'tomorrow') {
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      return tomorrow.toISOString().split('T')[0];
+    }
+    return dateStr;
   };
 
   // Appointment Logic
@@ -341,7 +363,7 @@ const detectIntent = (message, context) => {
     }
 
     pName = cleanArg(pName, 'General');
-    dDate = cleanArg(dDate, 'TBD');
+    dDate = parseRelativeDate(cleanArg(dDate, 'TBD'));
     tTime = cleanArg(tTime, 'TBD');
 
     const type = (industry.toLowerCase().includes('health') || industry.toLowerCase().includes('hosp')) ? 'doctor' : 'interview';
@@ -387,7 +409,7 @@ const detectIntent = (message, context) => {
     }
 
     gSize = cleanArg(gSize, '2');
-    bDate = cleanArg(bDate, 'TBD');
+    bDate = parseRelativeDate(cleanArg(bDate, 'TBD'));
     bTime = cleanArg(bTime, 'TBD');
 
     const finalTitle = gSize.toLowerCase().includes(userName.toLowerCase()) || userName.toLowerCase().includes(gSize.toLowerCase())
@@ -437,11 +459,27 @@ const detectIntent = (message, context) => {
   const hasBrackets = message.includes('[') && message.includes(']');
 
   if (isExplicitCommand || (hasBrackets && (msg.includes('STAR') || msg.includes('FEEDBACK')))) {
-    // Look for any number 1-5 (including decimals like 4.5) even if not in the command name itself
-    const ratingMatch = message.match(/([\d.]+)\s?\/\s?5/) || message.match(/Rating:\s*([\d.]+)/i) || message.match(/(?:^|\s|\b)([1-5](?:\.\d+)?)\b/);
+    // Look for any number (including decimals and values over 5)
+    const ratingMatch = message.match(/([\d.]+)\s?\/\s?5/) || message.match(/Rating:\s*([\d.]+)/i) || message.match(/([\d.]+)\s*star/i) || message.match(/(?:^|\s|\b)([\d.]+)\b/);
     let rating = ratingMatch ? parseFloat(ratingMatch[1]) : 0;
 
+    // Fallbacks for spelled numbers
+    if (msg.includes('ONE')) rating = 1;
+    else if (msg.includes('TWO')) rating = 2;
+    else if (msg.includes('THREE')) rating = 3;
+    else if (msg.includes('FOUR')) rating = 4;
+    else if (msg.includes('FIVE')) rating = 5;
+    else if (msg.includes('SIX')) rating = 6;
+    else if (msg.includes('SEVEN')) rating = 7;
+    else if (msg.includes('EIGHT')) rating = 8;
+    else if (msg.includes('NINE')) rating = 9;
+    else if (msg.includes('TEN')) rating = 10;
+
     if (rating || msg.includes('STAR')) {
+      if (rating > 5 || rating < 1) {
+        return { name: 'invalid_feedback', args: { rating } };
+      }
+
       // Clean comment: remove the command block and common leftovers
       const comment = message
         .replace(/\[COLLECT_FEEDBACK.*?\]/gi, '')
@@ -483,6 +521,9 @@ const detectIntent = (message, context) => {
 
 const executeAction = async (match) => {
   const { name, args } = match;
+  if (name === 'invalid_feedback') {
+    return { error: `User provided an invalid rating of ${args.rating} stars. Gently inform them that ratings must be exactly between 1 and 5 stars, and ask them for a valid rating.` };
+  }
   if (tools[name]) return await tools[name](args);
   return { error: 'Unknown action' };
 };

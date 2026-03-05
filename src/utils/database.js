@@ -441,8 +441,21 @@ export const database = {
         const timings = item.timings_json ? ` | Timings: ${JSON.stringify(item.timings_json)}` : '';
         const price = item.price_or_fee || item.price || item.fee ? ` | Price: ${item.price_or_fee || item.price || item.fee} INR` : '';
         const category = (item.category || item.type || item.specialization || 'INFO').toUpperCase();
-        const label = item.label || item.name || item.title || item.item_name || item.doctor_name || (item.table_number ? `Table ${item.table_number}` : null) || 'Detail';
-        const desc = item.details || item.description || item.sub_details || '';
+
+        let label = item.label || item.name || item.title || item.item_name || item.doctor_name || (item.table_number ? `Table ${item.table_number}` : null) || 'Detail';
+
+        // Explicitly include the doctor's name if it was shadowed by the label
+        if (item.doctor_name && label !== item.doctor_name) {
+          label = `${label} (${item.doctor_name})`;
+        }
+
+        let desc = item.details || item.description || item.sub_details || '';
+
+        // Explicitly include speciality
+        if (item.speciality) {
+          desc = `Speciality: ${item.speciality}. ${desc}`;
+        }
+
         const descStr = desc ? `: ${desc}` : '';
         return `[${category}] ${label}${descStr}${price}${timings}`;
       }).join('\n');

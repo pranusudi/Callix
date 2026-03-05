@@ -204,8 +204,8 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
         const { selectedLanguage: curLang, isSpeaking, isMuted, callState, isOpen } = stateRef.current;
 
         // Skip if no speech detected or too small or call ended
-        if (!hadSpeech || audioBlob.size < 2000 || isMuted || callState !== 'connected' || !isOpen) {
-          if (hadSpeech && audioBlob.size < 2000) console.log("🤏 Audio too short, skipping.");
+        if (!hadSpeech || audioBlob.size < 4000 || isMuted || callState !== 'connected' || !isOpen) {
+          if (hadSpeech && audioBlob.size < 4000) console.log("🤏 Audio too short, skipping.");
           setIsProcessing(false);
           return;
         }
@@ -295,7 +295,7 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
             const volume = currentDataArray.reduce((num, i) => num + i) / currentDataArray.length;
             setPulseScale(1 + (volume / 255) * 0.4);
 
-            const isTalking = volume > 15; // Reverted to 15
+            const isTalking = volume > 20; // Increased to 20 to ignore background noise
             setIsUserTalking(isTalking);
 
             if (isTalking) {
@@ -536,12 +536,13 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
 
       const systemPrompt = `
 IDENTITY: You are Callix, the warm and professional Virtual Receptionist for ${selectedCompany?.name}.
-CURRENT DATE: ${new Date().toLocaleDateString('en-IN')} | CURRENT TIME: ${new Date().toLocaleTimeString('en-IN')}
+CURRENT DATE: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} | CURRENT TIME: ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
 
 PERSONALITY & STYLE:
 - Polite, VIP Receptionist tone. Warm and helpful.
 - Respond in ${curLang.name} script only. Speak as a native ${curLang.name} speaker would.
-- Keep responses ultra-brief (max 20 words).
+- Keep responses natural and conversational. Be brief but highly informative when asked for details.
+- ALWAYS address the user by their exact Customer Name. Do not shorten or alter it.
 
 CORE PROTOCOLS:
 1. **Details First**: You MUST know the exact Date and Time before booking. IF the user omitted the Date or Time, DO NOT use the bracket. First, ask them politely for the missing details. NEVER GUESS "today".
