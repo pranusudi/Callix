@@ -106,29 +106,72 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
 
     const handleApproveAdmin = async (adminId) => {
         try {
+            console.log("=== SUPERADMIN APPROVAL PROCESS START ===");
+            console.log("1. Input Admin ID to approve:", adminId);
+
             // 1. Find the target admin to get their company_id
             const targetAdmin = pendingAdmins.find(a => a.id === adminId) || allUsers.find(a => a.id === adminId);
+            console.log("2. Found Target Admin Object:", targetAdmin);
 
-            // 2. Update the profile status
-            const { error: profileError } = await supabase.from('profiles').update({ status: 'approved' }).eq('id', adminId);
-            if (profileError) throw profileError;
-
-            // 3. If they have an associated company, activate it too
-            // Attempt to activate via exact ID first (checking joined targetAdmin.companies object and company_id)
-            const resolvedCompanyId = targetAdmin?.company_id || targetAdmin?.companies?.id;
-            const resolvedEmail = targetAdmin?.email || targetAdmin?.contact_email || targetAdmin?.companies?.contact_email;
-
-            if (resolvedCompanyId) {
-                await supabase.from('companies').update({ status: 'active' }).eq('id', resolvedCompanyId);
-            } else if (resolvedEmail) {
-                await supabase.from('companies').update({ status: 'active' }).eq('contact_email', resolvedEmail);
-            } else if (targetAdmin?.company_name || targetAdmin?.companies?.name) {
-                await supabase.from('companies').update({ status: 'active' }).eq('name', targetAdmin?.company_name || targetAdmin?.companies?.name);
+            if (!targetAdmin) {
+                console.error("Target admin not found in loaded data!");
+                throw new Error("Admin not found in data lists.");
             }
 
-            addToast('Administrator and Organization approved successfully!', 'success');
+            // 2. Update the profile status
+            console.log("3. Attempting to mark profile as approved...");
+            const { data: profileData, error: profileError } = await supabase.from('profiles').update({ status: 'approved' }).eq('id', adminId).select();
+            if (profileError) {
+                console.error("❌ Profile Update Error:", profileError);
+                throw profileError;
+            }
+            console.log("✅ Profile Update Success:", profileData);
+
+            // 3. If they have an associated company, activate it too
+            const resolvedCompanyId = targetAdmin?.company_id || targetAdmin?.companies?.id || profileData?.[0]?.company_id;
+            const resolvedEmail = targetAdmin?.email || targetAdmin?.contact_email || targetAdmin?.companies?.contact_email || profileData?.[0]?.email;
+            const resolvedName = targetAdmin?.company_name || targetAdmin?.companies?.name || profileData?.[0]?.company_name;
+
+            console.log("4. Extracted Company Identifiers for Activation:");
+            console.log("   - Company ID:", resolvedCompanyId);
+            console.log("   - Email:", resolvedEmail);
+            console.log("   - Company Name:", resolvedName);
+
+            let companyUpdateResult = null;
+
+            if (resolvedCompanyId) {
+                console.log(`5. Attempting to update company by ID: ${resolvedCompanyId}`);
+                companyUpdateResult = await supabase.from('companies').update({ status: 'active' }).eq('id', resolvedCompanyId).select();
+            } else if (resolvedEmail) {
+                console.log(`5. Attempting to update company by Email: ${resolvedEmail}`);
+                companyUpdateResult = await supabase.from('companies').update({ status: 'active' }).eq('contact_email', resolvedEmail).select();
+            } else if (resolvedName) {
+                console.log(`5. Attempting to update company by Name: ${resolvedName}`);
+                companyUpdateResult = await supabase.from('companies').update({ status: 'active' }).eq('name', resolvedName).select();
+            } else {
+                console.warn("⚠️ 5. NO identifiers found to target a company! Skipping company activation.");
+            }
+
+            if (companyUpdateResult) {
+                console.log("6. Company Update DB Response:", companyUpdateResult);
+                if (companyUpdateResult.error) {
+                    console.error("❌ Company Update DB Error:", companyUpdateResult.error);
+                    addToast("Warning: Admin approved, but company activation failed: " + companyUpdateResult.error.message, 'error');
+                } else if (!companyUpdateResult.data || companyUpdateResult.data.length === 0) {
+                    console.warn("⚠️ Warning: Supabase returned ok, but no rows were actually updated. Usually means the company doesn't exist or RLS blocked the update.");
+                    addToast("Warning: Admin approved, but no company was found in DB to activate.", 'info');
+                } else {
+                    console.log("✅ Company Activation Success!");
+                    addToast('Administrator and Organization approved successfully!', 'success');
+                }
+            } else {
+                addToast('Administrator approved successfully (No company info found).', 'success');
+            }
+
+            console.log("=== SUPERADMIN APPROVAL PROCESS END ===");
             loadSuperAdminData();
         } catch (err) {
+            console.error("❌ Fatal Error in handleApproveAdmin:", err);
             addToast('Approval failed: ' + err.message, 'error');
         }
     };
