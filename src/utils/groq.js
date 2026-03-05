@@ -272,27 +272,15 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
         const finalData = await finalResponse.json();
         const confirmationText = finalData.choices[0]?.message?.content;
         let finalDisplay = cleanInternalCommands(confirmationText) || cleanInternalCommands(assistantMessage);
-        if (result.success && !bypassRatingsAppends.includes(intent.name) && !/rate|star|feedback|1 to 5/i.test(finalDisplay)) {
-          finalDisplay += " Please rate my assistance today from 1 to 5 stars.";
-        }
         return finalDisplay;
       }
 
       let baseFallback = cleanInternalCommands(assistantMessage);
-      if (result.success && !bypassRatingsAppends.includes(intent.name) && !/rate|star|feedback|1 to 5/i.test(baseFallback)) {
-        baseFallback += " Please rate my assistance today from 1 to 5 stars.";
-      }
       return baseFallback;
     }
 
-    // Secondary fallback: if no intent bracket was generated, but the AI is claiming confirmation:
+    // Secondary fallback: if no intent bracket was generated:
     let baseResponse = cleanInternalCommands(assistantMessage);
-    if (/(confirm|booked|reserved|successfully|scheduled)/i.test(baseResponse) && !/rate|star|feedback|1 to 5/i.test(baseResponse)) {
-      // Only append if it's genuinely a booking confirmation
-      if (history.length > 2) {
-        baseResponse += " Please rate my assistance from 1 to 5 stars.";
-      }
-    }
     return baseResponse;
   } catch (error) {
     console.error('Groq AI Error:', error);
