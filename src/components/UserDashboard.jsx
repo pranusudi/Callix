@@ -45,11 +45,17 @@ const UserDashboard = ({ user, onClose, onLogout, addToast }) => {
     };
 
     const formatDate = (dateString) => {
-        if (!dateString) return 'N/A';
+        if (!dateString || dateString === 'TBD' || dateString === 'today') return dateString || 'TBD';
         // Clean placeholders like {tomorrow}
         const cleaned = dateString.replace(/[\[\]{}]/g, '');
         const date = new Date(cleaned);
-        return isNaN(date.getTime()) ? cleaned : date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+        // If it's a real timestamp/date string, format it. 
+        // If it's just a random word (like 'Dum' or 'the'), return 'N/A' or the word if it's alphanumeric
+        if (isNaN(date.getTime())) {
+            return dateString;
+        }
+        return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
     };
 
     const getStatusStyle = (status) => {
@@ -193,18 +199,9 @@ const RecordCard = ({ record, type, formatDate, getStatusStyle }) => {
             <div className="flex-1 min-w-0">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <h3 className="font-black text-slate-900 text-lg tracking-tight truncate">
-                            {String(record.title || (isHospital ? (record.doctors?.doctor_name || 'Medical Specialist') :
-                                isRestaurant ? (`Table #${record.restaurant_tables?.table_number || 'TBD'}`) :
-                                    isBusiness ? (record.staff?.name || 'HR/Manager Meeting') :
-                                        isOrder ? (record.products?.name || 'E-Commerce Item') :
-                                            `Feedback Rating`)).replace(/[\[\]{}"']/g, '').replace(/(?:dish|item|name|product|title|guest|guests):\s*/gi, '').replace(/\s*\([^)]+\)/g, '').trim() || 'Reservation'}
+                        <h3 className="font-black text-slate-900 text-lg tracking-tight truncate capitalize">
+                            {(record.company_name || (isFeedback ? 'Customer Feedback' : 'Universal Booking')).replace(/_/g, ' ')}
                         </h3>
-                        {record.company_name && (
-                            <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest opacity-80 mb-1">
-                                {record.company_name}
-                            </p>
-                        )}
                         <div className="flex items-center gap-4 text-xs font-bold text-slate-400 mt-1">
                             {record.date && !record.date.includes('{') && !record.date.includes('?') && record.date.length < 50 && (
                                 <div className="flex items-center">

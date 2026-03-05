@@ -8,6 +8,8 @@ export const cleanInternalCommands = (text) => {
   if (!text) return '';
   return text
     .replace(/^(Callix|Agent|Assistant|System|User|Callix Virtual Assistant):\s*/i, '')
+    // 0. Remove markdown symbols like asterisks used for bolding
+    .replace(/\*/g, '')
     // 1. First, remove explicit internal bracketed thoughts/commands
     .replace(/\[(BOOK|COLLECT|GET|QUERY|HANG|TRACE|THOUGHT|ACTION|RESULT).*?\]/gim, '')
     // 2. Remove standalone command keywords if they leak out of brackets
@@ -118,13 +120,15 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
     - Respond naturally. If the user says "Okay" or "Thank you", respond with a warm "You're very welcome!" or "It's my pleasure."
     
     CORE PROTOCOLS:
-    1. **Greet First**: Always start with a warm greeting if it's the beginning of the chat.
-    2. **Booking Requirements**: Before using [BOOK_TABLE] or [BOOK_APPOINTMENT], you MUST know the exact Date and Time requested by the user.
-       If the user omitted the date or time, DO NOT use the bracket. First, ask them: "For what date and time?"
-       NEVER GUESS. NEVER ASSUME "today".
-    3. **Action Execution**: When the user confirms they want to book, place an order, or reserve AND you have exact details, you MUST immediately output the EXACT bracket command (e.g. [BOOK_ORDER for {item}]). DO NOT confirm the action in words without including the bracket!
-    4. **Confirmation Turn**: Make sure you tell the user their booking is confirmed, then ask specifically: "Please rate my assistance today on a scale of 1 to 5."
-    5. **Collecting Rating**: Use [COLLECT_FEEDBACK rating/5] ONLY when the user explicitly provides a number from 1 to 5.
+    1. GREETING: "Hello [Name], I'm Callix. I'm here to assist you with our services and bookings."
+    2. ONGOING: DO NOT repeat your introduction or greeting (e.g., "Hello, I'm Callix") after the first message.
+    3. DISCOVERY: Use [QUERY_ENTITY_DATABASE] to find info.
+    4. DETAIL GATHERING: If the user wants to book, you MUST explicitly ask for the exact Date AND the Time if either is missing. DO NOT book anything until you have BOTH details. Never assume 'today'. If they only give the date, ask for the time. If they only give the time, ask for the date.
+    5. CONFIRM & BOOK: When the user confirms an order or booking AND you have the details, you MUST use [BOOK_APPOINTMENT], [BOOK_ORDER], or [BOOK_TABLE]. Do not say it's confirmed without the bracket!
+    6. NEXT STEPS: After confirming, ask: "Is there anything else I can help you with?".
+    7. FEEDBACK: ONLY ask for a 1-5 star rating when the user is ready to end the conversation.
+
+    TONE: Polite and ultra-brief. NO MARKDOWN (no asterisks).
     
     ACTION BRACKETS:
     - [QUERY_ENTITY_DATABASE for topic]
@@ -132,10 +136,10 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
     - [BOOK_APPOINTMENT for person on YYYY-MM-DD at time]
     - [BOOK_TABLE for guests on YYYY-MM-DD at time]
     - [BOOK_ORDER for item (price)]
-    - [COLLECT_FEEDBACK rating/5]
+    - [COLLECT_FEEDBACK rating/5] (ONLY use this when the user gives you a number. NEVER use this bracket when asking the question!)
     - [HANG_UP]
     
-    CRITICAL: Never leak internal commands or "Thinking..." lines. No "Your We look forward..."—ensure every sentence is grammatically complete.`;
+    CRITICAL: Never use an action bracket (e.g. [BOOK_...], [COLLECT_...]) when you are simply ASKING the user a question. Brackets are for CONFIRMING actions only. Ensure every sentence is grammatically complete. Do not say "Your We look forward..." or mixed sentences.`;
 
     const messages = [
       { role: 'system', content: systemMessage },
@@ -167,34 +171,7 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
 
     let intent = hasCommand ? detectIntent(assistantMessage, companyContext) : null;
 
-    // Fallback for missing feedback command:
-    if (!intent && history.length > 0) {
-      const lastBotMsg = history[history.length - 1]?.content || '';
-      if (/rate|star|feedback|assistance/i.test(lastBotMsg)) {
-        const ratingMatch = prompt.match(/([\d.]+)\s?\/\s?5/) || prompt.match(/(?:^|\s|\b)([1-5](?:\.\d+)?)\b/);
-        if (ratingMatch) {
-          const ratingVal = parseFloat(ratingMatch[1]);
-          if (ratingVal > 0 && ratingVal <= 5) {
-            intent = {
-              name: 'collect_feedback',
-              args: {
-                companyId: companyContext?._id || companyContext?.id || companyContext?.company_id || 'manual',
-                companyName: companyContext?.name || 'General',
-                rating: ratingVal,
-                user_email: companyContext?.userEmail || '',
-                user_name: companyContext?.userName || 'Guest',
-                comment: prompt.replace(/User Message:/i, '').trim() || 'Voice Feedback',
-                industry: companyContext?.industry || 'General'
-              }
-            };
-            console.log('⚠️ Activated Feedback Fallback System!');
 
-            // Force the AI to actually acknowledge the rating
-            assistantMessage = "Thank you for your valuable feedback! Is there anything else I can help you with?";
-          }
-        }
-      }
-    }
 
     if (intent) {
       const sessionId = companyContext?.sessionId || 'default';
@@ -229,19 +206,26 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
               2. DO NOT repeat internal keywords or brackets.
               3. Keep it conversational. If listing items, list 2-3 clearly with prices.`;
 
-      if (['collect_feedback', 'hang_up', 'query_entity_database', 'get_available_slots'].includes(intent.name)) {
+      if (['query_entity_database', 'get_available_slots'].includes(intent.name)) {
         criticalInstructions = `
               - Speak normally to the user as a helpful virtual assistant.
               - The LATEST_DATA will contain exact records in brackets like [MENU] or [CARDIOLOGY].
-              - YOU MUST ONLY READ OUT exact titles and prices from the data.
-              - CRITICAL ANTI-HALLUCINATION: NEVER invent or hallucinate names, doctors, or items that are not explicitly provided in the LATEST_DATA. If there are no specific doctor names provided, just read out the service or consultation titles exactly as they represent.
-              - Don't be too short if you need to explain things.`;
+              - YOU MUST ONLY READ OUT exact items and prices. NO technical IDs or dates.
+              - CRITICAL ANTI-HALLUCINATION: NEVER invent or hallucinate names, doctors, or items that are not explicitly provided in the LATEST_DATA.
+              - If there are no specific doctor names provided, just read out the service or consultation titles exactly.`;
+      } else if (intent.name === 'collect_feedback') {
+        criticalInstructions = `
+              - DONT SUMMARIZE THE DATA. NO TECHNICAL DETAILS.
+              - Just say a warm, brief thank you: "Thank you for your feedback! We look forward to serving you again."
+              - 1 sentence max.`;
+      } else if (intent.name === 'hang_up') {
+        criticalInstructions = `
+              - Just say a brief professional goodbye. No technical summary.`;
       } else if (['book_appointment', 'book_table', 'book_order'].includes(intent.name)) {
         criticalInstructions = `
-              - EXTREMELY BRIEF CONFIRMATION: Just concisely confirm the exact date, time, and service/name based on LATEST_DATA.
-              - Do NOT read out all the extra hospital/business descriptors continuously.
-              - Keep it to 2 short sentences max.
-              - Provide a warm, professional confirmation.`;
+              - ULTRA-MINIMALIST: Just say "Your booking is confirmed. Is there anything else I can assist you with today?"
+              - DO NOT recite the date, time, or service name. 
+              - Total length must be exactly 1-2 short sentences.`;
       }
 
       const finalResponse = await fetchWithRetry(GROQ_API_URL, {
@@ -297,13 +281,29 @@ const detectIntent = (message, context) => {
   const userEmail = context?.userEmail || storedUser.email || '';
   const userName = context?.userName || storedUser.full_name || 'Guest';
 
-  const cleanArg = (val, fallback = '') => {
+  const cleanArg = (val, fallback = '', type = 'any') => {
     if (!val) return fallback;
     let cleaned = val.replace(/[\[\]{}"']/g, '').replace(/(?:dish|item|name|product|title|guest|guests):\s*/gi, '').trim();
     const low = cleaned.toLowerCase();
+
     // Detect dummy placeholders
     if (low.includes('available time') || low.includes('any time') || low.includes('select time') || low.includes('tbd')) return fallback;
     if (low === 'date' || low === 'time' || low === 'guests') return fallback;
+
+    // Strict Date/Time validation if type is specified
+    if (type === 'date') {
+      const isKnownDay = /^(today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i.test(low);
+      const isNumericDate = /\d/.test(low) && (low.includes('-') || low.includes('/') || low.includes(','));
+      if (!isKnownDay && !isNumericDate) return fallback;
+    }
+
+    if (type === 'time') {
+      const hasNumbers = /\d/.test(low);
+      const hasTimePeriod = /am|pm/i.test(low);
+      const hasColon = low.includes(':');
+      if (!hasNumbers && !hasTimePeriod && !hasColon) return fallback;
+    }
+
     return cleaned || fallback;
   };
 
@@ -351,8 +351,8 @@ const detectIntent = (message, context) => {
     }
 
     pName = cleanArg(pName, 'General');
-    dDate = parseRelativeDate(cleanArg(dDate, 'TBD'));
-    tTime = cleanArg(tTime, 'TBD');
+    dDate = parseRelativeDate(cleanArg(dDate, 'TBD', 'date'));
+    tTime = cleanArg(tTime, 'TBD', 'time');
 
     const type = (industry.toLowerCase().includes('health') || industry.toLowerCase().includes('hosp')) ? 'doctor' : 'interview';
 
@@ -397,8 +397,8 @@ const detectIntent = (message, context) => {
     }
 
     gSize = cleanArg(gSize, '2');
-    bDate = parseRelativeDate(cleanArg(bDate, 'TBD'));
-    bTime = cleanArg(bTime, 'TBD');
+    bDate = parseRelativeDate(cleanArg(bDate, 'TBD', 'date'));
+    bTime = cleanArg(bTime, 'TBD', 'time');
 
     const finalTitle = gSize.toLowerCase().includes(userName.toLowerCase()) || userName.toLowerCase().includes(gSize.toLowerCase())
       ? `Table for ${gSize}`
@@ -463,16 +463,14 @@ const detectIntent = (message, context) => {
     else if (msg.includes('NINE')) rating = 9;
     else if (msg.includes('TEN')) rating = 10;
 
-    if (rating || msg.includes('STAR')) {
-      if (rating > 5 || rating < 1) {
-        return { name: 'invalid_feedback', args: { rating } };
-      }
+    // STICKER FEEDBACK RULE: Only trigger if there is a number or an explicit bracket command
+    if (rating > 0) {
+      if (rating > 5) return { name: 'invalid_feedback', args: { rating } };
 
-      // Clean comment: remove the command block and common leftovers
       const comment = message
         .replace(/\[COLLECT_FEEDBACK.*?\]/gi, '')
         .replace(/\[.*?\]/g, '')
-        .split('How would you rate')[0]
+        .split(/how would you rate|please rate/i)[0]
         .trim()
         .substring(0, 100) || 'Voice Feedback';
 
@@ -481,7 +479,7 @@ const detectIntent = (message, context) => {
         args: {
           companyId: entityId,
           companyName: entityName,
-          rating: rating || 5, // Default to 5 if keywords present but no number found
+          rating,
           user_email: userEmail,
           user_name: userName,
           comment,

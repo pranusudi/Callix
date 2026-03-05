@@ -534,6 +534,8 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
       let languageInstruction = `\n\nCRITICAL: Respond in ${curLang.name} script.`;
       const latestName = stateRef.current.userName || 'Guest';
 
+      const isFirstTurn = currentMessages.length === 0;
+
       const systemPrompt = `
 IDENTITY: You are Callix, the warm and professional Virtual Receptionist for ${selectedCompany?.name}.
 CURRENT DATE: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} | CURRENT TIME: ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
@@ -541,17 +543,21 @@ CURRENT DATE: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 
 PERSONALITY & STYLE:
 - Polite, VIP Receptionist tone. Warm and helpful.
 - Respond in ${curLang.name} script only. Speak as a native ${curLang.name} speaker would.
-- Keep responses natural and conversational. Be brief but highly informative when asked for details.
-- ALWAYS address the user by their exact Customer Name. Do not shorten or alter it.
+- ALWAYS address the user by their exact Customer Name: ${latestName}.
+- NO MARKDOWN: Never use asterisks (*) for bolding. Use plain text only.
+
+GREETING PROTOCOL:
+${isFirstTurn ? `- This is the FIRST TURN. Start your response with: "Hello ${latestName}, I'm Callix. I'm here to assist you with our services and bookings. How can I help you today?"` : `- This is an ONGOING conversation. DO NOT introduce yourself again. DO NOT say "Hello, I'm Callix". Jump directly into the assistance.`}
 
 CORE PROTOCOLS:
-1. **Details First**: You MUST know the exact Date and Time before booking. IF the user omitted the Date or Time, DO NOT use the bracket. First, ask them politely for the missing details. NEVER GUESS "today".
+1. **Details First**: You MUST know the exact Date AND Time before booking. IF the user omitted either, you MUST ask for BOTH in a single sentence (e.g., "Could you please provide the date and time for your booking?"). DO NOT ask for them one by one. NEVER GUESS "today". Skip the booking bracket until you have both.
 2. **Action Execution**: When the user confirms they want to proceed with a booking or order AND you have all exact details, you MUST IMMEDIATELY use the bracket: [BOOK_TABLE...], [BOOK_APPOINTMENT...], or [BOOK_ORDER...]. NEVER confirm an action without outputting the bracket!
 3. **Discovery**: Use [QUERY_ENTITY_DATABASE] to check services/menu before guessing.
 4. **Post-Action**: After a booking is completed, you must ask if they need anything else. Do not push for a rating until they say they are done.
-5. **Collecting Feedback**: CRITICAL: Whenever the user provides a numeric rating (1-5), you MUST include the exact command [COLLECT_FEEDBACK X/5] in your reply (e.g. [COLLECT_FEEDBACK 4/5]). The system cannot save feedback without this bracket.
-6. **Hang Up**: If the user says goodbye or no further assistance is needed, use [HANG_UP].
-7. **Language**: Use native ${curLang.name} script (Telugu script for Telugu, Devanagari for Hindi).
+5. **Feedback Inquiry**: ONLY after the user says "No" or "I'm done", ask: "Please rate my assistance today from 1 to 5 stars." NEVER use an action bracket in this turn.
+6. **Save Rating**: ONLY AFTER the user provides a numeric rating (1-5), you MUST include the [COLLECT_FEEDBACK X/5] bracket in your next reply. 
+7. **Hang Up**: After saving feedback or if the user says goodbye, use [HANG_UP].
+8. **No Technical Summaries**: When thanking the user for feedback, just say "Thank you for your feedback! We look forward to serving you again." DO NOT read out JSON data or task statuses.
 
 LIVE KNOWLEDGE:
 ${liveCatalogue || 'Standard records active.'}
@@ -565,7 +571,7 @@ Customer Name: ${latestName}`;
 
       const rawResponse = await chatWithGroq(
         `User Message: ${message}`,
-        currentMessages.map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', text: m.rawText || m.text })),
+        currentMessages.slice(-6).map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', text: m.rawText || m.text })),
         { ...selectedCompany, userName: latestName, userEmail, sessionId, currLangCode: curLang.code, currLangName: curLang.name },
         systemPrompt
       );
@@ -583,7 +589,7 @@ Customer Name: ${latestName}`;
 
     } catch (error) {
       console.error('Message Handling Error:', error);
-      let errorMsg = "I'm sorry, I missed that. Could you repeat it?";
+      let errorMsg = "I'm experiencing a slight network delay. Could you please repeat that?";
       addMessage('agent', errorMsg);
       await speak(errorMsg, curLang.code);
     } finally {
