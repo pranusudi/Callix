@@ -241,11 +241,11 @@ const RecordCard = ({ record, type, formatDate, getStatusStyle }) => {
 const TabButton = ({ active, onClick, icon, label, count }) => (
     <button
         onClick={onClick}
-        className={`w-full flex items-center px-4 py-3 rounded-xl transition-all duration-300 group ${active ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50'}`}
+        className={`w-full flex items-center px-4 py-3 rounded-xl transition-all duration-300 group ${active ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50/50'}`}
     >
-        <span className={`${active ? 'text-white' : 'text-slate-400 group-hover:text-indigo-600'}`}>{icon}</span>
-        <span className="flex-1 text-left font-black ml-3 text-xs tracking-tight">{label}</span>
-        {count > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${active ? 'bg-white text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>{count}</span>}
+        <span className={`${active ? 'text-indigo-600' : 'text-slate-400 group-hover:text-indigo-600'}`}>{icon}</span>
+        <span className={`flex-1 text-left font-black ml-3 text-xs tracking-tight ${active ? 'text-indigo-600' : ''}`}>{label}</span>
+        {count > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${active ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'}`}>{count}</span>}
     </button>
 );
 

@@ -272,12 +272,21 @@ function App() {
             <HeroSection onCallAgent={handleCallAgent} />
             <div className="py-20 bg-slate-50 flex flex-col items-center border-y border-slate-200">
               <h3 className="text-3xl font-black tracking-tighter text-slate-800 mb-6">Scale your business with AI.</h3>
-              <button
-                onClick={() => openAuthModal('signup', 'admin')}
-                className="px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-600/20 hover:scale-105 transition-all"
-              >
-                Register as Company Admin
-              </button>
+              {user ? (
+                <button
+                  onClick={() => setShowDashboard(true)}
+                  className="px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-600/20 hover:scale-105 transition-all"
+                >
+                  Go to Dashboard
+                </button>
+              ) : (
+                <button
+                  onClick={() => openAuthModal('signup', 'admin')}
+                  className="px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-600/20 hover:scale-105 transition-all"
+                >
+                  Register as Company Admin
+                </button>
+              )}
             </div>
             <ProblemsAndSolutions />
             <AccountPortfolio

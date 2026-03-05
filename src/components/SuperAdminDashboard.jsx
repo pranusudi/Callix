@@ -107,7 +107,7 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
     const handleApproveAdmin = async (adminId) => {
         try {
             // 1. Find the target admin to get their company_id
-            const targetAdmin = pendingAdmins.find(a => a.id === adminId);
+            const targetAdmin = pendingAdmins.find(a => a.id === adminId) || allUsers.find(a => a.id === adminId);
 
             // 2. Update the profile status
             const { error: profileError } = await supabase.from('profiles').update({ status: 'approved' }).eq('id', adminId);

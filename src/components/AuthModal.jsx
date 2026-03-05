@@ -162,7 +162,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
                                 {authMode === 'signup' && (
                                     <>
                                         <div className="space-y-0.5">
-                                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-900 ml-1">Full Name</label>
+                                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-900 ml-1">Full Name *</label>
                                             <div className="relative">
                                                 <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600" size={12} />
                                                 <input
@@ -179,7 +179,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
                                         {userRole === 'admin' && (
                                             <div className="grid grid-cols-2 gap-2">
                                                 <div className="space-y-0.5">
-                                                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-900 ml-1">Company Name</label>
+                                                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-900 ml-1">Company Name *</label>
                                                     <div className="relative">
                                                         <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600" size={12} />
                                                         <input
@@ -193,7 +193,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
                                                     </div>
                                                 </div>
                                                 <div className="space-y-0.5">
-                                                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-900 ml-1">Industry</label>
+                                                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-900 ml-1">Industry *</label>
                                                     <div className="space-y-2">
                                                         <select
                                                             required
@@ -233,7 +233,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
                                 )}
 
                                 <div className="space-y-0.5">
-                                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-900 ml-1">Email Address</label>
+                                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-900 ml-1">Email Address *</label>
                                     <div className="relative">
                                         <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600" size={12} />
                                         <input
@@ -248,7 +248,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
                                 </div>
 
                                 <div className="space-y-0.5">
-                                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-900 ml-1">Password</label>
+                                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-900 ml-1">Password *</label>
                                     <div className="relative">
                                         <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600" size={12} />
                                         <input
