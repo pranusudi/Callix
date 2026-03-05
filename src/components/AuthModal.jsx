@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Mail, Lock, User, Building2, Briefcase, ChevronRight, ShieldCheck, ArrowLeft, AlertCircle, Zap } from 'lucide-react';
 import { database } from '../utils/database';
 
-const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initialRole = 'user' }) => {
+const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initialRole = 'user', addToast }) => {
     // Initialize state directly from props since we use 'key' in App.jsx to force remounts
     const [authMode, setAuthMode] = useState(initialMode);
     const [userRole, setUserRole] = useState(initialRole);
@@ -35,10 +35,10 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
             if (authMode === 'signup') {
                 if (userRole === 'admin') {
                     await database.signUpAdmin(formData.email, formData.password, formData.fullName, formData.companyName, formData.industry);
-                    // Registration success message
+                    addToast('Registration submitted. The Superadmin has been notified for approval.', 'success');
                 } else {
                     await database.signUp(formData.email, formData.password, formData.fullName);
-                    // Registration success message
+                    addToast('Registration successful!', 'success');
                 }
                 setAuthMode('signin');
             } else {
@@ -120,7 +120,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
                                                 required
                                                 value={formData.fullName}
                                                 onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                                                className="w-full bg-[#161C2C] border border-white/5 rounded-lg py-2 pl-9 pr-4 text-white text-[11px] focus:border-indigo-500 transition-all outline-none"
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-4 text-slate-900 text-[11px] focus:border-indigo-500 transition-all outline-none"
                                                 placeholder="First and Last Name"
                                             />
                                         </div>
@@ -156,7 +156,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
                                                                 setFormData({ ...formData, industry: val });
                                                             }
                                                         }}
-                                                        className="w-full bg-[#161C2C] border border-white/5 rounded-lg py-2 px-2 text-white text-[11px] focus:border-indigo-500 transition-all outline-none"
+                                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-2 text-slate-900 text-[11px] focus:border-indigo-500 transition-all outline-none"
                                                     >
                                                         <option value="Healthcare">Healthcare</option>
                                                         <option value="Food & Beverage">Food & Beverage</option>
@@ -172,7 +172,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
                                                             placeholder="Specify industry"
                                                             value={formData.industry}
                                                             onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
-                                                            className="w-full bg-[#161C2C] border border-white/5 rounded-lg py-2 px-3 text-white text-[11px] focus:border-indigo-500 transition-all outline-none"
+                                                            className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-slate-900 text-[11px] focus:border-indigo-500 transition-all outline-none"
                                                         />
                                                     )}
                                                 </div>
@@ -191,7 +191,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, initialMode = 'signin', initial
                                         required
                                         value={formData.email}
                                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                        className="w-full bg-[#161C2C] border border-white/5 rounded-lg py-2 pl-9 pr-4 text-white text-[11px] focus:border-indigo-500 transition-all outline-none"
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-4 text-slate-900 text-[11px] focus:border-indigo-500 transition-all outline-none"
                                         placeholder="email@example.com"
                                     />
                                 </div>

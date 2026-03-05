@@ -101,7 +101,7 @@ const CompanyOnboarding = ({ isOpen, onClose, onSuccess }) => {
           onClick={onClose}
         >
           <motion.div
-            className="bg-slate-900 rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-white/10 shadow-2xl"
+            className="bg-white rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-slate-200 shadow-2xl"
             initial={{ scale: 0.9, y: 20 }}
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.9, y: 20 }}
@@ -109,14 +109,14 @@ const CompanyOnboarding = ({ isOpen, onClose, onSuccess }) => {
           >
             <div className="flex items-center justify-between mb-8">
               <div>
-                <h2 className="text-3xl font-black text-white">
+                <h2 className="text-3xl font-black text-slate-900">
                   Connect Database
                 </h2>
-                <p className="text-slate-400 mt-1">Train your AI agent on your company data</p>
+                <p className="text-slate-500 mt-1">Train your AI agent on your company data</p>
               </div>
               <button
                 onClick={onClose}
-                className="p-2 rounded-full hover:bg-white/10 text-white/60 hover:text-white transition-all"
+                className="p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-900 transition-all"
               >
                 <X size={24} />
               </button>
@@ -127,7 +127,7 @@ const CompanyOnboarding = ({ isOpen, onClose, onSuccess }) => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Company Name */}
                 <div>
-                  <label className="flex items-center space-x-2 text-sm font-bold text-slate-400 mb-2">
+                  <label className="flex items-center space-x-2 text-sm font-bold text-slate-500 mb-2">
                     <Building2 size={16} />
                     <span>COMPANY NAME</span>
                   </label>
@@ -136,7 +136,7 @@ const CompanyOnboarding = ({ isOpen, onClose, onSuccess }) => {
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-white/10 focus:border-blue-500 focus:outline-none text-white"
+                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:border-blue-500 focus:outline-none text-slate-900"
                     placeholder="e.g. Acme Corp"
                   />
                 </div>
@@ -151,7 +151,7 @@ const CompanyOnboarding = ({ isOpen, onClose, onSuccess }) => {
                     required
                     value={formData.industry}
                     onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-white/10 focus:border-blue-500 focus:outline-none text-white"
+                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:border-blue-500 focus:outline-none text-slate-900"
                   >
                     <option value="">Select Category</option>
                     {industries.map((industry) => (
@@ -171,7 +171,7 @@ const CompanyOnboarding = ({ isOpen, onClose, onSuccess }) => {
                   type="password"
                   value={formData.apiKey}
                   onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-white/10 focus:border-blue-500 focus:outline-none text-white"
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:border-blue-500 focus:outline-none text-slate-900"
                   placeholder="Your database connection key"
                 />
               </div>
@@ -187,7 +187,7 @@ const CompanyOnboarding = ({ isOpen, onClose, onSuccess }) => {
                   value={formData.contextSummary}
                   onChange={(e) => setFormData({ ...formData, contextSummary: e.target.value })}
                   rows={4}
-                  className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-white/10 focus:border-blue-500 focus:outline-none text-white resize-none"
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:border-blue-500 focus:outline-none text-slate-900 resize-none"
                   placeholder="Tell the AI what it should know about your business, products, and services..."
                 />
               </div>
@@ -197,7 +197,7 @@ const CompanyOnboarding = ({ isOpen, onClose, onSuccess }) => {
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 px-6 py-4 rounded-2xl bg-white/5 text-white font-bold hover:bg-white/10 transition-all border border-white/10"
+                  className="flex-1 px-6 py-4 rounded-2xl bg-slate-100 text-slate-900 font-bold hover:bg-slate-200 transition-all border border-slate-200"
                 >
                   Cancel
                 </button>

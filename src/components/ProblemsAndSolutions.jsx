@@ -123,7 +123,7 @@ const ProblemsAndSolutions = () => {
                                 }}
                             >
                                 <motion.div
-                                    className={`h-full rounded-[2.5rem] overflow-hidden shadow-2xl transition-all duration-500 border border-white/5 ${isHovered ? 'bg-[#0F172A]' : `bg-gradient-to-br ${feature.color}`
+                                    className={`h-full rounded-[2.5rem] overflow-hidden shadow-2xl transition-all duration-500 border border-slate-200 ${isHovered ? 'bg-white' : `bg-gradient-to-br ${feature.color}`
                                         }`}
                                 >
                                     {/* Collapsed State - Horizontal Text */}
@@ -157,10 +157,10 @@ const ProblemsAndSolutions = () => {
                                                     <h4 className="text-[10px] font-black uppercase text-red-500 tracking-widest">The Problem</h4>
                                                 </div>
                                                 <div>
-                                                    <h3 className="text-xl font-black text-white mb-2 leading-none">
+                                                    <h3 className="text-xl font-black text-slate-900 mb-2 leading-none">
                                                         {feature.problem}
                                                     </h3>
-                                                    <p className="text-sm text-slate-400 font-medium leading-relaxed">
+                                                    <p className="text-sm text-slate-500 font-medium leading-relaxed">
                                                         {feature.problemDesc}
                                                     </p>
                                                 </div>

@@ -252,7 +252,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#020617] relative overflow-x-hidden">
+    <div className="min-h-screen bg-white relative overflow-x-hidden">
       <BackgroundEffects />
       {!showDashboard && (
         <Header
@@ -309,18 +309,19 @@ function App() {
         onSuccess={handleAuthSuccess}
         initialMode={authModalConfig.mode}
         initialRole={authModalConfig.role}
+        addToast={addToast}
       />
       <CompanyOnboarding
         isOpen={isOnboardingOpen}
         onClose={() => setIsOnboardingOpen(false)}
         onSuccess={() => loadCompanies()}
       />
-      <footer className="relative z-10 py-12 px-4 border-t border-white/10 bg-[#000]">
+      <footer className="relative z-10 py-12 px-4 border-t border-slate-200 bg-white">
         <div className="max-w-7xl mx-auto text-center">
-          <p className="text-white/60 text-sm font-medium">
+          <p className="text-slate-500 text-sm font-medium">
             © {new Date().getFullYear()} Callix. All rights reserved.
           </p>
-          <p className="text-white/40 text-[10px] mt-2 tracking-wider">
+          <p className="text-slate-400 text-[10px] mt-2 tracking-wider">
             Powered by Praneetha, Rishitha and Hasmitha.
           </p>
         </div>
