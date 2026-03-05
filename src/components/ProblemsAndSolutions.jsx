@@ -73,7 +73,7 @@ const ProblemsAndSolutions = () => {
     ];
 
     return (
-        <section id="features" className="py-20 px-4 bg-black relative overflow-hidden">
+        <section id="features" className="py-20 px-4 bg-white relative overflow-hidden">
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
                 <motion.div
@@ -83,12 +83,9 @@ const ProblemsAndSolutions = () => {
                     transition={{ duration: 0.8, ease: "easeOut" }}
                     className="text-center mb-16"
                 >
-                    <h2 className="text-4xl md:text-5xl font-black text-white mb-6 tracking-tighter">
-                        Questions & Answers: Traditional AI vs <span className="bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">Callix</span>
+                    <h2 className="text-4xl md:text-5xl font-black text-slate-900 mb-6 tracking-tighter">
+                        Features
                     </h2>
-                    <p className="text-gray-400 text-lg max-w-2xl mx-auto font-medium">
-                        Explore how our neural network solves the limitations of conventional systems.
-                    </p>
                 </motion.div>
 
                 {/* Full Width Flex Cards */}
