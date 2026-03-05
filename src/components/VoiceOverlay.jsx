@@ -25,7 +25,12 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
   // Helper to get name from user object or email
   const getNameFromUser = (u) => {
     if (!u) return '';
+    if (u.profile?.full_name) return u.profile.full_name;
     if (u.user_metadata?.full_name) return u.user_metadata.full_name;
+    if (u.app_metadata?.full_name) return u.app_metadata.full_name;
+    if (u.full_name) return u.full_name;
+    if (u.name) return u.name;
+
     if (u.email) {
       const namePart = u.email.split('@')[0];
       return namePart
@@ -539,8 +544,8 @@ PERSONALITY & STYLE:
 - Keep responses ultra-brief (max 20 words).
 
 CORE PROTOCOLS:
-1. **Details First**: If the user provides Date, Time, and guests, DO NOT ask for them again. Immediately use [BOOK_TABLE] or [BOOK_APPOINTMENT]. Only ask if any details are MISSING.
-2. **Action Execution**: When the user confirms they want to proceed with a booking or order, you MUST IMMEDIATELY use the bracket: [BOOK_TABLE...], [BOOK_APPOINTMENT...], or [BOOK_ORDER...]. NEVER confirm an action without outputting the bracket!
+1. **Details First**: You MUST know the exact Date and Time before booking. IF the user omitted the Date or Time, DO NOT use the bracket. First, ask them politely for the missing details. NEVER GUESS "today".
+2. **Action Execution**: When the user confirms they want to proceed with a booking or order AND you have all exact details, you MUST IMMEDIATELY use the bracket: [BOOK_TABLE...], [BOOK_APPOINTMENT...], or [BOOK_ORDER...]. NEVER confirm an action without outputting the bracket!
 3. **Discovery**: Use [QUERY_ENTITY_DATABASE] to check services/menu before guessing.
 4. **Post-Action**: After a booking is completed, you MUST explicitly ask: "Please rate my assistance from 1 to 5 stars."
 5. **Collecting Feedback**: CRITICAL: Whenever the user provides a numeric rating (1-5), you MUST include the exact command [COLLECT_FEEDBACK X/5] in your reply (e.g. [COLLECT_FEEDBACK 4.5/5]). The system cannot save feedback without this bracket.
@@ -780,7 +785,7 @@ Customer Name: ${latestName}`;
     // RESET ALL STATES FOR NEXT CALL
     setTimeout(() => {
       setMessages([]);
-      setUserName(user?.user_metadata?.full_name || '');
+      setUserName(getNameFromUser(user));
       setConvoPhase('intro');
       setTranscript('');
       setSelectedLanguage({ code: 'en-IN', name: 'English' });

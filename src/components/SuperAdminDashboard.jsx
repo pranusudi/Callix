@@ -56,7 +56,19 @@ const SuperAdminDashboard = ({ user, onLogout, addToast, onHome }) => {
             setCompanies(formattedCompanies);
             setAllUsers(usersData);
             setApprovalRequests(approvalsData);
-            setAllBookings(bookingsData);
+
+            // Deduplicate bookings
+            const uniqueBookings = [];
+            const seenBookings = new Set();
+            (bookingsData || []).forEach(b => {
+                const key = `${b.company_id}-${b.user_email}-${b.title}-${b.date}-${b.time}`;
+                if (!seenBookings.has(key)) {
+                    seenBookings.add(key);
+                    uniqueBookings.push(b);
+                }
+            });
+
+            setAllBookings(uniqueBookings);
             setPendingAdmins(pendingAdminsData);
 
             setStats({

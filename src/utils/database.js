@@ -246,6 +246,16 @@ export const database = {
     const { data: b } = await supabase.from('bookings').select('*').eq('user_email', email).order('created_at', { ascending: false });
     const { data: f } = await supabase.from('feedback').select('*').eq('user_email', email).order('created_at', { ascending: false });
 
+    const uniqueBookings = [];
+    const seen = new Set();
+    (b || []).forEach(item => {
+      const key = `${item.company_id}-${item.title}-${item.date}-${item.time}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueBookings.push(item);
+      }
+    });
+
     const getTab = (item) => {
       const ind = (item.metadata?.industry || item.sub_title || '').toLowerCase();
       const type = (item.booking_type || '').toLowerCase();
@@ -264,10 +274,10 @@ export const database = {
     };
 
     return {
-      appointments: (b || []).filter(item => getTab(item) === 'appointments'),
-      reservations: (b || []).filter(item => getTab(item) === 'reservations'),
-      meetings: (b || []).filter(item => getTab(item) === 'meetings'),
-      orders: (b || []).filter(item => getTab(item) === 'orders'),
+      appointments: (uniqueBookings).filter(item => getTab(item) === 'appointments'),
+      reservations: (uniqueBookings).filter(item => getTab(item) === 'reservations'),
+      meetings: (uniqueBookings).filter(item => getTab(item) === 'meetings'),
+      orders: (uniqueBookings).filter(item => getTab(item) === 'orders'),
       feedback: f || []
     };
   },
@@ -419,7 +429,9 @@ export const database = {
       // De-duplicate if same items appear in multiple tables
       const seen = new Set();
       const uniqueData = finalData.filter(item => {
-        const id = (item.label || item.name || item.title || '') + (item.details || item.description || '');
+        const itemLabel = item.label || item.name || item.title || item.item_name || item.doctor_name || item.table_number || '';
+        const itemDesc = item.details || item.description || item.sub_details || item.specialization || item.category || '';
+        const id = itemLabel + itemDesc;
         if (!id || seen.has(id)) return false;
         seen.add(id);
         return true;
@@ -427,11 +439,12 @@ export const database = {
 
       return uniqueData.map(item => {
         const timings = item.timings_json ? ` | Timings: ${JSON.stringify(item.timings_json)}` : '';
-        const price = item.price_or_fee || item.price ? ` | Price: ${item.price_or_fee || item.price} INR` : '';
-        const category = (item.category || item.type || 'INFO').toUpperCase();
-        const label = item.label || item.name || item.title || 'Detail';
+        const price = item.price_or_fee || item.price || item.fee ? ` | Price: ${item.price_or_fee || item.price || item.fee} INR` : '';
+        const category = (item.category || item.type || item.specialization || 'INFO').toUpperCase();
+        const label = item.label || item.name || item.title || item.item_name || item.doctor_name || (item.table_number ? `Table ${item.table_number}` : null) || 'Detail';
         const desc = item.details || item.description || item.sub_details || '';
-        return `[${category}] ${label}: ${desc}${price}${timings}`;
+        const descStr = desc ? `: ${desc}` : '';
+        return `[${category}] ${label}${descStr}${price}${timings}`;
       }).join('\n');
     } catch (e) {
       console.warn('Vault Access Error:', e);

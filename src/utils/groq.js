@@ -119,10 +119,10 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
     
     CORE PROTOCOLS:
     1. **Greet First**: Always start with a warm greeting if it's the beginning of the chat.
-    2. **Booking Requirements**: Before using [BOOK_TABLE] or [BOOK_APPOINTMENT], you MUST have: Number of guests, Specific Date, Specific Time.
-       If the user already provided this information, DO NOT ASK AGAIN. Simply use the bracket command immediately.
-       If any are missing, ask politely: "Certainly! For what time and for how many guests should I reserve the table?"
-    3. **Action Execution**: When the user confirms they want to book, place an order, or reserve, you MUST immediately output the EXACT bracket command (e.g. [BOOK_ORDER for {item}]). DO NOT confirm the action in words without including the bracket!
+    2. **Booking Requirements**: Before using [BOOK_TABLE] or [BOOK_APPOINTMENT], you MUST know the exact Date and Time requested by the user.
+       If the user omitted the date or time, DO NOT use the bracket. First, ask them: "For what date and time?"
+       NEVER GUESS. NEVER ASSUME "today".
+    3. **Action Execution**: When the user confirms they want to book, place an order, or reserve AND you have exact details, you MUST immediately output the EXACT bracket command (e.g. [BOOK_ORDER for {item}]). DO NOT confirm the action in words without including the bracket!
     4. **Confirmation Turn**: Make sure you tell the user their booking is confirmed, then ask specifically: "Please rate my assistance today on a scale of 1 to 5."
     5. **Collecting Rating**: Use [COLLECT_FEEDBACK rating/5] ONLY when the user explicitly provides a number from 1 to 5.
     
@@ -341,7 +341,7 @@ const detectIntent = (message, context) => {
     }
 
     pName = cleanArg(pName, 'General');
-    dDate = cleanArg(dDate, 'today');
+    dDate = cleanArg(dDate, 'TBD');
     tTime = cleanArg(tTime, 'TBD');
 
     const type = (industry.toLowerCase().includes('health') || industry.toLowerCase().includes('hosp')) ? 'doctor' : 'interview';
@@ -387,7 +387,7 @@ const detectIntent = (message, context) => {
     }
 
     gSize = cleanArg(gSize, '2');
-    bDate = cleanArg(bDate, 'today');
+    bDate = cleanArg(bDate, 'TBD');
     bTime = cleanArg(bTime, 'TBD');
 
     const finalTitle = gSize.toLowerCase().includes(userName.toLowerCase()) || userName.toLowerCase().includes(gSize.toLowerCase())

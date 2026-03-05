@@ -88,10 +88,22 @@ const AdminDashboard = ({ user, onLogout, addToast }) => {
                 supabase.from('approval_queue').select('*').eq('company_id', companyId).order('created_at', { ascending: false })
             ]);
 
+            // Deduplicate bookings
+            const uniqueBookings = [];
+            const seenBookings = new Set();
+            (bookingsData || []).forEach(b => {
+                // Create a unique key based on the core booking details
+                const key = `${b.user_email}-${b.title}-${b.date}-${b.time}`;
+                if (!seenBookings.has(key)) {
+                    seenBookings.add(key);
+                    uniqueBookings.push(b);
+                }
+            });
+
             setCompany(companyInfo);
             setUsageStats(stats || []);
             setUsers(companyUsers || []);
-            setBookings(bookingsData || []);
+            setBookings(uniqueBookings);
             setFeedback(feedbackData || []);
             setRegistryData(registry || []);
             setPendingApprovals((registry || []).filter(r => r.status === 'pending'));
