@@ -292,7 +292,7 @@ const detectIntent = (message, context) => {
 
     // Strict Date/Time validation if type is specified
     if (type === 'date') {
-      const isKnownDay = /^(today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i.test(low);
+      const isKnownDay = /^(today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|ఈరోజు|రేపు|సోమవారం|మంగళవారం|బుధవారం|గురువారం|శుక్రవారం|శనివారం|ఆదివారం)/i.test(low);
       const isNumericDate = /\d/.test(low) && (low.includes('-') || low.includes('/') || low.includes(','));
       if (!isKnownDay && !isNumericDate) return fallback;
     }
@@ -311,10 +311,10 @@ const detectIntent = (message, context) => {
     if (!dateStr || dateStr.toUpperCase() === 'TBD') return 'TBD';
     const low = dateStr.toLowerCase().trim();
     const today = new Date();
-    if (low === 'today') {
+    if (low === 'today' || low === 'ఈరోజు') {
       return today.toISOString().split('T')[0];
     }
-    if (low === 'tomorrow') {
+    if (low === 'tomorrow' || low === 'రేపు') {
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
       return tomorrow.toISOString().split('T')[0];

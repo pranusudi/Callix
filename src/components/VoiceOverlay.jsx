@@ -5,7 +5,7 @@ import { chatWithGroq, transcribeAudio, isGroqInitialized, cleanInternalCommands
 import { detectLanguage } from '../utils/languageDetection';
 import { ttsService } from '../utils/ttsService';
 import { sttService } from '../utils/sttService';
-import { HospitalPrompt, RestaurantPrompt, ECommercePrompt, BusinessPrompt, DefaultPrompt } from '../prompts/agentPrompts';
+import { HospitalPrompt, RestaurantPrompt, ECommercePrompt, BusinessPrompt, DefaultPrompt, HospitalPromptTe, RestaurantPromptTe, ECommercePromptTe, BusinessPromptTe, DefaultPromptTe } from '../prompts/agentPrompts';
 import { database } from '../utils/database';
 
 const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
@@ -526,10 +526,19 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
       const industry = selectedCompany?.industry?.toLowerCase() || '';
       const compName = selectedCompany?.name?.toLowerCase() || '';
 
-      if (industry.includes('health') || compName.includes('hospital') || compName.includes('aarogya')) specializedPrompt = HospitalPrompt;
-      else if (industry.includes('restaur') || compName.includes('garden') || compName.includes('aroma')) specializedPrompt = RestaurantPrompt;
-      else if (industry.includes('commerce') || compName.includes('kart')) specializedPrompt = ECommercePrompt;
-      else if (industry.includes('business') || industry.includes('tech')) specializedPrompt = BusinessPrompt;
+      const isTelugu = curLang.code === 'te-IN';
+
+      if (industry.includes('health') || compName.includes('hospital') || compName.includes('aarogya')) {
+        specializedPrompt = isTelugu ? HospitalPromptTe : HospitalPrompt;
+      } else if (industry.includes('restaur') || compName.includes('garden') || compName.includes('aroma')) {
+        specializedPrompt = isTelugu ? RestaurantPromptTe : RestaurantPrompt;
+      } else if (industry.includes('commerce') || compName.includes('kart')) {
+        specializedPrompt = isTelugu ? ECommercePromptTe : ECommercePrompt;
+      } else if (industry.includes('business') || industry.includes('tech')) {
+        specializedPrompt = isTelugu ? BusinessPromptTe : BusinessPrompt;
+      } else if (isTelugu) {
+        specializedPrompt = DefaultPromptTe;
+      }
 
       let languageInstruction = `\n\nCRITICAL: Respond in ${curLang.name} script.`;
       const latestName = stateRef.current.userName || 'Guest';
@@ -549,7 +558,7 @@ PERSONALITY & STYLE:
 - NO MARKDOWN: Never use asterisks (*) for bolding. Use plain text only.
 
 GREETING PROTOCOL:
-${isFirstTurn ? `- This is the FIRST TURN. Start your response with: "Hello ${latestName}, I'm Callix. I'm here to assist you with our services and bookings. How can I help you today?"` : `- This is an ONGOING conversation. DO NOT introduce yourself again. DO NOT say "Hello, I'm Callix". Jump directly into the assistance.`}
+${isFirstTurn ? (isTelugu ? `- This is the FIRST TURN. Start your response with: "నమస్కారం ${latestName}, నేను కాల్లిక్స్ (Callix). నేను మీకు మా సేవలు మరియు బుకింగ్‌లలో సహాయం చేయడానికి ఇక్కడ ఉన్నాను. ఈరోజు నేను మీకు ఏ విధంగా సహాయపడగలను?"` : `- This is the FIRST TURN. Start your response with: "Hello ${latestName}, I'm Callix. I'm here to assist you with our services and bookings. How can I help you today?"`) : `- This is an ONGOING conversation. DO NOT introduce yourself again. DO NOT say "Hello, I'm Callix". Jump directly into the assistance.`}
 
 CORE PROTOCOLS:
 1. **Capture BOTH Details**: You MUST know the exact DATE AND TIME before booking. IF the user omitted either, you MUST ask for BOTH in a single sentence (e.g., "Could you please provide the date and time for your booking?"). NEVER ask for them one by one. DO NOT proceed with any booking bracket until you have BOTH confirmed pieces of information. NEVER GUESS "today".

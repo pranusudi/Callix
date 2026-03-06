@@ -374,7 +374,7 @@ export const database = {
       }
 
       // 3. FALLBACK PATTERNS: If RPC misses, we try the specified naming standard only
-      const commonSuffixes = ['menu', 'vault'];
+      const commonSuffixes = ['menu', 'vault', 'products', 'services', 'doctors', 'team', 'listings', 'items', 'catalog', 'specialists', 'appointments', 'clinic'];
 
       // Try companyname_menu and companyname_vault only
       const fallbackTables = commonSuffixes.map(s => `${noSpaceName}_${s}`);
@@ -386,9 +386,9 @@ export const database = {
       ])].filter(table => {
         if (!table) return false;
         const lowTable = table.toLowerCase();
-        // The table must specifically be companyname_menu OR companyname_vault
-        return lowTable === `${noSpaceName}_menu` ||
-          lowTable === `${noSpaceName}_vault` ||
+        // Allow any table that belongs to the specific company (prefix check)
+        // OR is part of the approved registry for that company
+        return lowTable.startsWith(`${noSpaceName}_`) ||
           registeredTables.includes(table);
       });
 
@@ -549,6 +549,7 @@ export const database = {
 export const tools = {
   book_order: async (data) => await database.saveOrder(data),
   book_appointment: async (params) => await database.saveAppointment(params),
+  book_table: async (params) => await database.saveAppointment(params),
   collect_feedback: async (params) => await database.saveFeedback(params),
   query_entity_database: async (params) => await database.query_entity_database(params),
   get_available_slots: async (params) => await database.get_available_slots(params),
