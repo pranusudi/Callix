@@ -329,15 +329,19 @@ export const database = {
       industry: feedback.industry || 'General'
     };
 
-    // --- Strict Deduplication Check (30 mins) ---
+    // --- Strict Deduplication Check ---
+    // Only apply strict 1-min deduplication if user_email is provided.
+    // For Guests (email empty), we use a 10s window to prevent double-clicks/STT echoes.
+    const dedupWindow = payload.user_email ? (1 * 60 * 1000) : (10 * 1000);
     const { data: existing } = await supabase.from('feedback').select('id, created_at')
       .eq('company_id', payload.company_id)
       .eq('user_email', payload.user_email)
-      .gte('created_at', new Date(Date.now() - 30 * 60 * 1000).toISOString())
+      .eq('rating', payload.rating) // Also check rating to be safer for guests
+      .gte('created_at', new Date(Date.now() - dedupWindow).toISOString())
       .limit(1);
 
     if (existing && existing.length > 0) {
-      console.log('🚫 Skipping Duplicate Feedback (Already saved in last 30 mins)');
+      console.log(`🚫 Skipping Duplicate Feedback (Window: ${dedupWindow / 1000}s)`);
       return { success: true, duplicated: true };
     }
 

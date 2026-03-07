@@ -6,24 +6,19 @@ const GROQ_AUDIO_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
 // Cleanup utility for internal markers
 export const cleanInternalCommands = (text) => {
   if (!text) return '';
-  return text
-    .replace(/^(Callix|Agent|Assistant|System|User|Callix Virtual Assistant):\s*/i, '')
-    // 0. Remove markdown symbols like asterisks used for bolding
-    .replace(/\*/g, '')
-    // 1. First, remove explicit internal bracketed thoughts/commands
-    .replace(/\[(BOOK|COLLECT|GET|QUERY|HANG|TRACE|THOUGHT|ACTION|RESULT).*?\]/gim, '')
-    // 2. Remove standalone command keywords if they leak out of brackets
-    .replace(/\b(BOOK_APPOINTMENT|BOOK_TABLE|BOOK_ORDER|COLLECT_FEEDBACK|GET_AVAILABLE_SLOTS|QUERY_ENTITY_DATABASE|HANG_UP)\b/gi, '')
-    // 3. Remove specific debug marker lines
-    .replace(/\[SYSTEM ALERT:.*?\]/gim, '')
-    .replace(/(ACTION STATUS|ACTION COMPLETED|RESULT DATA|LATEST_TASK_OUTCOME|LATEST_DATA:|Action Type|TASK EXECUTION LOG):.*?(\n|$)/gim, '')
-    // 4. Remove standalone success/fail markers
-    .replace(/^\s*(SUCCESS|FAILED|COMPLETED|ERROR)\.?\s*$/gim, '')
-    // 5. Remove ONLY standalone "Thinking" lines (not mid-sentence words)
-    .replace(/^\s*(Searching|Booking|Checking|Wait|One moment|Hold on|Querying|Processing|Fetching|Syncing|Verifying)(\.{1,3}|.*?request|.*?database|.*?slots)\s*$/gim, '')
-    // Final cleanup of empty artifacts
-    .replace(/\s+/g, ' ')
-    .trim();
+  // Force removal of internal brackets like [BOOK_APPOINTMENT ...] or [COLLECT_FEEDBACK ...]
+  let cleaned = text.replace(/\[[A-Z_]{4,}(?:\s+[^\]]*)?\]/gi, '');
+
+  // Strip system markers that might leak
+  cleaned = cleaned.replace(/\[SYSTEM ALERT:.*?\]/gi, '').replace(/\[SYSTEM ALERT:.*?$/gi, '');
+  cleaned = cleaned.replace(/LATEST_TASK_OUTCOME:.*?(?:\n|$)/gi, '');
+  cleaned = cleaned.replace(/LATEST_DATA:.*?(?:\n|$)/gi, '');
+  cleaned = cleaned.replace(/CRITICAL INSTRUCTIONS:.*?(?:\n|$)/gi, '');
+  cleaned = cleaned.replace(/CRITICAL CONTEXT:.*?(?:\n|$)/gi, '');
+  cleaned = cleaned.replace(/ACTION RESULT:.*?(?:\n|$)/gi, '');
+  cleaned = cleaned.replace(/\*/g, ''); // Remove Markdown bolding
+
+  return cleaned.trim();
 };
 
 // API Key Management
@@ -73,11 +68,20 @@ const fetchWithRetry = async (url, options, maxRetries = 3) => {
       };
       const response = await fetch(url, currentOptions);
       if (response.status === 429) {
-        if (rotateKey()) continue;
-        const delay = 2000 * (attempt + 1);
-        await new Promise(r => setTimeout(r, delay));
+        // Always increment attempt on 429 to prevent infinite loops
         attempt++;
-        continue;
+        if (rotateKey()) {
+          // If a key was rotated, try again immediately with the new key
+          continue;
+        } else {
+          // No more keys to rotate, or only one key. Wait and retry with the same key.
+          if (attempt <= maxRetries) {
+            const delay = 2000 * attempt; // Use current attempt for delay calculation
+            console.warn(`Rate limit hit, no more keys to rotate or single key. Retrying in ${delay}ms...`);
+            await new Promise(r => setTimeout(r, delay));
+            continue;
+          }
+        }
       }
       if (!response.ok) {
         if (response.status >= 400 && response.status < 500 && response.status !== 429) return response;
@@ -111,25 +115,36 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
     const userName = companyContext?.userName || storedUser.full_name || storedUser.user_metadata?.full_name || 'Guest';
     const isFirstTurn = (history.length === 0);
 
+    const isTe = (companyContext?.currLangCode === 'te-IN');
+    const isHi = (companyContext?.currLangCode === 'hi-IN');
+
+    const greeting = isTe
+      ? `నమస్కారం ${userName}, నేను Callix. మీకు ఎలా సహాయం చేయగలను?`
+      : isHi
+        ? `नमस्ते ${userName}, मैं Callix हूँ। मैं आपकी कैसे सहायता कर सकता हूँ?`
+        : `Hello ${userName}, I'm Callix. How may I assist you today?`;
+
     const systemMessage = customSystemMessage || `You are Callix, the warm and professional Virtual Receptionist for ${companyContext?.name || 'our business'}.
     CURRENT DATE: ${dateStr} (${dayName}) | CURRENT TIME: ${timeStr}
     INDUSTRY: ${companyContext?.industry || 'Service'}
     USER NAME: ${userName}
+    LANGUAGE: ${isTe ? 'TELUGU' : isHi ? 'HINDI' : 'ENGLISH'} (STRICT: Always respond ONLY in this language).
     
     PERSONALITY & STYLE:
     - Polite, attentive, and helpful. Treat every user like a VIP guest.
-    - Respond naturally. If the user says "Okay" or "Thank you", respond with a warm "You're very welcome!" or "It's my pleasure."
+    - RESPOND FULLY in the detected language. Do NOT mix languages.
+    - BE ULTRA-CONCISE (Max 2 sentences).
     
     CORE PROTOCOLS:
-    1. GREETING: "Hello [Name], I'm Callix. I'm here to assist you with our services and bookings."
-    2. ONGOING: DO NOT repeat your introduction or greeting (e.g., "Hello, I'm Callix") after the first message.
+    1. GREETING: "${greeting}"
+    2. ONGOING: DO NOT repeat your introduction or greeting after the first message.
     3. DISCOVERY: Use [QUERY_ENTITY_DATABASE] to find info.
-    4. DETAIL GATHERING: If the user wants to book, you MUST explicitly ask for the exact Date AND the Time if either is missing. DO NOT book anything until you have BOTH details. Never assume 'today'. If they only give the date, ask for the time. If they only give the time, ask for the date.
-    5. CONFIRM & BOOK: When the user confirms an order or booking AND you have the details, you MUST use [BOOK_APPOINTMENT], [BOOK_ORDER], or [BOOK_TABLE]. Do not say it's confirmed without the bracket!
-    6. NEXT STEPS: After confirming, ask: "Is there anything else I can help you with?".
+    4. DETAIL GATHERING: Ask for exact Date AND Time. Do not book until you have BOTH.
+    5. CONFIRM & BOOK: Use [BOOK_APPOINTMENT], [BOOK_ORDER], or [BOOK_TABLE].
+    6. NEXT STEPS: After confirming, ask if they need anything else.
     7. FEEDBACK: ONLY ask for a 1-5 star rating when the user is ready to end the conversation.
 
-    TONE: Polite and ultra-brief. NO MARKDOWN (no asterisks).
+    TONE: Professional, receptionist-like, ultra-brief. NO MARKDOWN.
     
     ACTION BRACKETS:
     - [QUERY_ENTITY_DATABASE for topic]
@@ -137,10 +152,18 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
     - [BOOK_APPOINTMENT for person on YYYY-MM-DD at time]
     - [BOOK_TABLE for guests on YYYY-MM-DD at time]
     - [BOOK_ORDER for item (price)]
-    - [COLLECT_FEEDBACK rating/5] (ONLY use this when the user gives you a number. NEVER use this bracket when asking the question!)
+    - [COLLECT_FEEDBACK rating/5]
     - [HANG_UP]
     
-    CRITICAL: Never use an action bracket (e.g. [BOOK_...], [COLLECT_...]) when you are simply ASKING the user a question. Brackets are for CONFIRMING actions only. Ensure every sentence is grammatically complete. Do not say "Your We look forward..." or mixed sentences.`;
+    TELUGU STANDARD RESPONSES:
+    - Booking Confirmed: "మీ బుకింగ్ ఖరారైంది. నేను మీకు ఈరోజు ఇంకా ఏదైనా సహాయం చేయగలనా?"
+    - Feedback Request: "దయచేసి నా సహాయానికి 1 నుండి 5 వరకు రేటింగ్ ఇవ్వండి."
+    - Closing: "మీ అభిప్రాయానికి ధన్యవాదాలు! మళ్ళీ సేవించడానికి ఎదురుచూస్తున్నాము." [HANG_UP]
+    
+    HINDI STANDARD RESPONSES:
+    - Booking Confirmed: "आपकी बुकिंग सफलतापूर्वक दर्ज हो गई है। क्या मैं आपकी और सहायता कर सकता हूँ?"
+    - Feedback Request: "कृपया मेरी सहायता को 1 से 5 स्टार तक रेटिंग दें।"
+    - Closing: "आपकी प्रतिक्रिया के लिए धन्यवाद! हम फिर से आपकी सेवा करने के लिए तत्पर हैं।" [HANG_UP]`;
 
     const messages = [
       { role: 'system', content: systemMessage },
@@ -191,9 +214,13 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
       const memorySet = sessionActionsMemory.get(sessionId);
 
       const isTe = (companyContext?.currLangCode === 'te-IN' || companyContext?.selectedLanguage?.code === 'te-IN');
+      const isHi = (companyContext?.currLangCode === 'hi-IN' || companyContext?.selectedLanguage?.code === 'hi-IN');
+
       const fallbackMsg = isTe
         ? "నేను ఆ వివరాలను నమోదు చేసుకున్నాను. నేను మీకు ఇంకా ఏదైనా సహాయం చేయగలనా?"
-        : "I've carefully noted those details for you. Is there anything else you need assistance with?";
+        : isHi
+          ? "मैंने वे विवरण दर्ज कर लिए हैं। क्या मैं आपकी किसी और तरह से सहायता कर सकता हूँ?"
+          : "I've carefully noted those details for you. Is there anything else you need assistance with?";
 
       if (memorySet.has(actionSignature) && intent.name !== 'query_entity_database') {
         console.log('⚠️ Duplicate Intent Prevented in session:', intent.name);
@@ -210,10 +237,21 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
       let criticalInstructions = `
               1. Provide a warm, professional receptionist confirmation.
               2. DO NOT repeat internal keywords or brackets.
-              3. Keep it conversational. If listing items, list 2-3 clearly with prices.`;
+              3. YOU MUST ALWAYS PROVIDE A TEXT RESPONSE alongside any [COMMAND]. Never output only a command.
+              4. Keep it conversational. If listing items, list 2-3 clearly with prices.`;
 
       // Use the isTe flag defined above
 
+
+      const criticalInstructionsHi = intent.name === 'collect_feedback'
+        ? `- फीडबैक सुरक्षित हो गया है (TASK COMPLETED).
+           - बस कहें: "आपकी प्रतिक्रिया के लिए धन्यवाद! हम फिर से आपकी सेवा करने के लिए तत्पर हैं।"
+           - तुरंत [HANG_UP] का उपयोग करें।`
+        : intent.name === 'hang_up'
+          ? `- संक्षेप में समाप्त करें: "धन्यवाद, अलविदा।"`
+          : ['book_appointment', 'book_table', 'book_order'].includes(intent.name)
+            ? `- केवल एक वाक्य कहें: "आपकी बुकिंग सफलतापूर्वक दर्ज हो गई है। क्या मैं आपकी और सहायता कर सकता हूँ?"`
+            : `- संक्षेप में उत्तर दें (अधिकतम 2 वाक्य)।`;
 
       if (['query_entity_database', 'get_available_slots'].includes(intent.name)) {
         criticalInstructions = isTe
@@ -221,7 +259,12 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
               - LATEST_DATAలో ఉన్న వివరాలను మాత్రమే చదవండి. 2-3 ముఖ్యమైన వివరాలు మరియు ధరలను స్పష్టంగా చెప్పండి.
               - గరిష్టంగా 3 వాక్యాలలో ముగించండి.
               - లేని సమాచారాన్ని సృష్టించవద్దు.`
-          : `- Speak normally to the user as a helpful virtual assistant.
+          : isHi
+            ? `- उपयोगकर्ता को हिंदी में उत्तर दें।
+              - LATEST_DATA में मौजूद विवरणों को ही पढ़ें। 2-3 महत्वपूर्ण विवरण और कीमतें स्पष्ट रूप से बताएं।
+              - अधिकतम 3 वाक्यों में समाप्त करें।
+              - अनुपलब्ध जानकारी का आविष्कार या कल्पना न करें।`
+            : `- Speak normally to the user as a helpful virtual assistant.
               - The LATEST_DATA will contain exact records.
               - YOU MUST ONLY READ OUT exact items and prices. NO technical IDs.
               - CRITICAL ANTI-HALLUCINATION: NEVER invent or hallucinate data.`;
@@ -230,20 +273,24 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
           ? `- అభిప్రాయం విజయవంతంగా సేవ్ చేయబడింది (TASK COMPLETED).
               - కేవలం "మీ అభిప్రాయానికి ధన్యవాదాలు! మళ్ళీ సేవించడానికి ఎదురుచూస్తున్నాము." అని చెప్పండి.
               - ఆ వెంటనే [HANG_UP] వాడండి.`
-          : `- Feedback has been saved (TASK COMPLETED).
+          : isHi ? criticalInstructionsHi
+            : `- Feedback has been saved (TASK COMPLETED).
               - Simply say: "Thank you for your feedback! We look forward to serving you again."
               - Immediately follow with [HANG_UP].`;
       } else if (intent.name === 'hang_up') {
-        criticalInstructions = isTe
-          ? `- క్లుప్తంగా ముగించండి: "ధన్యవాదాలు, సెలవు."`
-          : `- Just say: "Thank you, goodbye."`;
+        criticalInstructions = isTe ? `- క్లుప్తంగా ముగించండి: "ధన్యవాదాలు, సెలవు."` : isHi ? criticalInstructionsHi : `- Just say: "Thank you, goodbye."`;
       } else if (['book_appointment', 'book_table', 'book_order'].includes(intent.name)) {
         criticalInstructions = isTe
-          ? `- కేవలం ఒకే వాక్యం చెప్పండి: "మీ బుకింగ్ ఖరారైంది. నేను మీకు ఇంకా ఏదైనా సహాయం చేయగలనా?" 
-              - బుకింగ్ వివరాలు, సమయం లేదా తేదీలను మళ్ళీ చెప్పవద్దు.`
-          : `- ULTRA-MINIMALIST: Just say "Your booking is confirmed. Is there anything else I can assist you with today?"
-              - DO NOT recite the date, time, or details.`;
+          ? `- కేవలం ఒకే వాక్యం చెప్పండి: "మీ బుకింగ్ ఖరారైంది. నేను మీకు ఈరోజు ఇంకా ఏదైనా సహాయం చేయగలనా?"`
+          : isHi ? criticalInstructionsHi
+            : `- ULTRA-MINIMALIST: Just say "Your booking is confirmed. Is there anything else I can assist you with today?"`;
       }
+
+      const criticalSystemAddon = isTe
+        ? `గమనిక: సమయం గురించి ఎటువంటి విశ్లేషణ (comparison/logic) వద్దు. "సరిపోల్చి చూద్దాం" వంటి మాటలు వద్దు. నేరుగా సమాధానం చెప్పండి.`
+        : isHi
+          ? `महत्वपूर्ण: उपयोगकर्ता को अपनी आंतरिक तर्क या समय की तुलना कभी न समझाएं। "आइए तुलना करें" या "मिलान" जैसे शब्द न कहें। बस पुष्टि करें या सुझाव दें।`
+          : `CRITICAL: NEVER explain your internal logic or time comparisons to the user. Do not say "let's compare" or "matching". Just confirm or suggest.`;
 
       const finalResponse = await fetchWithRetry(GROQ_API_URL, {
         method: 'POST',
@@ -251,15 +298,14 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
         body: JSON.stringify({
           model: 'llama-3.1-8b-instant',
           messages: [
-            ...messages.slice(-2), // Only give very recent history to prevent "double confirmation" of old tasks
+            { role: 'system', content: `${systemMessage}\n\n${criticalSystemAddon}\n\nCRITICAL CONTEXT: ${criticalInstructions}` },
+            ...messages.slice(-4), // Give a bit more context
             { role: 'assistant', content: assistantMessage },
             {
               role: 'user',
-              content: `[SYSTEM ALERT: TASK EXECUTION LOG]
-              LATEST_TASK_OUTCOME: ${(result && !result.error && (result.success || typeof result === 'string')) ? 'COMPLETED' : 'ERROR'}. 
-              LATEST_DATA: ${typeof result === 'string' ? result : JSON.stringify(result)}. 
-              
-              CRITICAL INSTRUCTIONS:${criticalInstructions}`
+              content: `[SYSTEM ALERT: TASK OUTCOME]
+              Result: ${(result && !result.error && (result.success || typeof result === 'string')) ? 'SUCCESS' : 'ERROR'}. 
+              Data: ${typeof result === 'string' ? result : JSON.stringify(result)}.`
             }
           ],
           temperature: 0.1, // Slight temperature for natural variation
@@ -272,17 +318,23 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
       if (finalResponse && finalResponse.ok) {
         const finalData = await finalResponse.json();
         const confirmationText = finalData.choices[0]?.message?.content;
-        let finalDisplay = cleanInternalCommands(confirmationText) || cleanInternalCommands(assistantMessage);
-        return finalDisplay;
+        let finalDisplay = cleanInternalCommands(confirmationText);
+
+        if (!finalDisplay || finalDisplay.length < 2) {
+          finalDisplay = cleanInternalCommands(assistantMessage);
+        }
+
+        return finalDisplay || fallbackMsg;
       }
 
       let baseFallback = cleanInternalCommands(assistantMessage);
-      return baseFallback;
+      return baseFallback || fallbackMsg;
     }
 
     // Secondary fallback: if no intent bracket was generated:
     let baseResponse = cleanInternalCommands(assistantMessage);
-    return baseResponse;
+    const finalResult = baseResponse || (typeof fallbackMsg === 'string' ? fallbackMsg : "I've noted that for you. Anything else?");
+    return finalResult;
   } catch (error) {
     console.error('Groq AI Error:', error);
     throw error;
@@ -326,56 +378,91 @@ const detectIntent = (message, context) => {
   };
 
   const formatDateLocal = (date) => {
-    const d = new Date(date);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    try {
+      // Stable Asia/Kolkata formatting to YYYY-MM-DD
+      const options = { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' };
+      const formatter = new Intl.DateTimeFormat('en-CA', options);
+      return formatter.format(date);
+    } catch (e) {
+      const d = new Date(date);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
   };
 
   const parseRelativeDate = (dateStr) => {
     if (!dateStr || dateStr.toUpperCase() === 'TBD') return 'TBD';
-    const low = dateStr.toLowerCase().trim();
-    // Use the reference date from system context
-    const referenceDate = systemDate ? new Date(systemDate) : new Date();
 
-    // Simple today/tomorrow check
-    if (low === 'today' || low === 'ఈరోజు') return formatDateLocal(referenceDate);
-    if (low === 'tomorrow' || low === 'రేపు') {
-      const tomorrow = new Date(referenceDate);
-      tomorrow.setDate(referenceDate.getDate() + 1);
-      return formatDateLocal(tomorrow);
+    // Normalize and detect "next" flag
+    const raw = dateStr.toLowerCase().trim();
+    const isNext = /next|अगला|తర్వాత/i.test(raw);
+    let low = raw.replace(/next|अगला|తర్వాత/i, '').trim();
+
+    // Asia/Kolkata Reference Time
+    const now = new Date();
+    const systemReference = systemDate ? new Date(systemDate) : now;
+
+    // Relative Words
+    if (low === 'today' || low === 'ఈరోజు' || low === 'आज') return formatDateLocal(systemReference);
+    if (low === 'tomorrow' || low === 'రేపు' || low === 'कल') {
+      const target = new Date(systemReference);
+      target.setDate(systemReference.getDate() + 1);
+      return formatDateLocal(target);
     }
 
-    // Days of the week map
     const dayMap = {
-      'sunday': 0, 'ఆదివారం': 0,
-      'monday': 1, 'సోమవారం': 1,
-      'tuesday': 2, 'మంగళవారం': 2,
-      'wednesday': 3, 'బుధవారం': 3,
-      'thursday': 4, 'గురువారం': 4,
-      'friday': 5, 'శుక్రవారం': 5,
-      'saturday': 6, 'శనివారం': 6
+      'sunday': 0, 'ఆదివారం': 0, 'रविवार': 0,
+      'monday': 1, 'సోమవారం': 1, 'सोमवार': 1,
+      'tuesday': 2, 'మంగళవారం': 2, 'मंगलवार': 2,
+      'wednesday': 3, 'బుధవారం': 3, 'बुधवार': 3,
+      'thursday': 4, 'గురువారం': 4, 'गुरुवार': 4,
+      'friday': 5, 'శుక్రవారం': 5, 'शुक्रवार': 5,
+      'saturday': 6, 'శనివారం': 6, 'शनिवार': 6
     };
 
     if (dayMap[low] !== undefined) {
-      const targetDay = dayMap[low];
-      const currentDay = referenceDate.getDay();
-      let diff = targetDay - currentDay;
-      if (diff <= 0) diff += 7; // If today or in the past, move to next week's occurrence
-      const targetDate = new Date(referenceDate);
-      targetDate.setDate(referenceDate.getDate() + diff);
+      const targetDayIdx = dayMap[low];
+      const todayIdx = systemReference.getDay();
+      let diff = targetDayIdx - todayIdx;
+
+      // Calculate diff: if today or earlier in the week, move to next week
+      if (diff <= 0) diff += 7;
+      // If "next" is explicitly said, add another week
+      if (isNext) diff += 7;
+
+      const targetDate = new Date(systemReference);
+      targetDate.setDate(systemReference.getDate() + diff);
       return formatDateLocal(targetDate);
     }
 
-    // Handle manual YYYY-MM-DD strings so they aren't mangled
-    if (/\d{4}-\d{2}-\d{2}/.test(low)) return low;
+    // Numeric & Format Normalization
+    if (/^\d{4}-\d{2}-\d{2}$/.test(low)) return low; // ISO pass-through
 
-    return dateStr;
+    // DD/MM/YYYY or DD-MM-YYYY
+    const ddmmyyyy = low.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (ddmmyyyy) return `${ddmmyyyy[3]}-${ddmmyyyy[2].padStart(2, '0')}-${ddmmyyyy[1].padStart(2, '0')}`;
+
+    // Month Name Parsing (e.g., "10 March")
+    const months = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+    const monthRegex = new RegExp(`(\\d{1,2})\\s+(${months.join('|')})|(${months.join('|')})\\s+(\\d{1,2})`, 'i');
+    const monthMatch = low.match(monthRegex);
+    if (monthMatch) {
+      const day = monthMatch[1] || monthMatch[4];
+      const monthName = monthMatch[2] || monthMatch[3];
+      const monthIdx = months.indexOf(monthName.toLowerCase()) + 1;
+      return `${systemReference.getFullYear()}-${String(monthIdx).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+
+    return "TBD";
   };
 
   // Appointment Logic
-  if (msg.includes('BOOK') && (msg.includes('APPOINTMENT') || msg.includes('DOCTOR') || msg.includes('MEETING'))) {
+  const isBookingText = msg.includes('BOOK') || msg.includes('APPOINTMENT') || msg.includes('DOCTOR') ||
+    msg.includes('బుక్') || msg.includes('అపాయింట్మెంట్') ||
+    msg.includes('बुक') || msg.includes('अपॉइंटमेंट');
+
+  if (isBookingText && (msg.includes('APPOINTMENT') || msg.includes('DOCTOR') || msg.includes('MEETING') ||
+    msg.includes('RESERVE') || msg.includes('రిజర్వ్') || msg.includes('రిజర్వేషన్') ||
+    msg.includes('रिज़र्व') || msg.includes('आरक्षण'))) {
     let pName = 'General';
     let dDate = 'today';
     let tTime = 'TBD';
@@ -388,18 +475,29 @@ const detectIntent = (message, context) => {
       dDate = match[2];
       tTime = match[3];
     } else {
-      // Robust Fallback
+      // Robust Language-Agnostic Fallback
       const cmdMatch = message.match(/BOOK[_\s](?:APPOINTMENT|DOCTOR|MEETING|RECORD)\s+([^\]]+)/i);
       const detailsStr = cmdMatch ? cmdMatch[1] : message;
 
-      const timeMatch = detailsStr.match(/at\s+([^\s\]]+)/i) || detailsStr.match(/(\d{1,2}(?::\d{2})?\s*(?:AM|PM|am|pm))/i);
-      if (timeMatch) tTime = timeMatch[1].trim();
+      // Split by common separators like "on", "at", or linguistic equivalents
+      const parts = detailsStr.split(/\s+(?:on|at|కి|న|రోజు|पर|को|बजे)\s+/i);
+      if (parts.length >= 3) {
+        pName = parts[0];
+        dDate = parts[1];
+        tTime = parts[2];
+      } else {
+        const timeMatch = detailsStr.match(/at\s+([^\s\]]+)/i) ||
+          detailsStr.match(/(\d{1,2}(?::\d{2})?\s*(?:AM|PM|am|pm))/i) ||
+          detailsStr.match(/(\d{1,2}\s*(?:గంటలకు|గంటలు|बजे))/);
+        if (timeMatch) tTime = timeMatch[1].trim();
 
-      const dateMatch = detailsStr.match(/on\s+([^\s\]]+)/i) || detailsStr.match(/(today|tomorrow|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/i);
-      if (dateMatch) dDate = dateMatch[1].trim();
+        const dateMatch = detailsStr.match(/on\s+([^\s\]]+)/i) ||
+          detailsStr.match(/(today|tomorrow|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|ఈరోజు|రేపు|సోమవారం|మంగళవారం|బుధవారం|గురువారం|శుక్రవారం|శనివారం|ఆదివారం|आज|कल|सोमवार|मंगलवार|बुधवार|गुरुवार|शुक्रवार|शनिवार|रविवार)/i);
+        if (dateMatch) dDate = dateMatch[1].trim();
 
-      const personMatch = detailsStr.match(/(?:for\s+)?(.*?)(?:\s+on|\s+at|$|\])/i);
-      if (personMatch) pName = personMatch[1].trim();
+        const personMatch = detailsStr.match(/(?:for\s+|के\s+लिए\s+)?(.*?)(?:\s+on|\s+at|\s+पर|\s+को|$|\])/i);
+        if (personMatch) pName = personMatch[1].trim();
+      }
     }
 
     pName = cleanArg(pName, 'General');
@@ -407,6 +505,8 @@ const detectIntent = (message, context) => {
     tTime = cleanArg(tTime, 'TBD', 'time');
 
     const type = (industry.toLowerCase().includes('health') || industry.toLowerCase().includes('hosp')) ? 'doctor' : 'interview';
+
+    console.log(`📌 Booking Parsed: Person=${pName}, Date=${dDate}, Time=${tTime}`);
 
     return {
       name: 'book_appointment',
@@ -495,7 +595,9 @@ const detectIntent = (message, context) => {
   }
 
   // --- Feedback Logic (Strictly locked to the Bracket) ---
-  const isExplicitFeedback = msg.includes('[COLLECT_FEEDBACK') || msg.includes('COLLECT_FEEDBACK');
+  const isExplicitFeedback = msg.includes('[COLLECT_FEEDBACK') || msg.includes('COLLECT_FEEDBACK') ||
+    msg.includes('రేటింగ్') || msg.includes('రేట్') || msg.includes('స్టార్') ||
+    msg.includes('रेटिंग') || msg.includes('स्टार') || msg.includes('रेट');
 
   if (isExplicitFeedback) {
     // 1. Look for the rating within the bracket first (e.g., [COLLECT_FEEDBACK 5/5])
@@ -517,7 +619,7 @@ const detectIntent = (message, context) => {
       else if (spelledLower.includes('two') || spelledLower.includes('రెండు') || spelledLower.includes('दो')) rating = 2;
       else if (spelledLower.includes('three') || spelledLower.includes('మూడు') || spelledLower.includes('तीन')) rating = 3;
       else if (spelledLower.includes('four') || spelledLower.includes('నాలుగు') || spelledLower.includes('चार')) rating = 4;
-      else if (spelledLower.includes('five') || spelledLower.includes('ఐదు') || spelledLower.includes('पाँच')) rating = 5;
+      else if (spelledLower.includes('five') || spelledLower.includes('ఐదు') || spelledLower.includes('पाँच') || spelledLower.includes('पांच')) rating = 5;
     }
 
     if (rating > 0) {
@@ -553,13 +655,13 @@ const detectIntent = (message, context) => {
     return { name: 'get_available_slots', args: { entityId, date, industry } };
   }
 
-  if (msg.includes('QUERY_ENTITY_DATABASE')) {
+  if (msg.includes('QUERY_ENTITY_DATABASE') || msg.includes('చూపించు') || msg.includes('అందుబాటులో') || msg.includes('सेवाएं') || msg.includes('दिखाओ')) {
     const match = message.match(/QUERY_ENTITY_DATABASE (?:for )?(.*)/i);
     const query = match ? match[1].replace(/[\[\]]/g, '').trim() : message;
     return { name: 'query_entity_database', args: { entityId, query } };
   }
 
-  if (msg.includes('HANG_UP')) return { name: 'hang_up', args: {} };
+  if (msg.includes('HANG_UP') || msg.includes('ధన్యవాదాలు') || msg.includes('సరే') || msg.includes('బై') || msg.includes('धन्यवाद') || msg.includes('बाय')) return { name: 'hang_up', args: {} };
   return null;
 };
 

@@ -205,12 +205,12 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
         audioChunksRef.current = []; // Clear immediately
         speechDetectedRef.current = false; // Reset for next session
 
-        const { selectedLanguage: curLang, isSpeaking, isMuted, callState, isOpen } = stateRef.current;
+        const { selectedLanguage: curLang, isSpeaking, isMuted, callState, isOpen, isProcessing } = stateRef.current;
 
-        // Skip if no speech detected or too small or call ended
-        if (!hadSpeech || audioBlob.size < 4000 || isMuted || callState !== 'connected' || !isOpen) {
-          if (hadSpeech && audioBlob.size < 4000) console.log("🤏 Audio too short, skipping.");
-          setIsProcessing(false);
+        // Skip if no speech detected, too small, call ended, or ALREADY PROCESSING
+        if (!hadSpeech || audioBlob.size < 4000 || isMuted || callState !== 'connected' || !isOpen || isProcessing) {
+          if (isProcessing) console.log("⏳ Still processing previous message, skipping this chunk.");
+          else if (hadSpeech && audioBlob.size < 4000) console.log("🤏 Audio too short, skipping.");
           return;
         }
 
@@ -473,6 +473,7 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
     setIsThinking(true);
 
     try {
+      console.log(`🤖 Processing message: "${message}" (Phase: ${curPhase})`);
       const isInternal = message.startsWith('[') && message.endsWith(']');
       if (!isInternal) {
         addMessage('user', message);
