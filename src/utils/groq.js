@@ -311,14 +311,36 @@ const detectIntent = (message, context) => {
     if (!dateStr || dateStr.toUpperCase() === 'TBD') return 'TBD';
     const low = dateStr.toLowerCase().trim();
     const today = new Date();
-    if (low === 'today' || low === 'ఈరోజు') {
-      return today.toISOString().split('T')[0];
-    }
+
+    // Simple today/tomorrow check
+    if (low === 'today' || low === 'ఈరోజు') return today.toISOString().split('T')[0];
     if (low === 'tomorrow' || low === 'రేపు') {
       const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setDate(today.getDate() + 1);
       return tomorrow.toISOString().split('T')[0];
     }
+
+    // Days of the week map for English and Telugu
+    const dayMap = {
+      'sunday': 0, 'ఆదివారం': 0,
+      'monday': 1, 'సోమవారం': 1,
+      'tuesday': 2, 'మంగళవారం': 2,
+      'wednesday': 3, 'బుధవారం': 3,
+      'thursday': 4, 'గురువారం': 4,
+      'friday': 5, 'శుక్రవారం': 5,
+      'saturday': 6, 'శనివారం': 6
+    };
+
+    if (dayMap[low] !== undefined) {
+      const targetDay = dayMap[low];
+      const currentDay = today.getDay();
+      let diff = targetDay - currentDay;
+      if (diff <= 0) diff += 7; // If today or in the past, move to next week's occurrence
+      const targetDate = new Date(today);
+      targetDate.setDate(today.getDate() + diff);
+      return targetDate.toISOString().split('T')[0];
+    }
+
     return dateStr;
   };
 
