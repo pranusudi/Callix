@@ -92,7 +92,7 @@ const AccountPortfolio = ({ onDeployAgent, companies = [], loading = false, isLo
                 return (
                   <motion.div
                     key={company.id || index}
-                    className="min-w-[280px] max-w-[280px] h-[450px] bg-white rounded-[2rem] p-5 border border-slate-200 hover:border-blue-500/50 hover:bg-slate-50 transition-all duration-300 flex flex-col group flex-shrink-0 snap-center shadow-sm"
+                    className="min-w-[280px] max-w-[280px] h-[390px] bg-white rounded-[2rem] p-5 border border-slate-200 hover:border-blue-500/50 hover:bg-slate-50 transition-all duration-300 flex flex-col group flex-shrink-0 snap-center shadow-sm"
                     initial={{ opacity: 0, scale: 0.9, y: 20 }}
                     whileInView={{ opacity: 1, scale: 1, y: 0 }}
                     viewport={{ once: true }}
