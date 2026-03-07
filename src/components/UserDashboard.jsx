@@ -221,9 +221,16 @@ const RecordCard = ({ record, type, formatDate, getStatusStyle }) => {
 
                     <div className="flex items-center gap-3">
                         {record.status && (
-                            <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black border uppercase tracking-widest ${getStatusStyle(record.status)}`}>
-                                {record.status}
-                            </span>
+                            <div className="flex flex-col items-end gap-1">
+                                <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black border uppercase tracking-widest ${getStatusStyle(record.status)}`}>
+                                    {record.status}
+                                </span>
+                                {isOrder && record.total_price > 0 && (
+                                    <span className="text-[10px] font-black text-slate-900 bg-emerald-50 px-2 py-0.5 rounded-md">
+                                        ₹{record.total_price}
+                                    </span>
+                                )}
+                            </div>
                         )}
                         <button className="p-2 text-slate-200 hover:text-rose-500 transition-all opacity-0 group-hover:opacity-100">
                             <Trash2 size={18} />

@@ -185,6 +185,19 @@ export const database = {
       metadata: { source: 'AI_AGENT', industry: order.industry }
     };
 
+    // --- Strict Deduplication Check (30 mins) ---
+    const { data: existing } = await supabase.from('bookings').select('id, created_at')
+      .eq('company_id', payload.company_id)
+      .eq('user_email', payload.user_email)
+      .eq('target_item', payload.target_item)
+      .gte('created_at', new Date(Date.now() - 30 * 60 * 1000).toISOString())
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      console.log('🚫 Skipping Duplicate Order (Already saved in last 30 mins)');
+      return { success: true, duplicated: true };
+    }
+
     const { data, error } = await supabase.from('bookings').insert([payload]).select();
     if (error) {
       console.error('Booking DB Error:', error);
@@ -221,6 +234,20 @@ export const database = {
       status: 'scheduled',
       metadata: { source: 'AI_AGENT', industry: appointment.industry }
     };
+
+    // --- Strict Deduplication Check (30 mins) ---
+    const { data: existing } = await supabase.from('bookings').select('id, created_at')
+      .eq('company_id', payload.company_id)
+      .eq('user_email', payload.user_email)
+      .eq('date', payload.date)
+      .eq('time', payload.time)
+      .gte('created_at', new Date(Date.now() - 30 * 60 * 1000).toISOString())
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      console.log('🚫 Skipping Duplicate Appointment (Already booked in last 30 mins)');
+      return { success: true, duplicated: true };
+    }
 
     if (appointment.doctorId) payload.doctor_id = appointment.doctorId;
 
@@ -302,6 +329,18 @@ export const database = {
       industry: feedback.industry || 'General'
     };
 
+    // --- Strict Deduplication Check (30 mins) ---
+    const { data: existing } = await supabase.from('feedback').select('id, created_at')
+      .eq('company_id', payload.company_id)
+      .eq('user_email', payload.user_email)
+      .gte('created_at', new Date(Date.now() - 30 * 60 * 1000).toISOString())
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      console.log('🚫 Skipping Duplicate Feedback (Already saved in last 30 mins)');
+      return { success: true, duplicated: true };
+    }
+
     // Validation: Supabase will fail if company_id is not a valid UUID
     if (!payload.company_id || payload.company_id === 'manual') {
       console.error('❌ Feedback Error: Invalid Company ID (UUID required)');
@@ -349,7 +388,7 @@ export const database = {
       const noSpaceName = cleanedName.replace(/\s+/g, '');
       const fullNoSpaceName = name.replace(/^the\s+/g, '').replace(/[\s-]/g, '');
 
-      // 1. DISCOVERY: Find every table name this company has ever used in the Knowledge Studio
+      // 1. REGISTRY: Find every table name this company has ever used in the Knowledge Studio
       const { data: registry } = await supabase
         .from('approval_queue')
         .select('table_name')
@@ -357,42 +396,32 @@ export const database = {
 
       const registeredTables = (registry || []).map(r => r.table_name).filter(Boolean);
 
-      // 2. DISCOVERY: Try to list all tables starting with the company prefix
+      // 2. RPC DISCOVERY: Try to list all tables starting with the company prefix (Safe, no 404s)
       let discoveredTables = [];
       try {
         const prefix = `${noSpaceName}_`; // companyname_
         const { data: rpcData, error: rpcError } = await supabase.rpc('get_company_tables', { prefix: prefix });
 
         if (!rpcError && rpcData) {
-          discoveredTables = rpcData.map(t => t.table_name);
-          console.log(`🔎 [${companyName}] RPC Discovered tables:`, discoveredTables);
-        } else {
-          if (rpcError) console.warn(`⚠️ [${companyName}] RPC Discovery Error (Ignore if not set up):`, rpcError.message);
+          discoveredTables = rpcData.map(t => (typeof t === 'string' ? t : t.table_name));
+          console.log(`🔎 [${companyName}] Discovered tables:`, discoveredTables);
         }
-      } catch (e) {
-        // Fallback silently if RPC is missing
-      }
+      } catch (e) { /* Silent fallback */ }
 
-      // 3. FALLBACK PATTERNS: If RPC misses, we try the specified naming standard only
-      const commonSuffixes = ['menu', 'vault', 'products', 'services', 'doctors', 'team', 'listings', 'items', 'catalog', 'specialists', 'appointments', 'clinic'];
+      // 3. FALLBACK PATTERNS: Only if we found NOTHING, try the most common ones.
+      // We reduce this list significantly to avoid console spam 404s.
+      const criticalSuffixes = ['menu', 'products', 'services', 'doctors', 'vault'];
+      const fallbackTables = (registeredTables.length === 0 && discoveredTables.length === 0)
+        ? criticalSuffixes.map(s => `${noSpaceName}_${s}`)
+        : [];
 
-      // Try companyname_menu and companyname_vault only
-      const fallbackTables = commonSuffixes.map(s => `${noSpaceName}_${s}`);
-
-      const specificTablesToTry = [...new Set([
+      const specificTablesToCheck = [...new Set([
         ...registeredTables,
         ...discoveredTables,
         ...fallbackTables
-      ])].filter(table => {
-        if (!table) return false;
-        const lowTable = table.toLowerCase();
-        // Allow any table that belongs to the specific company (prefix check)
-        // OR is part of the approved registry for that company
-        return lowTable.startsWith(`${noSpaceName}_`) ||
-          registeredTables.includes(table);
-      });
+      ])].filter(table => table && (table.startsWith(noSpaceName) || registeredTables.includes(table)));
 
-      console.log(`🔍 [${companyName}] Potential specific tables to check:`, specificTablesToTry);
+      console.log(`🔍 [${companyName}] Tables to check:`, specificTablesToCheck);
 
       // Global tables are checked with a company_id filter
       const globalTablesToTry = ['products', 'restaurant_tables', 'services', 'doctors', 'menu', 'items'];
@@ -411,7 +440,7 @@ export const database = {
       }
 
       // Try fetching from specific tables (only if they belong to this company)
-      for (const table of specificTablesToTry) {
+      for (const table of specificTablesToCheck) {
         try {
           console.log(`📡 [${companyName}] Querying table: ${table}...`);
           // Check if table exists and has data

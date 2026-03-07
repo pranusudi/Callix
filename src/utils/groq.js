@@ -15,7 +15,8 @@ export const cleanInternalCommands = (text) => {
     // 2. Remove standalone command keywords if they leak out of brackets
     .replace(/\b(BOOK_APPOINTMENT|BOOK_TABLE|BOOK_ORDER|COLLECT_FEEDBACK|GET_AVAILABLE_SLOTS|QUERY_ENTITY_DATABASE|HANG_UP)\b/gi, '')
     // 3. Remove specific debug marker lines
-    .replace(/(ACTION STATUS|ACTION COMPLETED|RESULT DATA|LATEST_TASK_OUTCOME|LATEST_DATA:|Action Type:).*?(\n|$)/gim, '')
+    .replace(/\[SYSTEM ALERT:.*?\]/gim, '')
+    .replace(/(ACTION STATUS|ACTION COMPLETED|RESULT DATA|LATEST_TASK_OUTCOME|LATEST_DATA:|Action Type|TASK EXECUTION LOG):.*?(\n|$)/gim, '')
     // 4. Remove standalone success/fail markers
     .replace(/^\s*(SUCCESS|FAILED|COMPLETED|ERROR)\.?\s*$/gim, '')
     // 5. Remove ONLY standalone "Thinking" lines (not mid-sentence words)
@@ -179,7 +180,7 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
       // Prevent double feedback if comment wording naturally changes slightly
       let actionSignature;
       if (intent.name === 'collect_feedback') {
-        actionSignature = `collect_feedback_session_locked`;
+        actionSignature = `feedback_${intent.args.companyId}_locked`;
       } else {
         actionSignature = `${intent.name}_${JSON.stringify(intent.args)}`;
       }
@@ -217,31 +218,30 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
       if (['query_entity_database', 'get_available_slots'].includes(intent.name)) {
         criticalInstructions = isTe
           ? `- వినియోగదారుకు తెలుగులో సమాధానం ఇవ్వండి.
-              - LATEST_DATAలో ఉన్న వంటకాలు లేదా సేవల వివరాలను మాత్రమే చదవండి.
-              - ధరలను మరియు సమయాలను స్పష్టంగా చెప్పండి.
+              - LATEST_DATAలో ఉన్న వివరాలను మాత్రమే చదవండి. 2-3 ముఖ్యమైన వివరాలు మరియు ధరలను స్పష్టంగా చెప్పండి.
+              - గరిష్టంగా 3 వాక్యాలలో ముగించండి.
               - లేని సమాచారాన్ని సృష్టించవద్దు.`
           : `- Speak normally to the user as a helpful virtual assistant.
-              - The LATEST_DATA will contain exact records in brackets like [MENU] or [CARDIOLOGY].
-              - YOU MUST ONLY READ OUT exact items and prices. NO technical IDs or dates.
-              - CRITICAL ANTI-HALLUCINATION: NEVER invent or hallucinate names, doctors, or items that are not explicitly provided in the LATEST_DATA.`;
+              - The LATEST_DATA will contain exact records.
+              - YOU MUST ONLY READ OUT exact items and prices. NO technical IDs.
+              - CRITICAL ANTI-HALLUCINATION: NEVER invent or hallucinate data.`;
       } else if (intent.name === 'collect_feedback') {
         criticalInstructions = isTe
-          ? `- తెలుగులో మర్యాదగా ధన్యవాదాలు చెప్పండి: "మీ విలువైన అభిప్రాయానికి ధన్యవాదాలు! మిమ్మల్ని మళ్ళీ సేవించడానికి మేము ఎదురుచూస్తున్నాము." 
-              - 1 sentence max.`
-          : `- DONT SUMMARIZE THE DATA. NO TECHNICAL DETAILS.
-              - Just say a warm, brief thank you: "Thank you for your feedback! We look forward to serving you again."
-              - 1 sentence max.`;
+          ? `- కేవలం ఒకే వాక్యం చెప్పండి: "దయచేసి నా సహాయానికి 1 నుండి 5 వరకు రేటింగ్ ఇవ్వండి."
+              - యూజర్ 1-5 సంఖ్య చెప్పే వరకు [COLLECT_FEEDBACK] వాడవద్దు.
+              - రేటింగ్ ఇచ్చాక: "మీ అభిప్రాయానికి ధన్యవాదాలు! మళ్ళీ సేవించడానికి ఎదురుచూస్తున్నాము." అని చెప్పి [HANG_UP] వాడండి.`
+          : `- Speak exactly ONE sentence: "Please rate my assistance today from 1 to 5 stars."
+              - After they give a number: "Thank you for your feedback! We look forward to serving you again." then use [HANG_UP].`;
       } else if (intent.name === 'hang_up') {
         criticalInstructions = isTe
-          ? `- తెలుగులో మర్యాదగా సెలవు తీసుకోండి. 1 sentence max.`
-          : `- Just say a brief professional goodbye. No technical summary.`;
+          ? `- క్లుప్తంగా ముగించండి: "ధన్యవాదాలు, సెలవు."`
+          : `- Just say: "Thank you, goodbye."`;
       } else if (['book_appointment', 'book_table', 'book_order'].includes(intent.name)) {
         criticalInstructions = isTe
-          ? `- తెలుగులో క్లుప్తంగా చెప్పండి: "మీ బుకింగ్ ఖరారైంది. నేను మీకు ఇంకా ఏదైనా సహాయం చేయగలనా?" 
-              - బుకింగ్ వివరాలను మళ్ళీ చెప్పవద్దు. గరిష్టంగా 1-2 వాక్యాలు.`
+          ? `- కేవలం ఒకే వాక్యం చెప్పండి: "మీ బుకింగ్ ఖరారైంది. నేను మీకు ఇంకా ఏదైనా సహాయం చేయగలనా?" 
+              - బుకింగ్ వివరాలు, సమయం లేదా తేదీలను మళ్ళీ చెప్పవద్దు.`
           : `- ULTRA-MINIMALIST: Just say "Your booking is confirmed. Is there anything else I can assist you with today?"
-              - DO NOT recite the date, time, or service name. 
-              - Total length must be exactly 1-2 short sentences.`;
+              - DO NOT recite the date, time, or details.`;
       }
 
       const finalResponse = await fetchWithRetry(GROQ_API_URL, {
@@ -262,7 +262,7 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
             }
           ],
           temperature: 0.1, // Slight temperature for natural variation
-          max_tokens: 150
+          max_tokens: 600
         })
       });
 
@@ -296,6 +296,7 @@ const detectIntent = (message, context) => {
   const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
   const userEmail = context?.userEmail || storedUser.email || '';
   const userName = context?.userName || storedUser.full_name || 'Guest';
+  const systemDate = context?.systemDate || new Date();
 
   const cleanArg = (val, fallback = '', type = 'any') => {
     if (!val) return fallback;
@@ -326,17 +327,18 @@ const detectIntent = (message, context) => {
   const parseRelativeDate = (dateStr) => {
     if (!dateStr || dateStr.toUpperCase() === 'TBD') return 'TBD';
     const low = dateStr.toLowerCase().trim();
-    const today = new Date();
+    // Use the reference date from system context
+    const referenceDate = systemDate ? new Date(systemDate) : new Date();
 
     // Simple today/tomorrow check
-    if (low === 'today' || low === 'ఈరోజు') return today.toISOString().split('T')[0];
+    if (low === 'today' || low === 'ఈరోజు') return referenceDate.toISOString().split('T')[0];
     if (low === 'tomorrow' || low === 'రేపు') {
-      const tomorrow = new Date(today);
-      tomorrow.setDate(today.getDate() + 1);
+      const tomorrow = new Date(referenceDate);
+      tomorrow.setDate(referenceDate.getDate() + 1);
       return tomorrow.toISOString().split('T')[0];
     }
 
-    // Days of the week map for English and Telugu
+    // Days of the week map
     const dayMap = {
       'sunday': 0, 'ఆదివారం': 0,
       'monday': 1, 'సోమవారం': 1,
@@ -349,11 +351,11 @@ const detectIntent = (message, context) => {
 
     if (dayMap[low] !== undefined) {
       const targetDay = dayMap[low];
-      const currentDay = today.getDay();
+      const currentDay = referenceDate.getDay();
       let diff = targetDay - currentDay;
       if (diff <= 0) diff += 7; // If today or in the past, move to next week's occurrence
-      const targetDate = new Date(today);
-      targetDate.setDate(today.getDate() + diff);
+      const targetDate = new Date(referenceDate);
+      targetDate.setDate(referenceDate.getDate() + diff);
       return targetDate.toISOString().split('T')[0];
     }
 
@@ -459,9 +461,11 @@ const detectIntent = (message, context) => {
   if (msg.includes('BOOK_ORDER')) {
     const match = message.match(/BOOK_ORDER (?:for )?(.*?)(?:\s*[\r\n\]]|$)/i) || message.match(/BOOK_ORDER\s+([^\]]+)\]/i);
     let item = 'Item';
+    let totalPrice = 0; // Initialize correctly
     if (match) {
       let fullText = match[1].replace(/[\[\]{}"']/g, '').replace(/(?:dish|item|name|product|title):\s*/gi, '').trim();
-      const priceMatch = fullText.match(/[₹\$]\s?([\d,]+)/);
+      // Improved price detection: handles symbols or numbers in parentheses
+      const priceMatch = fullText.match(/[₹\$]\s?([\d,]+)/) || fullText.match(/\(([\d,]+)\)/);
       totalPrice = priceMatch ? parseInt(priceMatch[1].replace(/,/g, '')) : 999;
       item = fullText.split(/[₹\$\(\[]/)[0].trim();
     } else {
@@ -478,37 +482,41 @@ const detectIntent = (message, context) => {
     };
   }
 
-  // Rating Logic (Resilient to spaces and word variety)
-  const isRatingWords = msg.includes('STAR') || msg.includes('RATING') || msg.includes('FEEDBACK') || msg.includes('SCORE');
-  // Rating Logic (Specific to the command or explicit bracket)
-  const isExplicitCommand = msg.includes('COLLECT_FEEDBACK');
-  const hasBrackets = message.includes('[') && message.includes(']');
+  // --- Feedback Logic (Strictly locked to the Bracket) ---
+  const isExplicitFeedback = msg.includes('[COLLECT_FEEDBACK') || msg.includes('COLLECT_FEEDBACK');
 
-  if (isExplicitCommand || (hasBrackets && (msg.includes('STAR') || msg.includes('FEEDBACK')))) {
-    // Look for any number (including decimals and values over 5)
-    const ratingMatch = message.match(/([\d.]+)\s?\/\s?5/) || message.match(/Rating:\s*([\d.]+)/i) || message.match(/([\d.]+)\s*star/i) || message.match(/(?:^|\s|\b)([\d.]+)\b/);
-    let rating = ratingMatch ? parseFloat(ratingMatch[1]) : 0;
+  if (isExplicitFeedback) {
+    // 1. Look for the rating within the bracket first (e.g., [COLLECT_FEEDBACK 5/5])
+    let rating = 0;
+    const bracketMatch = message.match(/\[COLLECT_FEEDBACK\s*([\d.]+)(\s*\/\s*5)?\s*\]/i);
 
-    // Fallbacks for spelled numbers
-    if (msg.includes('ONE')) rating = 1;
-    else if (msg.includes('TWO')) rating = 2;
-    else if (msg.includes('THREE')) rating = 3;
-    else if (msg.includes('FOUR')) rating = 4;
-    else if (msg.includes('FIVE')) rating = 5;
-    else if (msg.includes('SIX')) rating = 6;
-    else if (msg.includes('SEVEN')) rating = 7;
-    else if (msg.includes('EIGHT')) rating = 8;
-    else if (msg.includes('NINE')) rating = 9;
-    else if (msg.includes('TEN')) rating = 10;
+    if (bracketMatch) {
+      rating = parseFloat(bracketMatch[1]);
+    } else {
+      // 2. Fallback: Search the whole message ONLY if the command keyword exists
+      const ratingMatch = message.match(/([\d.]+)\s?\/\s?5/) || message.match(/Rating:\s*([\d.]+)/i) || message.match(/([\d.]+)\s*star/i);
+      rating = ratingMatch ? parseFloat(ratingMatch[1]) : 0;
+    }
 
-    // STICKER FEEDBACK RULE: Only trigger if there is a number or an explicit bracket command
+    // 3. Fallbacks for spelled numbers (English, Telugu, Hindi)
+    if (rating === 0) {
+      const spelledLower = msg.toLowerCase();
+      if (spelledLower.includes('one') || spelledLower.includes('ఒకటి') || spelledLower.includes('एक')) rating = 1;
+      else if (spelledLower.includes('two') || spelledLower.includes('రెండు') || spelledLower.includes('दो')) rating = 2;
+      else if (spelledLower.includes('three') || spelledLower.includes('మూడు') || spelledLower.includes('तीन')) rating = 3;
+      else if (spelledLower.includes('four') || spelledLower.includes('నాలుగు') || spelledLower.includes('चार')) rating = 4;
+      else if (spelledLower.includes('five') || spelledLower.includes('ఐదు') || spelledLower.includes('पाँच')) rating = 5;
+    }
+
     if (rating > 0) {
       if (rating > 5) return { name: 'invalid_feedback', args: { rating } };
 
+      // Clean up comment by removing internal markers
       const comment = message
         .replace(/\[COLLECT_FEEDBACK.*?\]/gi, '')
         .replace(/\[.*?\]/g, '')
-        .split(/how would you rate|please rate/i)[0]
+        .split(/how would you rate|please rate|దయచేసి|రేటింగ్/i)[0]
+        .replace(/Callix|Virtual Assistant|Receptionist/gi, '')
         .trim()
         .substring(0, 100) || 'Voice Feedback';
 

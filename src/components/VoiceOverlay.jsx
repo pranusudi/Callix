@@ -5,7 +5,11 @@ import { chatWithGroq, transcribeAudio, isGroqInitialized, cleanInternalCommands
 import { detectLanguage } from '../utils/languageDetection';
 import { ttsService } from '../utils/ttsService';
 import { sttService } from '../utils/sttService';
-import { HospitalPrompt, RestaurantPrompt, ECommercePrompt, BusinessPrompt, DefaultPrompt, HospitalPromptTe, RestaurantPromptTe, ECommercePromptTe, BusinessPromptTe, DefaultPromptTe } from '../prompts/agentPrompts';
+import {
+  HospitalPrompt, RestaurantPrompt, ECommercePrompt, BusinessPrompt, DefaultPrompt,
+  HospitalPromptTe, RestaurantPromptTe, ECommercePromptTe, BusinessPromptTe, DefaultPromptTe,
+  HospitalPromptHi, RestaurantPromptHi, ECommercePromptHi, BusinessPromptHi, DefaultPromptHi
+} from '../prompts/agentPrompts';
 import { database } from '../utils/database';
 
 const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
@@ -462,10 +466,10 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
       isSpeaking: curIsSpeaking
     } = stateRef.current;
 
-    if (!message.trim() || (isProcessing && !fromSTT)) return;
+    if (!message.trim() || isProcessing) return;
     if (!fromSTT && curIsSpeaking) return;
 
-    if (!fromSTT) setIsProcessing(true);
+    setIsProcessing(true);
     setIsThinking(true);
 
     try {
@@ -527,17 +531,18 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
       const compName = selectedCompany?.name?.toLowerCase() || '';
 
       const isTelugu = curLang.code === 'te-IN';
+      const isHindi = curLang.code === 'hi-IN';
 
       if (industry.includes('health') || compName.includes('hospital') || compName.includes('aarogya')) {
-        specializedPrompt = isTelugu ? HospitalPromptTe : HospitalPrompt;
+        specializedPrompt = isTelugu ? HospitalPromptTe : isHindi ? HospitalPromptHi : HospitalPrompt;
       } else if (industry.includes('restaur') || compName.includes('garden') || compName.includes('aroma')) {
-        specializedPrompt = isTelugu ? RestaurantPromptTe : RestaurantPrompt;
+        specializedPrompt = isTelugu ? RestaurantPromptTe : isHindi ? RestaurantPromptHi : RestaurantPrompt;
       } else if (industry.includes('commerce') || compName.includes('kart')) {
-        specializedPrompt = isTelugu ? ECommercePromptTe : ECommercePrompt;
+        specializedPrompt = isTelugu ? ECommercePromptTe : isHindi ? ECommercePromptHi : ECommercePrompt;
       } else if (industry.includes('business') || industry.includes('tech')) {
-        specializedPrompt = isTelugu ? BusinessPromptTe : BusinessPrompt;
-      } else if (isTelugu) {
-        specializedPrompt = DefaultPromptTe;
+        specializedPrompt = isTelugu ? BusinessPromptTe : isHindi ? BusinessPromptHi : BusinessPrompt;
+      } else {
+        specializedPrompt = isTelugu ? DefaultPromptTe : isHindi ? DefaultPromptHi : DefaultPrompt;
       }
 
       let languageInstruction = `\n\nCRITICAL: Respond in ${curLang.name} script.`;
@@ -558,15 +563,25 @@ PERSONALITY & STYLE:
 - NO MARKDOWN: Never use asterisks (*) for bolding. Use plain text only.
 
 GREETING PROTOCOL:
-${isFirstTurn ? (isTelugu ? `- This is the FIRST TURN. Start your response with: "నమస్కారం ${latestName}, నేను కాల్లిక్స్ (Callix). నేను మీకు మా సేవలు మరియు బుకింగ్‌లలో సహాయం చేయడానికి ఇక్కడ ఉన్నాను. ఈరోజు నేను మీకు ఏ విధంగా సహాయపడగలను?"` : `- This is the FIRST TURN. Start your response with: "Hello ${latestName}, I'm Callix. I'm here to assist you with our services and bookings. How can I help you today?"`) : `- This is an ONGOING conversation. DO NOT introduce yourself again. DO NOT say "Hello, I'm Callix". Jump directly into the assistance.`}
+${isFirstTurn
+          ? (isTelugu
+            ? `- This is the FIRST TURN. Start your response with: "నమస్కారం ${latestName}, నేను కాల్లిక్స్. నేను మీకు మా సేవలు మరియు బుకింగ్‌లలో సహాయం చేయడానికి ఇక్కడ ఉన్నాను. ఈరోజు నేను మీకు ఏ విధంగా సహాయపడగలను?"`
+            : isHindi
+              ? `- This is the FIRST TURN. Start your response with: "नमस्ते ${latestName}, मैं कॉलिक्स हूँ। मैं आपकी सेवाओं और बुकिंग में सहायता के लिए यहाँ हूँ। आज मैं आपकी कैसे मदद कर सकता हूँ?"`
+              : `- This is the FIRST TURN. Start your response with: "Hello ${latestName}, I'm Callix. I'm here to assist you with our services and bookings. How can I help you today?"`)
+          : `- This is an ONGOING conversation. DO NOT introduce yourself again. DO NOT say "Hello, I'm Callix". Jump directly into the assistance.`}
 
 CORE PROTOCOLS:
-1. **Smart Detail Gathering**: Check if you have BOTH the DATE and TIME. If the user provided both (e.g., "tomorrow at 4pm"), DO NOT ask for them again. Instead, move immediately to confirmation (e.g., "Shall I book for tomorrow at 4pm?"). If anything is missing, ask for all missing pieces in a single natural sentence.
-2. **Natural Phrasing (Telugu)**: Avoid literal translations like "కలిగి ఉన్నాము". Instead use natural flow (e.g., "మా వద్ద ఈ వైద్యులు అందుబాటులో ఉన్నారు" or "నేను మీకు ఏ విధంగా సహాయపడమంటారు?").
-3. **No Redundancy**: Do not repeat the same question (like "Who are you looking for?") twice in the same turn.
+1. **Conciseness**: NEVER repeat the same fact or question twice in one turn. Example: Do not say "Do you want to meet? Shall I book it?" in the same turn. 
+2. **Smart Detail Gathering**: Check if you have BOTH the DATE and TIME. If the user provided both, move immediately to confirmation.
+3. **Natural & Professional Phrasing (Telugu & Hindi)**: 
+    - NEVER use "ఉండాలనుకుంటున్నారా" (Telugu) or "रहना चाहते हैं" (Hindi) for appointments.
+    - Use "సంప్రదించడం" (Consulting) or "కలవడం" (Meeting).
 4. **Action Execution**: Output the [BOOK_...] bracket ONLY after the user says 'Yes' or confirms.
-5. **Anti-Hallucination**: If the database is empty, admit it. Never invent data.
-6. **Closing**: Only ask for a rating after the user confirms they are done. After collecting feedback, use [HANG_UP].
+5. **Feedback**: Ask for rating ONLY when the user says "No", "Nothing", "వద్దు", or "లేదు". DO NOT use the [COLLECT_FEEDBACK] bracket until the user actually provides a number (1-5). If you are just asking for the rating, do not include the bracket.
+6. **No Repetition**: NEVER start a sentence with the same words you used in the previous sentence.
+7. **Anti-Hallucination**: If the database is empty, admit it. Never invent data.
+8. **Closing**: Only ask for a rating after the user confirms they are done. After collecting feedback, use [HANG_UP].
 
 LIVE KNOWLEDGE:
 ${liveCatalogue || 'DATA_NOT_FOUND'}
@@ -581,7 +596,7 @@ Customer Name: ${latestName}`;
       const rawResponse = await chatWithGroq(
         `User Message: ${message}`,
         currentMessages.slice(-6).map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', text: m.rawText || m.text })),
-        { ...selectedCompany, userName: latestName, userEmail, sessionId, currLangCode: curLang.code, currLangName: curLang.name },
+        { ...selectedCompany, userName: latestName, userEmail, sessionId, currLangCode: curLang.code, currLangName: curLang.name, systemDate: new Date() },
         systemPrompt
       );
 
