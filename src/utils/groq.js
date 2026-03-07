@@ -227,11 +227,12 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
               - CRITICAL ANTI-HALLUCINATION: NEVER invent or hallucinate data.`;
       } else if (intent.name === 'collect_feedback') {
         criticalInstructions = isTe
-          ? `- కేవలం ఒకే వాక్యం చెప్పండి: "దయచేసి నా సహాయానికి 1 నుండి 5 వరకు రేటింగ్ ఇవ్వండి."
-              - యూజర్ 1-5 సంఖ్య చెప్పే వరకు [COLLECT_FEEDBACK] వాడవద్దు.
-              - రేటింగ్ ఇచ్చాక: "మీ అభిప్రాయానికి ధన్యవాదాలు! మళ్ళీ సేవించడానికి ఎదురుచూస్తున్నాము." అని చెప్పి [HANG_UP] వాడండి.`
-          : `- Speak exactly ONE sentence: "Please rate my assistance today from 1 to 5 stars."
-              - After they give a number: "Thank you for your feedback! We look forward to serving you again." then use [HANG_UP].`;
+          ? `- అభిప్రాయం విజయవంతంగా సేవ్ చేయబడింది (TASK COMPLETED).
+              - కేవలం "మీ అభిప్రాయానికి ధన్యవాదాలు! మళ్ళీ సేవించడానికి ఎదురుచూస్తున్నాము." అని చెప్పండి.
+              - ఆ వెంటనే [HANG_UP] వాడండి.`
+          : `- Feedback has been saved (TASK COMPLETED).
+              - Simply say: "Thank you for your feedback! We look forward to serving you again."
+              - Immediately follow with [HANG_UP].`;
       } else if (intent.name === 'hang_up') {
         criticalInstructions = isTe
           ? `- క్లుప్తంగా ముగించండి: "ధన్యవాదాలు, సెలవు."`
@@ -324,6 +325,14 @@ const detectIntent = (message, context) => {
     return cleaned || fallback;
   };
 
+  const formatDateLocal = (date) => {
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const parseRelativeDate = (dateStr) => {
     if (!dateStr || dateStr.toUpperCase() === 'TBD') return 'TBD';
     const low = dateStr.toLowerCase().trim();
@@ -331,11 +340,11 @@ const detectIntent = (message, context) => {
     const referenceDate = systemDate ? new Date(systemDate) : new Date();
 
     // Simple today/tomorrow check
-    if (low === 'today' || low === 'ఈరోజు') return referenceDate.toISOString().split('T')[0];
+    if (low === 'today' || low === 'ఈరోజు') return formatDateLocal(referenceDate);
     if (low === 'tomorrow' || low === 'రేపు') {
       const tomorrow = new Date(referenceDate);
       tomorrow.setDate(referenceDate.getDate() + 1);
-      return tomorrow.toISOString().split('T')[0];
+      return formatDateLocal(tomorrow);
     }
 
     // Days of the week map
@@ -356,8 +365,11 @@ const detectIntent = (message, context) => {
       if (diff <= 0) diff += 7; // If today or in the past, move to next week's occurrence
       const targetDate = new Date(referenceDate);
       targetDate.setDate(referenceDate.getDate() + diff);
-      return targetDate.toISOString().split('T')[0];
+      return formatDateLocal(targetDate);
     }
+
+    // Handle manual YYYY-MM-DD strings so they aren't mangled
+    if (/\d{4}-\d{2}-\d{2}/.test(low)) return low;
 
     return dateStr;
   };
