@@ -189,9 +189,14 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
       }
       const memorySet = sessionActionsMemory.get(sessionId);
 
+      const isTe = (companyContext?.currLangCode === 'te-IN' || companyContext?.selectedLanguage?.code === 'te-IN');
+      const fallbackMsg = isTe
+        ? "నేను ఆ వివరాలను నమోదు చేసుకున్నాను. నేను మీకు ఇంకా ఏదైనా సహాయం చేయగలనా?"
+        : "I've carefully noted those details for you. Is there anything else you need assistance with?";
+
       if (memorySet.has(actionSignature) && intent.name !== 'query_entity_database') {
         console.log('⚠️ Duplicate Intent Prevented in session:', intent.name);
-        return cleanInternalCommands(assistantMessage) || "I've carefully noted those details for you. Is there anything else you need assistance with?";
+        return cleanInternalCommands(assistantMessage) || fallbackMsg;
       }
 
       memorySet.add(actionSignature);
@@ -206,24 +211,35 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
               2. DO NOT repeat internal keywords or brackets.
               3. Keep it conversational. If listing items, list 2-3 clearly with prices.`;
 
+      // Use the isTe flag defined above
+
+
       if (['query_entity_database', 'get_available_slots'].includes(intent.name)) {
-        criticalInstructions = `
-              - Speak normally to the user as a helpful virtual assistant.
+        criticalInstructions = isTe
+          ? `- వినియోగదారుకు తెలుగులో సమాధానం ఇవ్వండి.
+              - LATEST_DATAలో ఉన్న వంటకాలు లేదా సేవల వివరాలను మాత్రమే చదవండి.
+              - ధరలను మరియు సమయాలను స్పష్టంగా చెప్పండి.
+              - లేని సమాచారాన్ని సృష్టించవద్దు.`
+          : `- Speak normally to the user as a helpful virtual assistant.
               - The LATEST_DATA will contain exact records in brackets like [MENU] or [CARDIOLOGY].
               - YOU MUST ONLY READ OUT exact items and prices. NO technical IDs or dates.
-              - CRITICAL ANTI-HALLUCINATION: NEVER invent or hallucinate names, doctors, or items that are not explicitly provided in the LATEST_DATA.
-              - If there are no specific doctor names provided, just read out the service or consultation titles exactly.`;
+              - CRITICAL ANTI-HALLUCINATION: NEVER invent or hallucinate names, doctors, or items that are not explicitly provided in the LATEST_DATA.`;
       } else if (intent.name === 'collect_feedback') {
-        criticalInstructions = `
-              - DONT SUMMARIZE THE DATA. NO TECHNICAL DETAILS.
+        criticalInstructions = isTe
+          ? `- తెలుగులో మర్యాదగా ధన్యవాదాలు చెప్పండి: "మీ విలువైన అభిప్రాయానికి ధన్యవాదాలు! మిమ్మల్ని మళ్ళీ సేవించడానికి మేము ఎదురుచూస్తున్నాము." 
+              - 1 sentence max.`
+          : `- DONT SUMMARIZE THE DATA. NO TECHNICAL DETAILS.
               - Just say a warm, brief thank you: "Thank you for your feedback! We look forward to serving you again."
               - 1 sentence max.`;
       } else if (intent.name === 'hang_up') {
-        criticalInstructions = `
-              - Just say a brief professional goodbye. No technical summary.`;
+        criticalInstructions = isTe
+          ? `- తెలుగులో మర్యాదగా సెలవు తీసుకోండి. 1 sentence max.`
+          : `- Just say a brief professional goodbye. No technical summary.`;
       } else if (['book_appointment', 'book_table', 'book_order'].includes(intent.name)) {
-        criticalInstructions = `
-              - ULTRA-MINIMALIST: Just say "Your booking is confirmed. Is there anything else I can assist you with today?"
+        criticalInstructions = isTe
+          ? `- తెలుగులో క్లుప్తంగా చెప్పండి: "మీ బుకింగ్ ఖరారైంది. నేను మీకు ఇంకా ఏదైనా సహాయం చేయగలనా?" 
+              - బుకింగ్ వివరాలను మళ్ళీ చెప్పవద్దు. గరిష్టంగా 1-2 వాక్యాలు.`
+          : `- ULTRA-MINIMALIST: Just say "Your booking is confirmed. Is there anything else I can assist you with today?"
               - DO NOT recite the date, time, or service name. 
               - Total length must be exactly 1-2 short sentences.`;
       }
