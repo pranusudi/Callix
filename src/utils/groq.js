@@ -170,7 +170,7 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
     5. DETAIL GATHERING: When asking for a booking date and time, ask directly without unnecessary words. Need exact Date AND Time for bookings.
     6. CONFIRM & BOOK: You MUST use the exact action bracket (e.g., [BOOK_APPOINTMENT for <name> on <date> at <time>]) in your response text to trigger the database.
     7. NEXT STEPS: After confirming, ask exactly: "Your Booking is confirmed. Is there anything else I can help you with?"
-    8. FEEDBACK: If the user says "no", "that's all", "nothing else", or similar, ask for feedback with a small sentence without unnecessary words: "Please rate my service from 1 to 5 stars."
+    8. FEEDBACK: If the user says "no", "that's all", "nothing else", "ఏం లేదు", "అంతే", "వద్దు", "नहीं", "बस" or similar, ask for feedback with a small sentence without unnecessary words: "Please rate my service from 1 to 5 stars."
     9. TERMINATION: Use [HANG_UP] only AFTER you have received a star rating.
 
     TONE: Professional, ultra-brief. NO MARKDOWN.
@@ -224,14 +224,17 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
     const hasCommand = /\[.*?\]/i.test(assistantMessage) ||
       msgUpper.includes('BOOK_') || msgUpper.includes('COLLECT_') ||
       msgUpper.includes('QUERY_') || msgUpper.includes('HANG_UP') ||
-      msgUpper.includes('STAR') || msgUpper.includes('RATING');
+      msgUpper.includes('STAR') || msgUpper.includes('RATING') ||
+      msgUpper.includes('ధన్యవాదాలు') || msgUpper.includes('సెలవు') || msgUpper.includes('धन्यवाद');
 
     // Force inject bracket if AI failed to include it but used confirmation words
     if (!hasCommand) {
       if ((msgUpper.includes('CONFIRMED') || msgUpper.includes('SUCCESSFUL')) &&
         (msgUpper.includes('APPOINTMENT') || msgUpper.includes('BOOK') || msgUpper.includes('ORDER') || msgUpper.includes('TABLE'))) {
         console.warn('⚠️ AI omitted action bracket despite confirming. Falling back to system extraction.');
-      } else if (msgUpper.includes('THANK') && msgUpper.includes('GOODBYE')) {
+      } else if (msgUpper.includes('THANK') && (msgUpper.includes('GOODBYE') || msgUpper.includes('FEEDBACK'))) {
+        assistantMessage += ' [HANG_UP]';
+      } else if (msgUpper.includes('ధన్యవాదాలు') || msgUpper.includes('సెలవు') || msgUpper.includes('धन्यवाद')) {
         assistantMessage += ' [HANG_UP]';
       }
     }
@@ -274,7 +277,7 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
 
       if (memorySet.has(actionSignature) && intent.name !== 'query_entity_database') {
         console.log('⚠️ Duplicate Intent Prevented in session:', intent.name);
-        return cleanInternalCommands(assistantMessage) || fallbackMsg;
+        return assistantMessage || fallbackMsg;
       }
 
       memorySet.add(actionSignature);
@@ -349,15 +352,15 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
       if (finalResponse && finalResponse.ok) {
         const finalData = await finalResponse.json();
         const confirmationText = finalData.choices[0]?.message?.content;
-        let finalDisplay = cleanInternalCommands(confirmationText);
-        if (!finalDisplay || finalDisplay.length < 2) finalDisplay = cleanInternalCommands(assistantMessage);
+        let finalDisplay = confirmationText;
+        if (!finalDisplay || finalDisplay.length < 2) finalDisplay = assistantMessage;
         return finalDisplay || fallbackMsg;
       }
 
-      return cleanInternalCommands(assistantMessage) || fallbackMsg;
+      return assistantMessage || fallbackMsg;
     }
 
-    return cleanInternalCommands(assistantMessage) || fallbackMsg;
+    return assistantMessage || fallbackMsg;
 
   } catch (error) {
     console.error('Groq AI Error:', error);
@@ -555,6 +558,7 @@ const detectIntent = (message, context) => {
 
   // --- Feedback ---
   const isExplicitFeedback = msg.includes('[COLLECT_FEEDBACK') || msg.includes('COLLECT_FEEDBACK') ||
+    msg.includes('RATING') || msg.includes('RATE') || msg.includes('STAR') ||
     msg.includes('రేటింగ్') || msg.includes('రేట్') || msg.includes('స్టార్') ||
     msg.includes('रेटिंग') || msg.includes('स्टार') || msg.includes('रेट');
 
@@ -564,8 +568,11 @@ const detectIntent = (message, context) => {
     if (bracketMatch) {
       rating = parseFloat(bracketMatch[1]);
     } else {
-      const ratingMatch = message.match(/([\d.]+)\s?\/\s?5/) || message.match(/Rating:\s*([\d.]+)/i) || message.match(/([\d.]+)\s*star/i);
-      rating = ratingMatch ? parseFloat(ratingMatch[1]) : 0;
+      const isRangeRequest = message.match(/1\s*(?:to|-| నుండి | సే | తక్ )\s*5/i);
+      if (!isRangeRequest) {
+        const ratingMatch = message.match(/([\d.]+)\s?\/\s?5/) || message.match(/Rating:\s*([\d.]+)/i) || message.match(/([\d.]+)\s*star/i);
+        rating = ratingMatch ? parseFloat(ratingMatch[1]) : 0;
+      }
     }
 
     if (rating === 0) {
@@ -607,7 +614,7 @@ const detectIntent = (message, context) => {
     return { name: 'query_entity_database', args: { entityId, query } };
   }
 
-  if (msg.includes('HANG_UP') || msg.includes('ధన్యవాదాలు') || msg.includes('సరే') || msg.includes('బై') || msg.includes('धन्यवाद') || msg.includes('बाय')) {
+  if (msg.includes('HANG_UP') || msg.includes('ధన్యవాదాలు') || msg.includes('సెలవు') || msg.includes('బై') || msg.includes('धन्यवाद') || msg.includes('बाय')) {
     return { name: 'hang_up', args: {} };
   }
 

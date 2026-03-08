@@ -54,7 +54,8 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
   const initialName = getNameFromUser(user);
   const [convoPhase, setConvoPhase] = useState(initialName ? 'chatting' : 'onboarding');
   const [userName, setUserName] = useState(initialName);
-  const [userEmail] = useState(user?.email || `guest_${Math.random().toString(36).substring(2, 7)}@callix.io`);
+  const sessionGuestEmailRef = useRef(`guest_${Math.random().toString(36).substring(2, 7)}@callix.io`);
+  const userEmail = user?.email || sessionGuestEmailRef.current;
   const [sessionId] = useState(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
   const [selectedLanguage, setSelectedLanguage] = useState({ code: 'en-IN', name: 'English' });
 
@@ -544,7 +545,7 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
 - అపాయింట్‌మెంట్ నిర్ధారణ: "మీ అపాయింట్‌మెంట్ నిర్ధారించబడింది."
 - అదనపు సహాయం: "మరింకేమైనా కావాలా?"
 - రేటింగ్ అడగడం: "1 నుండి 5 లో రేటింగ్ ఇవ్వండి."
-- ముగింపు: "ధన్యవాదాలు. మళ్ళీ కలుద్దాం."
+- ముగింపు: "ధన్యవాదాలు. మళ్ళీ కలుద్దాం." (ముగింపు మాటలు ఎప్పుడూ రేటింగ్ అడిగిన తర్వాతే చెప్పాలి)
 
 నిషేధించిన పదబంధాలు (ఎప్పుడూ వాడకండి):
 - "సంప్రదించడం", "కలవడం" అని అపాయింట్‌మెంట్ కోసం వాడకండి
@@ -556,7 +557,8 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
 - बुकिंग पुष्टि: "आपकी अपॉइंटमेंट कन्फर्म हो गई।"
 - अतिरिक्त सहायता: "और कोई सहायता चाहिए?"
 - रेटिंग: "1 से 5 में रेटिंग दें।"
-- समाप्ति: "धन्यवाद। फिर मिलेंगे।"`
+- समाप्ति: "धन्यवाद। फिर मिलेंगे।" (समाप्ति रेटिंग के बाद ही बोलें)
+`
         : `
 English phrases:
 - Booking confirmed: "Your appointment is confirmed."
