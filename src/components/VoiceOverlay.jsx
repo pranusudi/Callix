@@ -169,6 +169,18 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
     }
   }, [user]);
 
+  const resumeListening = () => {
+    const { callState, isMuted, isOpen, isSpeaking } = stateRef.current;
+    if (callState === 'connected' && !isMuted && isOpen && !isSpeaking) {
+      if (mediaRecorderRef.current?.state === 'inactive') {
+        console.log("🎤 Resuming recorder...");
+        mediaRecorderRef.current.start();
+        if (restartFlushRef.current) restartFlushRef.current();
+        setIsListening(true);
+      }
+    }
+  };
+
   // Pro STT Logic (MediaRecorder + Azure AI Speech) - STOP-WAIT-RESTART PATTERN
   const startProSTT = async () => {
     try {
@@ -216,7 +228,7 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
         }
 
         console.log(`🎙️ Sending Speech Chunk (${audioBlob.size} bytes) to Cloud STT...`);
-        setIsProcessing(true);
+        // Note: isProcessing is managed by handleUserMessage to avoid double-locking
         try {
           setIsTranscribing(true);
           // Try to transcribe with current language
@@ -233,14 +245,13 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
             // Short greeting/affirmation - process normally
             await handleUserMessage(text, true);
           } else {
-            setIsProcessing(false);
+            resumeListening(); // Restart if chunk was empty/junk
           }
         } catch (e) {
           console.error('❌ STT Pipeline failed:', e);
-          setIsProcessing(false);
+          resumeListening(); // Restart on error
         } finally {
           setIsTranscribing(false);
-          // Recorder restart is managed by speak/finishSpeech to prevent conflicts
         }
       };
 
@@ -649,14 +660,8 @@ Customer Name: ${latestName}`;
         resolve(); // Resolve promise when speech ends
 
         // Restart recording ONLY if call is still active AND not terminating
-        const { callState: curCallState, isMuted: curIsMuted, isOpen: curIsOpen } = stateRef.current;
-        if (curCallState === 'connected' && !curIsMuted && curIsOpen && !shouldTerminate) {
-          // Restart Pro STT if needed
-          if (mediaRecorderRef.current?.state === 'inactive') {
-            mediaRecorderRef.current.start();
-            if (restartFlushRef.current) restartFlushRef.current(); // Reset the 12s timer
-            setIsListening(true);
-          }
+        if (!shouldTerminate) {
+          resumeListening();
         }
       };
 
