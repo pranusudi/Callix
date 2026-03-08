@@ -6,10 +6,17 @@ const GROQ_AUDIO_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
 // Cleanup utility for internal markers
 export const cleanInternalCommands = (text) => {
   if (!text) return '';
-  // Force removal of internal brackets: [NAME ...], [NAME: ...], [SYSTEM ...], etc.
-  let cleaned = text.replace(/\[[A-Z_0-9: ]{3,}.*?\]/gi, '');
 
-  // Strip common leaking labels and metadata
+  // 1. Aggressively strip internal JSON blocks and system results
+  let cleaned = text.replace(/Result:\s*(?:SUCCESS|ERROR).*?(?:Data:|$)/gi, '');
+  cleaned = cleaned.replace(/Data:\s*\{[\s\S]*?\}/gi, ''); // Remove JSON objects
+  cleaned = cleaned.replace(/\{[\s\S]*?"id":[\s\S]*?\}/gi, ''); // Generic JSON id block removal
+  cleaned = cleaned.replace(/Data:\s*\[[\s\S]*?\]/gi, ''); // Remove JSON arrays
+
+  // 2. Force removal of internal brackets: [NAME ...], [NAME: ...], [SYSTEM ...], etc.
+  cleaned = cleaned.replace(/\[[A-Z_0-9: ]{3,}.*?\]/gi, '');
+
+  // 3. Strip common leaking labels and metadata
   const labelsToRemove = [
     /SYSTEM ALERT:.*?(?:\n|$)/gi,
     /LATEST_TASK_OUTCOME:.*?(?:\n|$)/gi,
@@ -18,7 +25,11 @@ export const cleanInternalCommands = (text) => {
     /INTERNAL_STATE:.*?(?:\n|$)/gi,
     /CRITICAL INSTRUCTIONS:.*?(?:\n|$)/gi,
     /CRITICAL CONTEXT:.*?(?:\n|$)/gi,
-    /ACTION RESULT:.*?(?:\n|$)/gi
+    /ACTION RESULT:.*?(?:\n|$)/gi,
+    /Booking Result:.*?(?:\n|$)/gi,
+    /Feedback Result:.*?(?:\n|$)/gi,
+    /Result: SUCCESS/gi,
+    /Result: ERROR/gi
   ];
 
   labelsToRemove.forEach(pattern => {

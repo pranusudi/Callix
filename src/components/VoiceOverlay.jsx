@@ -237,9 +237,9 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
           }
         } catch (e) {
           console.error('❌ STT Pipeline failed:', e);
+          setIsProcessing(false);
         } finally {
           setIsTranscribing(false);
-          setIsProcessing(false);
           // Recorder restart is managed by speak/finishSpeech to prevent conflicts
         }
       };
