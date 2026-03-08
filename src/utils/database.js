@@ -236,13 +236,19 @@ export const database = {
     };
 
     // --- Strict Deduplication Check (30 mins) ---
-    const { data: existing } = await supabase.from('bookings').select('id, created_at')
+    let query = supabase.from('bookings').select('id, created_at')
       .eq('company_id', payload.company_id)
-      .eq('user_email', payload.user_email)
       .eq('date', payload.date)
       .eq('time', payload.time)
-      .gte('created_at', new Date(Date.now() - 30 * 60 * 1000).toISOString())
-      .limit(1);
+      .gte('created_at', new Date(Date.now() - 30 * 60 * 1000).toISOString());
+
+    if (payload.user_email && payload.user_email !== 'Guest') {
+      query = query.eq('user_email', payload.user_email);
+    } else {
+      query = query.eq('user_name', payload.user_name);
+    }
+
+    const { data: existing } = await query.limit(1);
 
     if (existing && existing.length > 0) {
       console.log('🚫 Skipping Duplicate Appointment (Already booked in last 30 mins)');
@@ -330,15 +336,20 @@ export const database = {
     };
 
     // --- Strict Deduplication Check ---
-    // Only apply strict 1-min deduplication if user_email is provided.
-    // For Guests (email empty), we use a 10s window to prevent double-clicks/STT echoes.
-    const dedupWindow = payload.user_email ? (1 * 60 * 1000) : (10 * 1000);
-    const { data: existing } = await supabase.from('feedback').select('id, created_at')
+    const dedupWindow = (payload.user_email && payload.user_email !== 'Guest') ? (1 * 60 * 1000) : (10 * 1000);
+
+    let query = supabase.from('feedback').select('id, created_at')
       .eq('company_id', payload.company_id)
-      .eq('user_email', payload.user_email)
-      .eq('rating', payload.rating) // Also check rating to be safer for guests
-      .gte('created_at', new Date(Date.now() - dedupWindow).toISOString())
-      .limit(1);
+      .eq('rating', payload.rating)
+      .gte('created_at', new Date(Date.now() - dedupWindow).toISOString());
+
+    if (payload.user_email && payload.user_email !== 'Guest') {
+      query = query.eq('user_email', payload.user_email);
+    } else {
+      query = query.eq('user_name', payload.user_name);
+    }
+
+    const { data: existing } = await query.limit(1);
 
     if (existing && existing.length > 0) {
       console.log(`🚫 Skipping Duplicate Feedback (Window: ${dedupWindow / 1000}s)`);

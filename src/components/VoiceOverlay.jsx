@@ -133,9 +133,10 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
       userName,
       userEmail,
       selectedLanguage,
-      messages
+      messages,
+      isProcessing
     };
-  }, [callState, isListening, isSpeaking, isMuted, isOpen, convoPhase, userName, userEmail, selectedLanguage, messages]);
+  }, [callState, isListening, isSpeaking, isMuted, isOpen, convoPhase, userName, userEmail, selectedLanguage, messages, isProcessing]);
 
   // Auto-scroll chat
   useEffect(() => {
@@ -579,10 +580,13 @@ CORE PROTOCOLS:
     - NEVER use "ఉండాలనుకుంటున్నారా" (Telugu) or "रहना चाहते हैं" (Hindi) for appointments.
     - Use "సంప్రదించడం" (Consulting) or "కలవడం" (Meeting).
 4. **Action Execution**: Output the [BOOK_...] bracket ONLY after the user says 'Yes' or confirms.
-5. **Feedback**: Ask for rating ONLY when the user says "No", "Nothing", "వద్దు", or "లేదు". DO NOT use the [COLLECT_FEEDBACK] bracket until the user actually provides a number (1-5). If you are just asking for the rating, do not include the bracket.
+5. **Mandatory Feedback Protocol**:
+    - PHASE 1 (User is done): If the user says "No", "Nothing", "వద్దు", or "లేదు", you MUST ask: "Please rate my assistance today from 1 to 5 stars." DO NOT use [HANG_UP] or [COLLECT_FEEDBACK] here.
+    - PHASE 2 (User gives rating): Once they provide a number (1-5), use [COLLECT_FEEDBACK X/5] and say "Thank you for your feedback! Goodbye." along with [HANG_UP].
+    - CRITICAL: Never end the call with [HANG_UP] until a rating has been requested and received.
 6. **No Repetition**: NEVER start a sentence with the same words you used in the previous sentence.
 7. **Anti-Hallucination**: If the database is empty, admit it. Never invent data.
-8. **Closing**: Only ask for a rating after the user confirms they are done. After collecting feedback, use [HANG_UP].
+8. **Closing**: Only use [HANG_UP] in the final turn after feedback is recorded.
 
 LIVE KNOWLEDGE:
 ${liveCatalogue || 'DATA_NOT_FOUND'}
