@@ -6,18 +6,26 @@ const GROQ_AUDIO_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
 // Cleanup utility for internal markers
 export const cleanInternalCommands = (text) => {
   if (!text) return '';
-  // Force removal of internal brackets like [BOOK_APPOINTMENT ...] or [COLLECT_FEEDBACK ...]
-  let cleaned = text.replace(/\[[A-Z_]{4,}(?:\s+[^\]]*)?\]/gi, '');
+  // Force removal of internal brackets: [NAME ...], [NAME: ...], [SYSTEM ...], etc.
+  let cleaned = text.replace(/\[[A-Z_0-9: ]{3,}.*?\]/gi, '');
 
-  // Strip system markers that might leak
-  cleaned = cleaned.replace(/\[SYSTEM ALERT:.*?\]/gi, '').replace(/\[SYSTEM ALERT:.*?$/gi, '');
-  cleaned = cleaned.replace(/LATEST_TASK_OUTCOME:.*?(?:\n|$)/gi, '');
-  cleaned = cleaned.replace(/LATEST_DATA:.*?(?:\n|$)/gi, '');
-  cleaned = cleaned.replace(/CRITICAL INSTRUCTIONS:.*?(?:\n|$)/gi, '');
-  cleaned = cleaned.replace(/CRITICAL CONTEXT:.*?(?:\n|$)/gi, '');
-  cleaned = cleaned.replace(/ACTION RESULT:.*?(?:\n|$)/gi, '');
-  cleaned = cleaned.replace(/\*/g, ''); // Remove Markdown bolding
+  // Strip common leaking labels and metadata
+  const labelsToRemove = [
+    /SYSTEM ALERT:.*?(?:\n|$)/gi,
+    /LATEST_TASK_OUTCOME:.*?(?:\n|$)/gi,
+    /LATEST_DATA:.*?(?:\n|$)/gi,
+    /TASK_OUTCOME:.*?(?:\n|$)/gi,
+    /INTERNAL_STATE:.*?(?:\n|$)/gi,
+    /CRITICAL INSTRUCTIONS:.*?(?:\n|$)/gi,
+    /CRITICAL CONTEXT:.*?(?:\n|$)/gi,
+    /ACTION RESULT:.*?(?:\n|$)/gi
+  ];
 
+  labelsToRemove.forEach(pattern => {
+    cleaned = cleaned.replace(pattern, '');
+  });
+
+  cleaned = cleaned.replace(/\*/g, ''); // Remove Markdown stars
   return cleaned.trim();
 };
 

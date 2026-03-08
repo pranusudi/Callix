@@ -240,15 +240,7 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
         } finally {
           setIsTranscribing(false);
           setIsProcessing(false);
-
-          // Restart recording if we're still in a state to listen
-          const { isSpeaking: finalIsSpeaking, isMuted: finalIsMuted, callState: finalCallState, isOpen: finalIsOpen } = stateRef.current;
-          if (finalCallState === 'connected' && finalIsOpen && !finalIsSpeaking && !finalIsMuted) {
-            if (mediaRecorderRef.current?.state === 'inactive') {
-              mediaRecorderRef.current.start();
-              setIsListening(true);
-            }
-          }
+          // Recorder restart is managed by speak/finishSpeech to prevent conflicts
         }
       };
 
@@ -625,8 +617,9 @@ Customer Name: ${latestName}`;
       addMessage('agent', errorMsg);
       await speak(errorMsg, curLang.code);
     } finally {
-      setIsProcessing(false);
       setIsThinking(false);
+      setIsProcessing(false);
+      setIsTranscribing(false);
     }
   };
 
