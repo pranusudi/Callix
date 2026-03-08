@@ -83,9 +83,15 @@ const rotateKey = () => {
   return true;
 };
 
-const fetchWithRetry = async (url, options, maxRetries = 3) => {
-  let attempt = 0;
-  while (attempt <= maxRetries) {
+const fetchWithRetry = async (url, options, maxRetries = 8) => {
+  // Track which key index we started on so we know when we've cycled all keys
+  const startKeyIndex = currentKeyIndex;
+  let totalAttempts = 0;
+  const totalKeys = API_KEYS.length || 1;
+  // Allow up to (keys × 2) + extra backoff attempts
+  const hardLimit = Math.max(maxRetries, totalKeys * 2 + 3);
+
+  while (totalAttempts < hardLimit) {
     const currentKey = getActiveKey();
     try {
       const currentOptions = {
@@ -95,25 +101,33 @@ const fetchWithRetry = async (url, options, maxRetries = 3) => {
       const response = await fetch(url, currentOptions);
 
       if (response.status === 429) {
-        attempt++;
+        totalAttempts++;
         const rotated = rotateKey();
-        if (rotated) continue;
-        if (attempt <= maxRetries) {
-          const delay = 2000 * attempt;
-          await new Promise(r => setTimeout(r, delay));
+        if (rotated) {
+          // Switched to a fresh key — retry immediately, no wait
+          console.warn(`🔄 429 on key #${currentKeyIndex}. Trying key #${(currentKeyIndex) % totalKeys + 1}...`);
           continue;
         }
-        return response;
+        // All keys exhausted — wait with exponential backoff then retry from first key
+        const backoffSec = Math.min(30, 2 ** Math.floor(totalAttempts / totalKeys));
+        console.warn(`⏳ All keys rate-limited. Waiting ${backoffSec}s before retry...`);
+        await new Promise(r => setTimeout(r, backoffSec * 1000));
+        // Reset to first key and try again
+        currentKeyIndex = 0;
+        continue;
       }
 
+      // Any non-429 4xx is a real error — return immediately
       if (!response.ok && response.status >= 400 && response.status < 500) return response;
+      // Success
       return response;
     } catch (err) {
-      if (attempt >= maxRetries) throw err;
-      await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
-      attempt++;
+      totalAttempts++;
+      if (totalAttempts >= hardLimit) throw err;
+      await new Promise(r => setTimeout(r, 1000 * Math.min(totalAttempts, 5)));
     }
   }
+  throw new Error('Max retry attempts exceeded across all API keys');
 };
 
 // Per-session dedup memory (survives Vite HMR)
@@ -231,6 +245,153 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
       }
     }
 
+    // ── EARLY INTERCEPT: Booking — parse date+time from user message directly ──
+    // When previous agent turn was asking for date/time, extract from user message
+    // and save to DB immediately. This survives 429 errors and AI bracket omissions.
+    {
+      const lastAgentMsg = [...history].reverse().find(m => m.role === 'assistant');
+      const lastAgentText = (lastAgentMsg?.text || lastAgentMsg?.content || '').toLowerCase();
+      const wasAskingForDateTime =
+        /date.*time|time.*date|తేదీ.*సమయం|సమయం.*తేదీ|तारीख.*समय|समय.*तारीख|dine.*date|reserve|reservation|appointment|book.*table|table.*book/i
+          .test(lastAgentText);
+
+      if (wasAskingForDateTime) {
+        const userPromptClean = prompt.replace(/^User Message:\s*/i, '').trim();
+        const entityId = companyContext?._id || companyContext?.id || companyContext?.company_id || 'manual';
+        const entityName = companyContext?.name || 'General';
+        const userEmail = companyContext?.userEmail || storedUser.email || '';
+        const industry = companyContext?.industry || 'Other';
+
+        // ── Date parsing (relative + absolute) ───────────────────────────────
+        const now2 = companyContext?.systemDate ? new Date(companyContext.systemDate) : new Date();
+        const formatISO2 = (d) => {
+          try {
+            return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+          } catch { return d.toISOString().split('T')[0]; }
+        };
+
+        const parseDate2 = (txt) => {
+          const t = txt.toLowerCase();
+          if (/\btoday|ఈరోజు|आज\b/.test(t)) return formatISO2(now2);
+          if (/\btomorrow|రేపు|कल\b/.test(t)) { const d = new Date(now2); d.setDate(d.getDate() + 1); return formatISO2(d); }
+          const dayNames = { sunday: 0, ఆదివారం: 0, रविवार: 0, monday: 1, సోమవారం: 1, सोमवार: 1, tuesday: 2, మంగళవారం: 2, मंगलवार: 2, wednesday: 3, బుధవారం: 3, बुधवार: 3, thursday: 4, గురువారం: 4, गुरुवार: 4, friday: 5, శుక్రవారం: 5, शुक्रवार: 5, saturday: 6, శనివారం: 6, शनिवार: 6 };
+          for (const [name, idx] of Object.entries(dayNames)) {
+            if (t.includes(name)) {
+              const ref = new Date(now2);
+              let diff = idx - ref.getDay();
+              if (diff <= 0) diff += 7;
+              ref.setDate(ref.getDate() + diff);
+              return formatISO2(ref);
+            }
+          }
+          const iso = t.match(/\d{4}-\d{2}-\d{2}/);
+          if (iso) return iso[0];
+          const dmy = t.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
+          if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+          return null;
+        };
+
+        const parseTime2 = (txt) => {
+          const t = txt.toLowerCase();
+          // "10 గంటలకు" / "10 baje" / "10 am" / "10:30" / "ఉదయం 10" etc.
+          const teluguTime = t.match(/(?:ఉదయం|మధ్యాహ్నం|సాయంత్రం|రాత్రి)?\s*(\d{1,2})(?::(\d{2}))?\s*(?:గంటలకు|గంటలు|గంట)?/);
+          const stdTime = t.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m|p\.m)/i);
+          const colonTime = t.match(/(\d{1,2}):(\d{2})/);
+
+          if (stdTime) {
+            let h = parseInt(stdTime[1]), m = parseInt(stdTime[2] || '0');
+            const period = (stdTime[3] || '').toLowerCase();
+            if (period.startsWith('p') && h !== 12) h += 12;
+            if (period.startsWith('a') && h === 12) h = 0;
+            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+          }
+          if (colonTime) return `${colonTime[1].padStart(2, '0')}:${colonTime[2]}`;
+          if (teluguTime) {
+            let h = parseInt(teluguTime[1]), m = parseInt(teluguTime[2] || '0');
+            // "ఉదయం" = morning, "మధ్యాహ్నం/సాయంత్రం" = PM
+            if (/మధ్యాహ్నం|సాయంత్రం|రాత్రి/.test(t) && h < 12) h += 12;
+            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+          }
+          return null;
+        };
+
+        const parseGuests2 = (txt) => {
+          const t = txt.toLowerCase();
+          const wordMap = {
+            one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+            ఒకరు: 1, ఇద్దరు: 2, ముగ్గురు: 3, నలుగురు: 4, అయిదుగురు: 5,
+            एक: 1, दो: 2, तीन: 3, चार: 4, पाँच: 5, पांच: 5
+          };
+          for (const [w, n] of Object.entries(wordMap)) { if (t.includes(w)) return String(n); }
+          const numM = t.match(/(\d+)\s*(?:guests?|people|persons?|మంది|నలుగురు|వ్యక్తులు|लोग)/i);
+          if (numM) return numM[1];
+          const bareNum = t.match(/\b(\d+)\b/);
+          if (bareNum) return bareNum[1];
+          return '2';
+        };
+
+        const parsedDate = parseDate2(userPromptClean);
+        const parsedTime = parseTime2(userPromptClean);
+        const parsedGuests = parseGuests2(userPromptClean);
+
+        // Determine booking type from conversation context
+        const isTableBooking = /table|restaurant|reserve|టేబుల్|రెస్టారెంట్|मेज|रेस्टोरेंट/i.test(lastAgentText + ' ' + userPromptClean);
+        const isAppointment = /appointment|doctor|interview|meeting|అపాయింట్|डॉक्टर|अपॉइंटमेंट/i.test(lastAgentText + ' ' + userPromptClean);
+
+        if (parsedDate && parsedTime) {
+          console.log(`📌 Booking intercept: type=${isTableBooking ? 'table' : 'appointment'}, Date=${parsedDate}, Time=${parsedTime}, Guests=${parsedGuests}`);
+
+          let bookingResult;
+          try {
+            if (isTableBooking) {
+              bookingResult = await tools.book_appointment({
+                entityId, entityName,
+                type: 'table',
+                industry: industry || 'Food & Beverage',
+                personName: `Table for ${parsedGuests} (${userName})`,
+                date: parsedDate,
+                time: parsedTime,
+                userEmail,
+                userName
+              });
+            } else {
+              // Find what was being booked from earlier conversation context
+              const prevUserMsg = [...history].reverse().find(m => m.role === 'user');
+              const prevText = prevUserMsg?.text || prevUserMsg?.content || 'General';
+              bookingResult = await tools.book_appointment({
+                entityId, entityName,
+                type: isAppointment ? 'doctor' : 'interview',
+                industry,
+                personName: prevText.substring(0, 50),
+                date: parsedDate,
+                time: parsedTime,
+                userEmail,
+                userName
+              });
+            }
+
+            console.log('✅ Booking saved via intercept:', bookingResult);
+
+            if (!bookingResult?.error) {
+              // Register in session memory to prevent duplicate on AI path
+              if (!sessionActionsMemory.has(sessionId)) sessionActionsMemory.set(sessionId, new Set());
+              const sig = `book_appointment_intercept_${parsedDate}_${parsedTime}_${entityId}`;
+              sessionActionsMemory.get(sessionId).add(sig);
+
+              return isTe
+                ? 'మీ బుకింగ్ నిర్ధారించబడింది. నేను మీకు మరింకేమైనా సహాయం చేయగలనా?'
+                : isHi
+                  ? 'आपकी बुकिंग कन्फर्म हो गई है। क्या मैं आपकी और कोई मदद कर सकता हूँ?'
+                  : 'Your booking is confirmed. Is there anything else I can help you with?';
+            }
+          } catch (e) {
+            console.error('Booking intercept failed:', e);
+            // Fall through to normal LLM path
+          }
+        }
+      }
+    }
+
     // Determine if this is the very first agent turn (no agent messages in history yet)
     const isFirstTurn = !history.some(m => m.role === 'assistant');
 
@@ -292,6 +453,23 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
 
       if (!sessionActionsMemory.has(sessionId)) sessionActionsMemory.set(sessionId, new Set());
       const memorySet = sessionActionsMemory.get(sessionId);
+
+      // Check if booking interceptor already handled this (same date+time slot)
+      if (['book_appointment', 'book_table', 'book_order'].includes(intent.name)) {
+        const dateArg = intent.args?.date || '';
+        const timeArg = intent.args?.time || '';
+        const interceptSig = `book_appointment_intercept_${dateArg}_${timeArg}_${intent.args?.entityId || ''}`;
+        if (memorySet.has(interceptSig)) {
+          console.log('⚠️ Booking already saved by interceptor, skipping duplicate DB write.');
+          const isTeLang2 = (companyContext?.currLangCode === 'te-IN');
+          const isHiLang2 = (companyContext?.currLangCode === 'hi-IN');
+          return isTeLang2
+            ? 'మీ బుకింగ్ నిర్ధారించబడింది. నేను మీకు మరింకేమైనా సహాయం చేయగలనా?'
+            : isHiLang2
+              ? 'आपकी बुकिंग कन्फर्म हो गई है। क्या मैं आपकी और कोई मदद कर सकता हूँ?'
+              : 'Your booking is confirmed. Is there anything else I can help you with?';
+        }
+      }
 
       if (memorySet.has(actionSignature) && intent.name !== 'query_entity_database') {
         console.log('⚠️ Duplicate intent prevented:', intent.name);
