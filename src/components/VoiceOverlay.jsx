@@ -1,8 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mic, MicOff, Phone, PhoneOff, Globe, User, MessageSquare, VolumeX } from 'lucide-react';
-import { chatWithGroq, transcribeAudio, isGroqInitialized, cleanInternalCommands } from '../utils/groq.js';
-import { detectLanguage } from '../utils/languageDetection';
+import { Mic, MicOff, PhoneOff, MessageSquare, VolumeX } from 'lucide-react';
+import { chatWithGroq, cleanInternalCommands } from '../utils/groq.js';
 import { ttsService } from '../utils/ttsService';
 import { sttService } from '../utils/sttService';
 import {
@@ -13,7 +12,7 @@ import {
 import { database } from '../utils/database';
 
 const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
-  const [callState, setCallState] = useState('idle'); // idle, ringing, connected, ended
+  const [callState, setCallState] = useState('idle');
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -24,62 +23,42 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
   const [isThinking, setIsThinking] = useState(false);
   const [liveCatalogue, setLiveCatalogue] = useState('');
   const [pulseScale, setPulseScale] = useState(1);
-  const [isUserTalking, setIsUserTalking] = useState(false);
 
-  // Helper to get name from user object or email
   const getNameFromUser = (u) => {
     if (!u) return '';
-    if (u.profile?.full_name) return u.profile.full_name;
-    if (u.user_metadata?.full_name) return u.user_metadata.full_name;
-    if (u.app_metadata?.full_name) return u.app_metadata.full_name;
-    if (u.full_name) return u.full_name;
-    if (u.name) return u.name;
-
-    if (u.email) {
-      const namePart = u.email.split('@')[0];
-      return namePart
-        .split(/[._]/)
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' ');
-    }
-    return '';
+    return u.profile?.full_name
+      || u.user_metadata?.full_name
+      || u.app_metadata?.full_name
+      || u.full_name
+      || u.name
+      || (u.email
+        ? u.email.split('@')[0].split(/[._]/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+        : '');
   };
 
   const extractNameFromMessage = (message) => {
-    let extractedName = null;
-    const cleanMsg = message.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "").trim();
+    const cleanMsg = message.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, '').trim();
     const nameMatch = cleanMsg.match(/(?:name is|i am|i'm|call me|this is|my name is) ([a-zA-Z]+)/i);
-
-    if (nameMatch) {
-      extractedName = nameMatch[1];
-    } else {
-      const ignoreList = [
-        'hi', 'hello', 'hey', 'my', 'name', 'is', 'the', 'a', 'an', 'yeah', 'yes', 'i', 'am', 'im',
-        'నమస్కారం', 'పేరు', 'నా', 'నాకు', 'నేను', 'naa', 'na', 'naperu',
-        'नमस्ते', 'नाम', 'मेरा', 'मै', 'हूँ', 'mera', 'naam', 'book', 'table', 'appointment'
-      ];
-
-      const words = cleanMsg.split(/\s+/).filter(w => {
-        const lowW = w.toLowerCase().replace(/[^a-zA-Z0-9\u0C00-\u0C7F\u0900-\u097F]/g, '');
-        return lowW.length > 0 && !ignoreList.includes(lowW);
-      });
-
-      if (words.length > 0) {
-        const capWords = words.filter(w => w[0] === w[0].toUpperCase() && /[a-zA-Z]/.test(w[0]) && w.length > 1);
-        if (capWords.length > 0) extractedName = capWords[capWords.length - 1];
-      }
-    }
-    return extractedName;
+    if (nameMatch) return nameMatch[1];
+    const ignoreList = ['hi', 'hello', 'hey', 'my', 'name', 'is', 'the', 'a', 'an', 'yeah', 'yes', 'i', 'am', 'im',
+      'నమస్కారం', 'పేరు', 'నా', 'నాకు', 'నేను', 'naa', 'na', 'naperu',
+      'नमस्ते', 'नाम', 'मेरा', 'मै', 'हूँ', 'mera', 'naam', 'book', 'table', 'appointment'];
+    const words = cleanMsg.split(/\s+/).filter(w => {
+      const lowW = w.toLowerCase().replace(/[^a-zA-Z0-9\u0C00-\u0C7F\u0900-\u097F]/g, '');
+      return lowW.length > 0 && !ignoreList.includes(lowW);
+    });
+    const capWords = words.filter(w => w[0] === w[0].toUpperCase() && /[a-zA-Z]/.test(w[0]) && w.length > 1);
+    return capWords.length > 0 ? capWords[capWords.length - 1] : null;
   };
 
-  // Advanced conversation state
-  const [convoPhase, setConvoPhase] = useState(getNameFromUser(user) ? 'chatting' : 'intro');
-  const [userName, setUserName] = useState(getNameFromUser(user));
-  const [userEmail, setUserEmail] = useState(user?.email || `guest_${Math.random().toString(36).substring(2, 7)}@callix.io`);
+  const initialName = getNameFromUser(user);
+  const [convoPhase, setConvoPhase] = useState(initialName ? 'chatting' : 'onboarding');
+  const [userName, setUserName] = useState(initialName);
+  const [userEmail] = useState(user?.email || `guest_${Math.random().toString(36).substring(2, 7)}@callix.io`);
   const [sessionId] = useState(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
   const [selectedLanguage, setSelectedLanguage] = useState({ code: 'en-IN', name: 'English' });
-  const [useProSTT, setUseProSTT] = useState(true); // Default to Pro STT for better results
 
+  // Refs
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const ringingAudioRef = useRef(null);
@@ -89,242 +68,216 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
   const analyserRef = useRef(null);
   const dataArrayRef = useRef(null);
   const flushIntervalRef = useRef(null);
-  const restartFlushRef = useRef(null);
-  const speechDetectedRef = useRef(false);
   const silenceTimerRef = useRef(null);
+  const speechDetectedRef = useRef(false);
+  const vadActiveRef = useRef(false);
+  const isProcessingRef = useRef(false);
+  const isSpeakingRef = useRef(false);
+  // FIX: explicit flag so finally block knows not to resume VAD after hang up
+  const isTerminatingRef = useRef(false);
 
-  const languageLookup = {
-    'en-IN': 'en-IN',
-    'hi-IN': 'hi-IN',
-    'te-IN': 'te-IN'
-  };
+  const languageLookup = { 'en-IN': 'en-IN', 'hi-IN': 'hi-IN', 'te-IN': 'te-IN' };
 
-  const languageNameMap = {
-    'en': 'English', 'en-IN': 'English',
-    'hi': 'Hindi', 'hi-IN': 'Hindi',
-    'te': 'Telugu', 'te-IN': 'Telugu',
-    'ta': '', 'ta-IN': 'Tamil',
-    'kn': 'Kannada', 'kn-IN': 'Kannada'
-  };
-
-  // Refs for state to avoid stale closures in event listeners
   const stateRef = useRef({
-    callState,
-    isListening,
-    isSpeaking,
-    isMuted,
-    isOpen,
-    convoPhase,
-    userName,
-    userEmail,
-    selectedLanguage,
-    messages
+    callState, isListening, isSpeaking, isMuted, isOpen,
+    convoPhase, userName, userEmail, selectedLanguage, messages
   });
 
-  // Sync refs with state
   useEffect(() => {
     stateRef.current = {
-      callState,
-      isListening,
-      isSpeaking,
-      isMuted,
-      isOpen,
-      convoPhase,
-      userName,
-      userEmail,
-      selectedLanguage,
-      messages,
-      isProcessing
+      callState, isListening, isSpeaking, isMuted, isOpen,
+      convoPhase, userName, userEmail, selectedLanguage, messages
     };
-  }, [callState, isListening, isSpeaking, isMuted, isOpen, convoPhase, userName, userEmail, selectedLanguage, messages, isProcessing]);
+    isProcessingRef.current = isProcessing;
+    isSpeakingRef.current = isSpeaking;
+  }, [callState, isListening, isSpeaking, isMuted, isOpen, convoPhase,
+    userName, userEmail, selectedLanguage, messages, isProcessing]);
 
-  // Auto-scroll chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, transcript]);
 
-  // Determine agent gender and avatar - LOCKED TO FEMALE
-  const agentGender = 'female';
   const agentAvatar = '/Female.png';
-
-  // Pre-load voices for browser TTS Fallback
   const [availableVoices, setAvailableVoices] = useState([]);
-
   useEffect(() => {
-    const loadVoices = () => {
-      setAvailableVoices(window.speechSynthesis.getVoices());
-    };
-    loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
+    const load = () => setAvailableVoices(window.speechSynthesis.getVoices());
+    load();
+    window.speechSynthesis.onvoiceschanged = load;
     return () => { window.speechSynthesis.onvoiceschanged = null; };
   }, []);
 
-  // Sync with user prop if logged in
   useEffect(() => {
     if (user) {
-      const derivedName = getNameFromUser(user);
-      setUserName(derivedName);
-      setUserEmail(user.email || '');
-      if (derivedName) setConvoPhase('chatting');
+      const name = getNameFromUser(user);
+      setUserName(name);
+      if (name) setConvoPhase('chatting');
     }
   }, [user]);
 
-  const resumeListening = () => {
-    const { callState, isMuted, isOpen, isSpeaking } = stateRef.current;
-    if (callState === 'connected' && !isMuted && isOpen && !isSpeaking) {
-      if (mediaRecorderRef.current?.state === 'inactive') {
-        console.log("🎤 Resuming recorder...");
-        mediaRecorderRef.current.start();
-        if (restartFlushRef.current) restartFlushRef.current();
-        setIsListening(true);
-      }
+  // ─── VAD helpers ──────────────────────────────────────────────────────────
+
+  const clearSilenceTimer = () => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
     }
   };
 
-  // Pro STT Logic (MediaRecorder + Azure AI Speech) - STOP-WAIT-RESTART PATTERN
+  const pauseVAD = useCallback(() => {
+    vadActiveRef.current = false;
+    clearSilenceTimer();
+    speechDetectedRef.current = false;
+    if (mediaRecorderRef.current?.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+    setIsListening(false);
+  }, []);
+
+  const resumeVAD = useCallback(() => {
+    // FIX: never resume if call is terminating
+    if (isTerminatingRef.current) return;
+    const { callState, isMuted, isOpen } = stateRef.current;
+    if (callState !== 'connected' || isMuted || !isOpen) return;
+    if (isSpeakingRef.current || isProcessingRef.current) return;
+
+    const mr = mediaRecorderRef.current;
+    if (!mr) return;
+    const streamActive = mr.stream?.getTracks().some(t => t.readyState === 'live');
+    if (mr.state === 'inactive' && streamActive) {
+      try {
+        vadActiveRef.current = true;
+        speechDetectedRef.current = false;
+        mr.start();
+        setIsListening(true);
+        console.log('🎤 VAD resumed.');
+      } catch (e) {
+        console.warn('VAD resume failed:', e);
+      }
+    }
+  }, []);
+
+  // ─── Pro STT ──────────────────────────────────────────────────────────────
+
   const startProSTT = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true // Enabled for better sensitivity on mobile/remote
-        }
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
       });
 
       const mimeType = MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')
         ? 'audio/ogg;codecs=opus'
         : MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
           ? 'audio/webm;codecs=opus'
-          : 'audio';
+          : 'audio/webm';
 
-      console.log(`🎙️ Using Audio Format: ${mimeType}`);
-
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType,
-        audioBitsPerSecond: 128000
-      });
+      console.log(`🎙️ Audio format: ${mimeType}`);
+      const mediaRecorder = new MediaRecorder(stream, { mimeType, audioBitsPerSecond: 128000 });
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        const chunks = [...audioChunksRef.current];
+        audioChunksRef.current = [];
         const hadSpeech = speechDetectedRef.current;
+        speechDetectedRef.current = false;
 
-        audioChunksRef.current = []; // Clear immediately
-        speechDetectedRef.current = false; // Reset for next session
+        const { selectedLanguage: curLang, isMuted, callState, isOpen } = stateRef.current;
 
-        const { selectedLanguage: curLang, isSpeaking, isMuted, callState, isOpen, isProcessing } = stateRef.current;
-
-        // Skip if no speech detected, too small, call ended, or ALREADY PROCESSING
-        if (!hadSpeech || audioBlob.size < 4000 || isMuted || callState !== 'connected' || !isOpen || isProcessing) {
-          if (isProcessing) console.log("⏳ Still processing previous message, skipping this chunk.");
-          else if (hadSpeech && audioBlob.size < 4000) console.log("🤏 Audio too short, skipping.");
+        if (!hadSpeech || chunks.length === 0) {
+          resumeVAD();
+          return;
+        }
+        const audioBlob = new Blob(chunks, { type: mimeType });
+        if (audioBlob.size < 4000) {
+          console.log('🤏 Chunk too small, skipping.');
+          resumeVAD();
+          return;
+        }
+        if (isMuted || callState !== 'connected' || !isOpen) return;
+        if (isTerminatingRef.current) return; // FIX: drop chunks after hang up
+        if (isSpeakingRef.current) {
+          console.log('🔇 TTS active, discarding.');
+          // Do NOT resume here, speak/finishSpeech will handle it
+          return;
+        }
+        if (isProcessingRef.current) {
+          console.log('⏳ Still processing, skipping.');
           return;
         }
 
-        console.log(`🎙️ Sending Speech Chunk (${audioBlob.size} bytes) to Cloud STT...`);
-        // Note: isProcessing is managed by handleUserMessage to avoid double-locking
+        console.log(`🎙️ Sending chunk (${audioBlob.size} bytes) to STT...`);
         try {
           setIsTranscribing(true);
-          // Try to transcribe with current language
-          let text = await sttService.transcribe(audioBlob, curLang.code);
-          console.log(`🎤 STT Result: "${text}"`);
-
+          const text = await sttService.transcribe(audioBlob, curLang.code);
           setIsTranscribing(false);
-
-          // Only process if it's more than a single short word or noise
-          const cleanText = (text || "").trim().toLowerCase();
-          if (cleanText.length > 2 && !['hi', 'hello', 'hey', 'yes', 'no'].includes(cleanText)) {
-            await handleUserMessage(text, true);
-          } else if (cleanText.length > 0) {
-            // Short greeting/affirmation - process normally
+          if ((text || '').trim().length > 0) {
             await handleUserMessage(text, true);
           } else {
-            resumeListening(); // Restart if chunk was empty/junk
+            resumeVAD();
           }
         } catch (e) {
-          console.error('❌ STT Pipeline failed:', e);
-          resumeListening(); // Restart on error
-        } finally {
+          if (e.name !== 'AbortError') console.error('❌ STT failed:', e);
           setIsTranscribing(false);
+          resumeVAD();
         }
       };
 
-      // Setup Web Audio API for volume detection
-      if (!audioContextRef.current) {
+      // Web Audio VAD
+      if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
         audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
       }
-
-      const audioContext = audioContextRef.current;
-      const source = audioContext.createMediaStreamSource(stream);
-      const analyser = audioContext.createAnalyser();
+      const source = audioContextRef.current.createMediaStreamSource(stream);
+      const analyser = audioContextRef.current.createAnalyser();
       analyser.fftSize = 256;
       source.connect(analyser);
       analyserRef.current = analyser;
+      dataArrayRef.current = new Uint8Array(analyser.frequencyBinCount);
 
-      const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-      dataArrayRef.current = dataArray;
+      if (flushIntervalRef.current) clearInterval(flushIntervalRef.current);
+      flushIntervalRef.current = setInterval(() => {
+        const { isMuted, callState, isOpen } = stateRef.current;
+        if (isTerminatingRef.current) { clearInterval(flushIntervalRef.current); return; }
+        if (mediaRecorderRef.current?.state === 'recording'
+          && !isSpeakingRef.current && !isMuted
+          && callState === 'connected' && isOpen
+          && speechDetectedRef.current) {
+          console.log('⏹️ Hard-limit rotation (20s)...');
+          mediaRecorderRef.current.stop();
+        }
+      }, 20000);
 
-      // SAFETY ROTATION: Only used as a hard limit for very long monologues
-      restartFlushRef.current = () => {
-        if (flushIntervalRef.current) clearInterval(flushIntervalRef.current);
-        flushIntervalRef.current = setInterval(() => {
-          const { isSpeaking, isMuted, callState, isOpen } = stateRef.current;
-          if (mediaRecorderRef.current?.state === 'recording' && !isSpeaking && !isMuted && callState === 'connected' && isOpen) {
-            // Only rotate if we've actually been talking for a long time
-            if (speechDetectedRef.current) {
-              console.log("⏹️ Hard-limit rotation (20s monologue)...");
-              mediaRecorderRef.current.stop();
-            }
-          }
-        }, 20000);
-      };
-
+      vadActiveRef.current = true;
       mediaRecorder.start();
-      restartFlushRef.current();
       setIsListening(true);
-      console.log("⏺️ STT Listener Active");
+      console.log('⏺️ STT Listener Active');
 
       const checkVolume = () => {
-        const { isOpen: curIsOpen, callState: curCallState, isSpeaking: curIsSpeaking } = stateRef.current;
-        if (!curIsOpen || curCallState !== 'connected' || !analyserRef.current) return;
-
-        if (mediaRecorder.state === 'recording' && !curIsSpeaking) {
-          const currentAnalyser = analyserRef.current;
-          const currentDataArray = dataArrayRef.current;
-          if (currentAnalyser && currentDataArray) {
-            currentAnalyser.getByteFrequencyData(currentDataArray);
-            const volume = currentDataArray.reduce((num, i) => num + i) / currentDataArray.length;
-            setPulseScale(1 + (volume / 255) * 0.4);
-
-            const isTalking = volume > 20; // Increased to 20 to ignore background noise
-            setIsUserTalking(isTalking);
-
-            if (isTalking) {
-              speechDetectedRef.current = true;
-              // Clear silence timer if user starts talking again
-              if (silenceTimerRef.current) {
-                clearTimeout(silenceTimerRef.current);
-                silenceTimerRef.current = null;
+        const { isOpen: curIsOpen, callState: curCallState } = stateRef.current;
+        if (!curIsOpen || curCallState !== 'connected' || isTerminatingRef.current) return;
+        if (isSpeakingRef.current || !vadActiveRef.current) {
+          requestAnimationFrame(checkVolume);
+          return;
+        }
+        if (mediaRecorder.state === 'recording' && analyserRef.current && dataArrayRef.current) {
+          analyserRef.current.getByteFrequencyData(dataArrayRef.current);
+          const volume = dataArrayRef.current.reduce((s, v) => s + v, 0) / dataArrayRef.current.length;
+          setPulseScale(1 + (volume / 255) * 0.4);
+          const isTalking = volume > 20;
+          if (isTalking) {
+            speechDetectedRef.current = true;
+            clearSilenceTimer();
+          } else if (speechDetectedRef.current && !silenceTimerRef.current) {
+            silenceTimerRef.current = setTimeout(() => {
+              silenceTimerRef.current = null;
+              if (mediaRecorderRef.current?.state === 'recording' && !isSpeakingRef.current) {
+                console.log('🤫 Silence detected. Processing chunk...');
+                mediaRecorderRef.current.stop();
               }
-            } else if (speechDetectedRef.current) {
-              // User was talking but stopped. Start 1.5s silence timer to cut the chunk.
-              if (!silenceTimerRef.current) {
-                silenceTimerRef.current = setTimeout(() => {
-                  console.log("🤫 Silence detected. Processing...");
-                  if (mediaRecorderRef.current?.state === 'recording') {
-                    mediaRecorderRef.current.stop();
-                  }
-                  silenceTimerRef.current = null;
-                }, 1200); // Reverted to 1200ms
-              }
-            }
+            }, 1200);
           }
         }
         requestAnimationFrame(checkVolume);
@@ -333,681 +286,475 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
 
       sttCleanupRef.current = () => {
         try {
-          if (flushIntervalRef.current) clearInterval(flushIntervalRef.current);
-          if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-          if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+          vadActiveRef.current = false;
+          clearSilenceTimer();
+          if (flushIntervalRef.current) { clearInterval(flushIntervalRef.current); flushIntervalRef.current = null; }
+          if (audioContextRef.current?.state !== 'closed') {
             audioContextRef.current.close();
             audioContextRef.current = null;
           }
           analyserRef.current = null;
-          stream.getTracks().forEach(track => track.stop());
-        } catch (e) { }
+          sttService.cancelPending();
+          stream.getTracks().forEach(t => t.stop());
+        } catch { }
       };
 
     } catch (e) {
       console.error('Failed to start Pro STT:', e);
-      setUseProSTT(false);
     }
   };
 
   useEffect(() => {
-    // Cleanup old STT before starting new one
-    if (sttCleanupRef.current) {
-      sttCleanupRef.current();
-      sttCleanupRef.current = null;
-    }
-
+    if (sttCleanupRef.current) { sttCleanupRef.current(); sttCleanupRef.current = null; }
     if (callState === 'connected' && isOpen) {
-      console.log(`🚀 [STT] Activating Azure AI Speech for ${selectedLanguage.name}...`);
+      console.log(`🚀 Activating STT for ${selectedLanguage.name}...`);
       startProSTT();
     }
-
     return () => {
       if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
-      if (sttCleanupRef.current) {
-        sttCleanupRef.current();
-        sttCleanupRef.current = null;
-      }
+      if (sttCleanupRef.current) { sttCleanupRef.current(); sttCleanupRef.current = null; }
     };
   }, [selectedLanguage.code, callState, isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
-
-    // Prime the voices list (some browsers load them async)
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.getVoices();
-    }
-
-    // Play ringing sound
+    if ('speechSynthesis' in window) window.speechSynthesis.getVoices();
     setCallState('ringing');
+    isTerminatingRef.current = false; // reset on each open
 
-    // AUTO-SELECT Telugu for Indian companies to prevent transliteration issues
     const compName = selectedCompany?.name?.toLowerCase() || '';
     if (compName.includes('aarogya') || compName.includes('spice')) {
-      setSelectedLanguage({ code: 'te-IN', name: 'Telugu' });
-      stateRef.current.selectedLanguage = { code: 'te-IN', name: 'Telugu' };
-      console.log("🇮🇳 Indian Company detected: Defaulting to Telugu (Native Script).");
+      const lang = { code: 'te-IN', name: 'Telugu' };
+      setSelectedLanguage(lang);
+      stateRef.current.selectedLanguage = lang;
     }
 
     ringingAudioRef.current = new Audio('/ringtone-027-376908.mp3');
     ringingAudioRef.current.loop = true;
-    ringingAudioRef.current.play().catch(e => console.log('Audio play failed:', e));
-
-    // Don't auto-connect - wait for user to select language and click continue
+    ringingAudioRef.current.play().catch(() => { });
 
     return () => {
-      if (ringingAudioRef.current) {
-        ringingAudioRef.current.pause();
-      }
+      if (ringingAudioRef.current) ringingAudioRef.current.pause();
       window.speechSynthesis.cancel();
     };
   }, [isOpen]);
 
-  // Fetch Live Knowledge (Catalogue) for the selected company
   useEffect(() => {
-    const fetchLiveContext = async () => {
-      if (selectedCompany?.id && selectedCompany?.industry) {
-        console.log(`🧠 Fetching live catalogue for ${selectedCompany.name}...`);
-        const catalogue = await database.getLiveCatalogue(selectedCompany.id, selectedCompany.name);
-        setLiveCatalogue(catalogue);
-      }
-    };
-    if (isOpen && selectedCompany) fetchLiveContext();
+    if (isOpen && selectedCompany?.id) {
+      database.getLiveCatalogue(selectedCompany.id, selectedCompany.name).then(setLiveCatalogue);
+    }
   }, [isOpen, selectedCompany]);
 
-
-  const getServiceInfo = (langCode = 'en-IN') => {
-    const name = selectedCompany?.name?.toLowerCase() || '';
-    const sMap = {
-      'en-IN': {
-        hospital: "I am specialized in managing clinical appointments, scheduling consultations with our expert doctors, and providing information about our medical departments.",
-        restaurant: "I can assist you with our gourmet menu, chef's specials, and securing your table reservations for a premium dining experience.",
-        ecommerce: "I am here to help you explore our product catalog, provide detailed pricing, and assist with tracking your specialized orders.",
-        tech_mahindra: "I can guide you through our professional career opportunities, global job openings, and schedule your technical interview sessions.",
-        voxsphere: "I can provide comprehensive details about our AI-driven software solutions and facilitate a direct demo booking with our specialists.",
-        agile_it: "I am prepared to assist with your technical career inquiries, project details, and the scheduling of your recruitment interviews.",
-        default: "I am here to assist you with all your professional inquiries and service requirements today."
-      },
-      'te-IN': {
-        hospital: "నేను డాక్టర్ అపాయింట్‌మెంట్‌లను నిర్వహించడంలో, మా నిపుణులైన వైద్యులతో సంప్రదింపులను షెడ్యూల్ చేయడంలో మరియు మా ఇతర వైద్య విభాగాల గురించి సమాచారాన్ని అందించడంలో ప్రత్యేకత కలిగి ఉన్నాను.",
-        restaurant: "నేను మా రుచికరమైన మెనూ, ఈరోజు ప్రత్యేక వంటకాలు మరియు మీ కోసం ప్రీమియం టేబుల్ రిజర్వేషన్‌లను బుక్ చేయడంలో సహాయపడతాను.",
-        ecommerce: "నేను మా ఉత్పత్తుల వివరాలను చూడటంలో, ఇతర ధరల సమాచారాన్ని అందించడంలో మరియు మీ ఆర్డర్‌లను ట్రాక్ చేయడంలో మీకు సహాయం చేయడానికి ఇక్కడ ఉన్నాను.",
-        tech_mahindra: "నేను మా వృత్తిపరమైన కెరీర్ అవకాశాలు, గ్లోబల్ ఉద్యోగ ఖాళీలు మరియు మీ టెక్నికల్ ఇంటర్వ్యూలను షెడ్యూల్ చేయడం ద్వారా మీకు మార్గనిర్దేశం చేయగలను.",
-        voxsphere: "నేను మా AI సాఫ్ట్‌వేర్ పరిష్కారాల గురించి సమగ్ర వివరాలను అందించగలను మరియు మా నిపుణులతో నేరుగా డెమో బుకింగ్‌ను ఏర్పాటు చేయగలను.",
-        agile_it: "నేను మీ టెక్నికల్ కెరీర్ విచారణలు, ప్రాజెక్ట్ వివరాలు మరియు రిక్రూట్‌మెంట్ ఇంటర్వ్యూలను షెడ్యూల్ చేయడంలో సహాయం చేయడానికి సిద్ధంగా ఉన్నాను.",
-        default: "నేను ఈరోజు మీ విచారణలు మరియు సేవా అవసరాలలో మీకు సహాయం చేయడానికి ఇక్కడ ఉన్నాను."
-      },
-      'hi-IN': {
-        hospital: "मैं क्लिनिकल अपॉइंटमेंट प्रबंधित करने, हमारे विशेषज्ञ डॉक्टरों के साथ परामर्श निर्धारित करने और हमारे चिकित्सा विभागों के बारे में जानकारी प्रदान करने में विशेषज्ञ हूँ।",
-        restaurant: "मैं हमारे स्वादिष्ट मेनू, शेफ की विशेषताओं और आपके लिए प्रीमियम टेबल रिजर्वेशन बुक करने में आपकी सहायता कर सकता हूँ।",
-        ecommerce: "मैं हमारे उत्पाद कैटलॉग को एक्सप्लोर करने, विस्तृत मूल्य निर्धारण प्रदान करने और आपके ऑर्डर को ट्रैक करने में आपकी मदद करने के लिए यहाँ हूँ।",
-        tech_mahindra: "मैं आपको हमारे पेशेवर करियर के अवसरों, वैश्विक नौकरी रिक्तियों के माध्यम से मार्गदर्शन कर सकता हूँ और आपके तकनीकी इंटरव्यू सत्र निर्धारित कर सकता हूँ।",
-        voxsphere: "मैं हमारे एआई-संचालित सॉफ़्टवेअर समाधानों के बारे में व्यापक विवरण प्रदान कर सकता हूँ और हमारे विशेषज्ञों के साथ सीधे डेमो बुकिंग की सुविधा प्रदान कर सकता हूँ।",
-        agile_it: "मैं आपके तकनीकी करियर पूछताछ, प्रोजेक्ट विवरण और भर्ती इंटरव्यू को निर्धारित करने में सहायता के लिए तैयार हूँ।",
-        default: "मैं आज आपकी सभी पेशेवर पूछताछ और सेवा आवश्यकताओं में आपकी सहायता करने के लिए यहाँ हूँ।"
-      }
-    };
-
-    const strings = sMap[langCode] || sMap['en-IN'];
-    let compKey = 'default';
-
-    if (name.includes('hospital') || name.includes('aarogya')) compKey = 'hospital';
-    else if (name.includes('restaurant') || name.includes('garden') || name.includes('aroma')) compKey = 'restaurant';
-    else if (name.includes('kart') || name.includes('commerce')) compKey = 'ecommerce';
-    else if (name.includes('mahindra')) compKey = 'tech_mahindra';
-    else if (name.includes('voxsphere')) compKey = 'voxsphere';
-    else if (name.includes('agile')) compKey = 'agile_it';
-
-    return strings[compKey];
-  };
-
-  const handleUserMessage = async (message, fromSTT = false) => {
-    const {
-      convoPhase: curPhase,
-      userName: curName,
-      selectedLanguage: curLang,
-      isSpeaking: curIsSpeaking
-    } = stateRef.current;
-
-    if (!message.trim() || isProcessing) return;
-    if (!fromSTT && curIsSpeaking) return;
-
-    setIsProcessing(true);
-    setIsThinking(true);
-
-    try {
-      console.log(`🤖 Processing message: "${message}" (Phase: ${curPhase})`);
-      const isInternal = message.startsWith('[') && message.endsWith(']');
-      if (!isInternal) {
-        addMessage('user', message);
-      }
-      setIsListening(false);
-      setTranscript('');
-
-      const currentMsgs = stateRef.current.messages;
-      if (currentMsgs.length > 0) {
-        const lastAgentMsg = currentMsgs.filter(m => m.sender === 'agent').pop();
-        if (lastAgentMsg && lastAgentMsg.text && calculateSimilarity(message, lastAgentMsg.text) > 0.95) {
-          console.log(`🚫 Echo detected, ignoring.`);
-          setIsProcessing(false);
-          setIsThinking(false);
-          return;
-        }
-      }
-
-      if (curPhase === 'onboarding') {
-        const extractedName = extractNameFromMessage(message);
-        const nextName = extractedName || curName || 'Guest';
-        setUserName(nextName);
-        setConvoPhase('chatting');
-        stateRef.current.userName = nextName;
-        stateRef.current.convoPhase = 'chatting';
-        message = `${message} [SYSTEM: User name discovered as ${nextName}]`;
-      }
-
-      // Main AI Flow starts here
-      const lowerMsg = message.toLowerCase();
-      let languageChangeDetected = false;
-      let newLang = null;
-
-      if (lowerMsg.includes('switch to') || lowerMsg.includes('change to') || lowerMsg.includes('change language')) {
-        if (lowerMsg.includes('hindi')) newLang = { code: 'hi-IN', name: 'Hindi' };
-        else if (lowerMsg.includes('telugu')) newLang = { code: 'te-IN', name: 'Telugu' };
-        else if (lowerMsg.includes('english')) newLang = { code: 'en-IN', name: 'English' };
-
-        if (newLang) languageChangeDetected = true;
-      }
-
-      if (languageChangeDetected && newLang) {
-        setSelectedLanguage(newLang);
-        stateRef.current.selectedLanguage = newLang;
-        const response = newLang.code === 'en-IN' ? `Sure! I'll continue in English.` : newLang.code === 'te-IN' ? `సరే! నేను తెలుగులో కొనసాగిస్తాను.` : `ठीक है! मैं हिंदी में जारी रखूंगा।`;
-        addMessage('agent', response);
-        await speak(response, newLang.code);
-        setIsProcessing(false);
-        setIsThinking(false);
-        return;
-      }
-
-      const currentMessages = stateRef.current.messages;
-      let specializedPrompt = DefaultPrompt;
-      const industry = selectedCompany?.industry?.toLowerCase() || '';
-      const compName = selectedCompany?.name?.toLowerCase() || '';
-
-      const isTelugu = curLang.code === 'te-IN';
-      const isHindi = curLang.code === 'hi-IN';
-
-      if (industry.includes('health') || compName.includes('hospital') || compName.includes('aarogya')) {
-        specializedPrompt = isTelugu ? HospitalPromptTe : isHindi ? HospitalPromptHi : HospitalPrompt;
-      } else if (industry.includes('restaur') || compName.includes('garden') || compName.includes('aroma')) {
-        specializedPrompt = isTelugu ? RestaurantPromptTe : isHindi ? RestaurantPromptHi : RestaurantPrompt;
-      } else if (industry.includes('commerce') || compName.includes('kart')) {
-        specializedPrompt = isTelugu ? ECommercePromptTe : isHindi ? ECommercePromptHi : ECommercePrompt;
-      } else if (industry.includes('business') || industry.includes('tech')) {
-        specializedPrompt = isTelugu ? BusinessPromptTe : isHindi ? BusinessPromptHi : BusinessPrompt;
-      } else {
-        specializedPrompt = isTelugu ? DefaultPromptTe : isHindi ? DefaultPromptHi : DefaultPrompt;
-      }
-
-      let languageInstruction = `\n\nCRITICAL: Respond in ${curLang.name} script.`;
-      const latestName = stateRef.current.userName || 'Guest';
-
-      const isFirstTurn = currentMessages.length === 0;
-
-      const finalSpecializedPrompt = specializedPrompt.replace(/\[COMPANY_NAME\]/g, selectedCompany?.name || 'our business');
-
-      const systemPrompt = `
-IDENTITY: You are Callix, the warm and professional Virtual Receptionist for ${selectedCompany?.name}.
-CURRENT DATE: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} | CURRENT TIME: ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-
-PERSONALITY & STYLE:
-- Polite, VIP Receptionist tone. Warm and helpful.
-- Respond in ${curLang.name} script only. Speak as a native ${curLang.name} speaker would.
-- ALWAYS address the user by their exact Customer Name: ${latestName}.
-- NO MARKDOWN: Never use asterisks (*) for bolding. Use plain text only.
-
-GREETING PROTOCOL:
-${isFirstTurn
-          ? (isTelugu
-            ? `- This is the FIRST TURN. Start your response with: "నమస్కారం ${latestName}, నేను కాల్లిక్స్. నేను మీకు మా సేవలు మరియు బుకింగ్‌లలో సహాయం చేయడానికి ఇక్కడ ఉన్నాను. ఈరోజు నేను మీకు ఏ విధంగా సహాయపడగలను?"`
-            : isHindi
-              ? `- This is the FIRST TURN. Start your response with: "नमस्ते ${latestName}, मैं कॉलिक्स हूँ। मैं आपकी सेवाओं और बुकिंग में सहायता के लिए यहाँ हूँ। आज मैं आपकी कैसे मदद कर सकता हूँ?"`
-              : `- This is the FIRST TURN. Start your response with: "Hello ${latestName}, I'm Callix. I'm here to assist you with our services and bookings. How can I help you today?"`)
-          : `- This is an ONGOING conversation. DO NOT introduce yourself again. DO NOT say "Hello, I'm Callix". Jump directly into the assistance.`}
-
-CORE PROTOCOLS:
-1. **Conciseness**: NEVER repeat the same fact or question twice in one turn. Example: Do not say "Do you want to meet? Shall I book it?" in the same turn. 
-2. **Smart Detail Gathering**: Check if you have BOTH the DATE and TIME. If the user provided both, move immediately to confirmation.
-3. **Natural & Professional Phrasing (Telugu & Hindi)**: 
-    - NEVER use "ఉండాలనుకుంటున్నారా" (Telugu) or "रहना चाहते हैं" (Hindi) for appointments.
-    - Use "సంప్రదించడం" (Consulting) or "కలవడం" (Meeting).
-4. **Action Execution**: Output the [BOOK_...] bracket ONLY after the user says 'Yes' or confirms.
-5. **Mandatory Feedback Protocol**:
-    - PHASE 1 (User is done): If the user says "No", "Nothing", "వద్దు", or "లేదు", you MUST ask: "Please rate my assistance today from 1 to 5 stars." DO NOT use [HANG_UP] or [COLLECT_FEEDBACK] here.
-    - PHASE 2 (User gives rating): Once they provide a number (1-5), use [COLLECT_FEEDBACK X/5] and say "Thank you for your feedback! Goodbye." along with [HANG_UP].
-    - CRITICAL: Never end the call with [HANG_UP] until a rating has been requested and received.
-6. **No Repetition**: NEVER start a sentence with the same words you used in the previous sentence.
-7. **Anti-Hallucination**: If the database is empty, admit it. Never invent data.
-8. **Closing**: Only use [HANG_UP] in the final turn after feedback is recorded.
-
-LIVE KNOWLEDGE:
-${liveCatalogue || 'DATA_NOT_FOUND'}
-
-BUSINESS CONTEXT:
-${selectedCompany?.nlp_context || 'A premium provider.'}
-${finalSpecializedPrompt}
-
-USER CONTEXT:
-Customer Name: ${latestName}`;
-
-      const rawResponse = await chatWithGroq(
-        `User Message: ${message}`,
-        currentMessages.slice(-6).map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', text: m.rawText || m.text })),
-        { ...selectedCompany, userName: latestName, userEmail, sessionId, currLangCode: curLang.code, currLangName: curLang.name, systemDate: new Date() },
-        systemPrompt
-      );
-
-      console.log(`🤖 LLM: "${rawResponse}"`);
-      setIsThinking(false);
-
-      const finalDisplay = cleanInternalCommands(rawResponse) || "Processing your request...";
-      addMessage('agent', finalDisplay, rawResponse);
-
-      const shouldTerminate = rawResponse.toUpperCase().includes('HANG_UP');
-      await speak(finalDisplay, curLang.code, shouldTerminate);
-
-      if (shouldTerminate) endCall();
-
-    } catch (error) {
-      console.error('Message Handling Error:', error);
-      const isTe = curLang.code === 'te-IN';
-      let errorMsg = isTe
-        ? "క్షమించండి, చిన్న నెట్‌వర్క్ ఆలస్యం జరిగింది. దయచేసి ఇంకోసారి చెబుతారా?"
-        : "I'm experiencing a slight network delay. Could you please repeat that?";
-      addMessage('agent', errorMsg);
-      await speak(errorMsg, curLang.code);
-    } finally {
-      setIsThinking(false);
-      setIsProcessing(false);
-      setIsTranscribing(false);
-    }
-  };
+  // ─── Core helpers ─────────────────────────────────────────────────────────
 
   const addMessage = (sender, text, rawText = null) => {
     setMessages(prev => [...prev, { sender, text, rawText: rawText || text, timestamp: new Date() }]);
   };
 
-  const speak = (text, languageCode, shouldTerminate = false) => {
-    return new Promise((resolve) => {
-      // Determine language mapping for consistency
-      const targetLangCode = languageCode || selectedLanguage.code;
-      const ttsLang = languageLookup[targetLangCode] || 'en';
-      const languageFullName = languageNameMap[targetLangCode] || 'English';
+  // ─── endCall — tear down everything cleanly ───────────────────────────────
 
-      console.log(`🗣️ Speak: Code="${targetLangCode}" (mapped to ${ttsLang}), Language="${languageFullName}", Gender="${agentGender}"`);
+  const endCall = useCallback(() => {
+    // FIX: set terminating flag FIRST so VAD/onstop callbacks bail immediately
+    isTerminatingRef.current = true;
+    vadActiveRef.current = false;
+    clearSilenceTimer();
 
-      setIsSpeaking(true);
+    setCallState('ended');
+    setIsListening(false);
+    setIsSpeaking(false);
+    isSpeakingRef.current = false;
+    isProcessingRef.current = false;
+    setIsProcessing(false);
 
-      // Stop recording IMMEDIATELY to prevent echo or delay
-      if (mediaRecorderRef.current?.state === 'recording') {
-        mediaRecorderRef.current.stop();
-        setIsListening(false);
+    if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
+    if (sttCleanupRef.current) { sttCleanupRef.current(); sttCleanupRef.current = null; }
+    if (ringingAudioRef.current) ringingAudioRef.current.pause();
+    window.speechSynthesis.cancel();
+    ttsService.stop();
+    sttService.cancelPending();
+
+    setTimeout(() => {
+      setMessages([]);
+      setUserName(getNameFromUser(user));
+      setConvoPhase(getNameFromUser(user) ? 'chatting' : 'onboarding');
+      setTranscript('');
+      setSelectedLanguage({ code: 'en-IN', name: 'English' });
+      isTerminatingRef.current = false;
+      onClose();
+    }, 1500);
+  }, [onClose, user]);
+
+  // ─── handleUserMessage ────────────────────────────────────────────────────
+
+  const handleUserMessage = async (message, fromSTT = false) => {
+    const { convoPhase: curPhase, userName: curName, selectedLanguage: curLang, isSpeaking: curIsSpeaking } = stateRef.current;
+
+    if (!message?.trim()) return;
+    if (isProcessingRef.current) { console.log('⏳ Already processing, skipping.'); return; }
+    if (isTerminatingRef.current) return;
+    if (!fromSTT && curIsSpeaking) return;
+
+    isProcessingRef.current = true;
+    setIsProcessing(true);
+    setIsThinking(true);
+
+    // FIX: track whether this turn ends in hang up so finally knows not to resume VAD
+    let shouldTerminate = false;
+
+    try {
+      const isInternal = message.startsWith('[') && message.endsWith(']');
+      if (!isInternal) addMessage('user', message);
+      setIsListening(false);
+      setTranscript('');
+
+      // Echo guard
+      const currentMsgs = stateRef.current.messages;
+      const lastAgent = [...currentMsgs].reverse().find(m => m.sender === 'agent');
+      if (lastAgent?.text && calculateSimilarity(message, lastAgent.text) > 0.95) {
+        console.log('🚫 Echo, ignoring.');
+        return;
       }
 
-      const finishSpeech = () => {
-        setIsSpeaking(false);
-        resolve(); // Resolve promise when speech ends
+      let processedMessage = message;
+      if (curPhase === 'onboarding') {
+        const extracted = extractNameFromMessage(message);
+        const nextName = extracted || curName || 'Guest';
+        setUserName(nextName);
+        setConvoPhase('chatting');
+        stateRef.current.userName = nextName;
+        stateRef.current.convoPhase = 'chatting';
+        processedMessage = `${message} [SYSTEM: User name is ${nextName}]`;
+      }
 
-        // Restart recording ONLY if call is still active AND not terminating
-        if (!shouldTerminate) {
-          resumeListening();
-        }
+      // Language switch
+      const lowerMsg = message.toLowerCase();
+      let newLang = null;
+      if (lowerMsg.includes('switch to') || lowerMsg.includes('change to') || lowerMsg.includes('change language')) {
+        if (lowerMsg.includes('hindi')) newLang = { code: 'hi-IN', name: 'Hindi' };
+        else if (lowerMsg.includes('telugu')) newLang = { code: 'te-IN', name: 'Telugu' };
+        else if (lowerMsg.includes('english')) newLang = { code: 'en-IN', name: 'English' };
+      }
+      if (newLang) {
+        setSelectedLanguage(newLang);
+        stateRef.current.selectedLanguage = newLang;
+        const resp = newLang.code === 'en-IN' ? 'Continuing in English.'
+          : newLang.code === 'te-IN' ? 'తెలుగులో కొనసాగిస్తాను.'
+            : 'हिंदी में जारी रखूंगा।';
+        addMessage('agent', resp);
+        await speak(resp, newLang.code, false);
+        return;
+      }
+
+      // Build specialized prompt
+      const industry = selectedCompany?.industry?.toLowerCase() || '';
+      const compName = selectedCompany?.name?.toLowerCase() || '';
+      const isTe = curLang.code === 'te-IN';
+      const isHi = curLang.code === 'hi-IN';
+
+      let specializedPrompt = isTe ? DefaultPromptTe : isHi ? DefaultPromptHi : DefaultPrompt;
+      if (industry.includes('health') || compName.includes('hospital') || compName.includes('aarogya')) {
+        specializedPrompt = isTe ? HospitalPromptTe : isHi ? HospitalPromptHi : HospitalPrompt;
+      } else if (industry.includes('restaur') || compName.includes('garden') || compName.includes('aroma')) {
+        specializedPrompt = isTe ? RestaurantPromptTe : isHi ? RestaurantPromptHi : RestaurantPrompt;
+      } else if (industry.includes('commerce') || compName.includes('kart')) {
+        specializedPrompt = isTe ? ECommercePromptTe : isHi ? ECommercePromptHi : ECommercePrompt;
+      } else if (industry.includes('business') || industry.includes('tech')) {
+        specializedPrompt = isTe ? BusinessPromptTe : isHi ? BusinessPromptHi : BusinessPrompt;
+      }
+
+      const latestName = stateRef.current.userName || 'Guest';
+      const currentMessages = stateRef.current.messages;
+      const isFirstTurn = currentMessages.filter(m => m.sender === 'agent').length <= 1;
+      const finalSpecializedPrompt = specializedPrompt.replace(/\[COMPANY_NAME\]/g, selectedCompany?.name || 'our business');
+
+      const systemPrompt = buildSystemPrompt({
+        companyName: selectedCompany?.name,
+        nlpContext: selectedCompany?.nlp_context,
+        langName: curLang.name,
+        langCode: curLang.code,
+        isTe, isHi,
+        latestName,
+        isFirstTurn,
+        liveCatalogue,
+        specializedPrompt: finalSpecializedPrompt
+      });
+
+      const rawResponse = await chatWithGroq(
+        `User Message: ${processedMessage}`,
+        currentMessages.slice(-6).map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', text: m.rawText || m.text })),
+        { ...selectedCompany, userName: latestName, userEmail, sessionId, currLangCode: curLang.code, systemDate: new Date() },
+        systemPrompt
+      );
+
+      setIsThinking(false);
+      const finalDisplay = cleanInternalCommands(rawResponse) || '...';
+      addMessage('agent', finalDisplay, rawResponse);
+
+      // FIX: set flag BEFORE awaiting speak so finally block can read it
+      shouldTerminate = rawResponse.toUpperCase().includes('HANG_UP');
+      if (shouldTerminate) isTerminatingRef.current = true;
+
+      await speak(finalDisplay, curLang.code, shouldTerminate);
+
+    } catch (error) {
+      console.error('Message Error:', error);
+      const { selectedLanguage: curLang } = stateRef.current;
+      const isTe = curLang?.code === 'te-IN';
+      const isHi = curLang?.code === 'hi-IN';
+      const errorMsg = isTe ? 'క్షమించండి, మళ్ళీ చెప్పండి.'
+        : isHi ? 'क्षमा करें, दोबारा बोलें।'
+          : 'Sorry, could you repeat that?';
+      addMessage('agent', errorMsg);
+      await speak(errorMsg, stateRef.current.selectedLanguage?.code || 'en-IN', false);
+    } finally {
+      setIsThinking(false);
+      setIsProcessing(false);
+      isProcessingRef.current = false;
+      setIsTranscribing(false);
+
+      if (shouldTerminate) {
+        // FIX: call endCall from finally — never resume VAD after hang up
+        endCall();
+      } else {
+        resumeVAD();
+      }
+    }
+  };
+
+  // ─── System prompt builder ────────────────────────────────────────────────
+
+  const buildSystemPrompt = ({ companyName, nlpContext, langName, langCode, isTe, isHi, latestName, isFirstTurn, liveCatalogue, specializedPrompt }) => {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+    // Language-specific greeting and standard phrases
+    const greetingLine = isFirstTurn
+      ? (isTe
+        ? `మొదటి మాట: "నమస్కారం ${latestName}, నేను కాల్లిక్స్. మీకు ఎలా సహాయపడగలను?"`
+        : isHi
+          ? `पहला संदेश: "नमस्ते ${latestName}, मैं कॉलिक्स हूँ। आपकी कैसे सहायता करूं?"`
+          : `First message: "Hello ${latestName}, I'm Callix. How may I assist you?"`)
+      : (isTe ? `మీరు ఇప్పటికే పరిచయం చేసుకున్నారు. మళ్ళీ చేయకండి.`
+        : isHi ? `परिचय मत दोहराएं।`
+          : `Do NOT re-introduce yourself.`);
+
+    const standardPhrases = isTe ? `
+తెలుగు నిర్దిష్ట పదబంధాలు (ఇవే వాడండి, వేరే వాడకండి):
+- అపాయింట్‌మెంట్ నిర్ధారణ: "మీ అపాయింట్‌మెంట్ నిర్ధారించబడింది."
+- అదనపు సహాయం: "మరింకేమైనా కావాలా?"
+- రేటింగ్ అడగడం: "1 నుండి 5 లో రేటింగ్ ఇవ్వండి."
+- ముగింపు: "ధన్యవాదాలు. మళ్ళీ కలుద్దాం."
+
+నిషేధించిన పదబంధాలు (ఎప్పుడూ వాడకండి):
+- "సంప్రదించడం", "కలవడం" అని అపాయింట్‌మెంట్ కోసం వాడకండి
+- "ఉండాలనుకుంటున్నారా", "ఉండాలనుకుంటున్నావా"
+- అతిగా మొహమాటంగా వ్యాఖ్యలు
+- ఇంగ్లీష్ పదాలు తెలుగు వాక్యంలో కలపడం (doctor, appointment, booking తప్ప)`
+      : isHi ? `
+हिंदी वाक्यांश (इन्हीं का उपयोग करें):
+- बुकिंग पुष्टि: "आपकी अपॉइंटमेंट कन्फर्म हो गई।"
+- अतिरिक्त सहायता: "और कोई सहायता चाहिए?"
+- रेटिंग: "1 से 5 में रेटिंग दें।"
+- समाप्ति: "धन्यवाद। फिर मिलेंगे।"`
+        : `
+English phrases:
+- Booking confirmed: "Your appointment is confirmed."
+- Further help: "Is there anything else?"
+- Rating: "Please rate from 1 to 5."
+- Closing: "Thank you. Goodbye."`;
+
+    return `आप Callix हैं — ${companyName} के वर्चुअल रिसेप्शनिस्ट। / You are Callix — Virtual Receptionist for ${companyName}.
+DATE: ${dateStr} | TIME: ${timeStr}
+
+भाषा / LANGUAGE: ${langName} ONLY. ${isTe ? 'తెలుగులో మాత్రమే జవాబివ్వండి.' : isHi ? 'केवल हिंदी में उत्तर दें।' : 'Respond in English only.'}
+USER: ${latestName}
+
+${greetingLine}
+
+నడవడిక / BEHAVIOUR:
+- గరిష్టంగా 2 వాక్యాలు. / Max 2 sentences per reply.
+- ${isTe ? 'అనవసరమైన మొహమాటం వద్దు. నేరుగా చెప్పండి.' : isHi ? 'अनावश्यक विनम्रता नहीं। सीधे बोलें।' : 'No filler phrases. Be direct.'}
+- NO MARKDOWN. No asterisks (*).
+- బుకింగ్ చేయడానికి తేదీ మరియు సమయం రెండూ కావాలి. / Need date AND time to book.
+- [BOOK_...] వాడే ముందు వినియోగదారు నిర్ధారించాలి. / User must confirm before [BOOK_...].
+- వినియోగదారు పని అయిన తర్వాత రేటింగ్ అడగాలి. [HANG_UP] రేటింగ్ తర్వాతే. / Ask for rating when done. [HANG_UP] only after rating.
+- డేటాబేస్‌లో లేని సమాచారాన్ని కల్పించవద్దు. / Never invent data.
+
+${standardPhrases}
+
+LIVE KNOWLEDGE:
+${liveCatalogue || 'DATA_NOT_FOUND'}
+
+BUSINESS CONTEXT: ${nlpContext || 'Premium service provider.'}
+${specializedPrompt}`.trim();
+  };
+
+  // ─── TTS ─────────────────────────────────────────────────────────────────
+
+  const speak = (text, languageCode, shouldTerminate = false) => {
+    return new Promise((resolve) => {
+      if (isTerminatingRef.current && !shouldTerminate) { resolve(); return; }
+
+      const targetLangCode = languageCode || selectedLanguage.code;
+      const ttsLang = languageLookup[targetLangCode] || 'en-IN';
+      console.log(`🗣️ TTS: lang="${ttsLang}", terminate=${shouldTerminate}`);
+
+      pauseVAD();
+      isSpeakingRef.current = true;
+      setIsSpeaking(true);
+
+      const finishSpeech = () => {
+        isSpeakingRef.current = false;
+        setIsSpeaking(false);
+        resolve();
+        // resumeVAD is NOT called here — handled exclusively by handleUserMessage's finally
       };
 
-      const hasTelugu = /[\u0C00-\u0C7F]/.test(text);
-      console.log(`🗣️ Pro TTS Request: Lang="${ttsLang}", Native Script: ${hasTelugu}, Text: "${text.substring(0, 40)}..."`);
-
-      // Force Single Female Voice
-      const femaleSpeaker = 'female';
-
-      // Try Self-Hosted Pro TTS Server First
-      ttsService.speak(text, ttsLang, femaleSpeaker)
-        .then(() => {
-          finishSpeech();
-        })
+      ttsService.speak(text, ttsLang)
+        .then(finishSpeech)
         .catch(() => {
-          // Fallback: Web Speech API
           const voices = window.speechSynthesis.getVoices();
+          const isMale = (v) => /male|guy|man|boy|mohan|kannan|ravi|david|mark|deepak|stefan/i.test(v.name.toLowerCase());
+          const isFemale = (v) => !isMale(v);
           const getBestVoice = () => {
-            if (voices.length === 0) return null;
-
-            const target = targetLangCode.toLowerCase();
-            const isMale = (v) => /male|guy|man|boy|mohan|kannan|ravi|david|mark|deepak|stefan/i.test(v.name.toLowerCase());
-            const isFemale = (v) => !isMale(v);
-
-            let chosen = null;
-
-            // 1. HARD-LOCK FOR TELUGU
-            if (target.includes('te')) {
-              // Priority 1: Female Telugu
-              chosen = voices.find(v =>
-                (v.lang.toLowerCase().includes('te') || v.name.toLowerCase().includes('telugu')) && isFemale(v)
-              );
-
-              // Priority 2: Any Telugu (including Mohan if that's all there is)
-              if (!chosen) {
-                chosen = voices.find(v => v.lang.toLowerCase().includes('te') || v.name.toLowerCase().includes('telugu'));
-              }
-
-              // Priority 3: Female Hindi (Polyglot Fallback)
-              if (!chosen || (chosen && isMale(chosen))) {
-                const femaleHindi = voices.find(v => (v.lang.toLowerCase().includes('hi') || v.name.toLowerCase().includes('hindi')) && isFemale(v));
-                if (femaleHindi) {
-                  console.log("🇮🇳 [Gender-Fix] Preferring Female Hindi over Male Telugu for identity compatibility.");
-                  chosen = femaleHindi;
-                }
-              }
-            }
-            // 2. HARD-LOCK FOR HINDI
-            else if (target.includes('hi')) {
-              chosen = voices.find(v => (v.lang.toLowerCase().includes('hi') || v.name.toLowerCase().includes('hindi')) && isFemale(v)) ||
-                voices.find(v => v.lang.toLowerCase().includes('hi') || v.name.toLowerCase().includes('hindi'));
-            }
-            // 3. HARD-LOCK FOR ENGLISH (INDIA)
-            else {
-              chosen = voices.find(v => (v.lang.toLowerCase().includes('en-in') || v.name.toLowerCase().includes('india')) && isFemale(v)) ||
-                voices.find(v => v.lang.toLowerCase().includes('en-in') || v.name.toLowerCase().includes('india')) ||
-                voices.find(v => v.lang.toLowerCase().includes('en') && isFemale(v)) ||
-                voices[0];
-            }
-
-            return chosen || voices[0];
+            if (!voices.length) return null;
+            const t = targetLangCode.toLowerCase();
+            if (t.includes('te')) return voices.find(v => v.lang.toLowerCase().includes('te') && isFemale(v)) || voices.find(v => v.lang.toLowerCase().includes('hi') && isFemale(v)) || voices[0];
+            if (t.includes('hi')) return voices.find(v => v.lang.toLowerCase().includes('hi') && isFemale(v)) || voices[0];
+            return voices.find(v => v.lang.toLowerCase().includes('en-in') && isFemale(v)) || voices.find(v => v.lang.toLowerCase().includes('en') && isFemale(v)) || voices[0];
           };
-
           window.speechSynthesis.cancel();
           setTimeout(() => {
             const voice = getBestVoice();
-            if (voice || voices.length > 0) {
-              const selectedVoice = voice || voices[0];
-              console.log(`🔊 [Selection] Locked onto: ${selectedVoice.name} (${selectedVoice.lang}) for ${targetLangCode}`);
-              const utterance = new SpeechSynthesisUtterance(text);
-              utterance.voice = selectedVoice;
-              utterance.lang = selectedVoice.lang;
-              utterance.pitch = 1.1;
-              utterance.rate = 1.0;
-              utterance.onend = finishSpeech;
-              utterance.onerror = (e) => {
-                console.error("🔥 Browser TTS Error:", e);
-                finishSpeech();
-              };
-              window.speechSynthesis.speak(utterance);
-            } else {
-              console.warn("⚠️ No suitable voice found for", targetLangCode);
-              finishSpeech();
-            }
+            if (voice || voices.length) {
+              const utt = new SpeechSynthesisUtterance(text);
+              utt.voice = voice || voices[0]; utt.lang = utt.voice.lang;
+              utt.pitch = 1.1; utt.rate = 1.0;
+              utt.onend = finishSpeech;
+              utt.onerror = () => finishSpeech();
+              window.speechSynthesis.speak(utt);
+            } else { finishSpeech(); }
           }, 100);
         });
     });
   };
 
-  const onSpeechEnd = () => {
-    // This is now handled inside the speak promise finishSpeech
-  };
-
   const stopAudio = () => {
     ttsService.stop();
     window.speechSynthesis.cancel();
+    isSpeakingRef.current = false;
     setIsSpeaking(false);
-    // Restart listening if not muted
-    setTimeout(() => {
-      const { callState: curCallState, isMuted: curIsMuted, isOpen: curIsOpen } = stateRef.current;
-      if (curCallState === 'connected' && !curIsMuted && curIsOpen) {
-        if (mediaRecorderRef.current?.state === 'inactive') {
-          mediaRecorderRef.current.start();
-          setIsListening(true);
-        }
-      }
-    }, 400);
+    setTimeout(resumeVAD, 300);
   };
 
   const toggleMute = () => {
-    const nextMuted = !isMuted;
-    setIsMuted(nextMuted);
-
-    if (nextMuted) {
-      if (mediaRecorderRef.current?.state === 'recording') {
-        mediaRecorderRef.current.stop();
-      }
-      setIsListening(false);
-    } else {
-      if (callState === 'connected' && mediaRecorderRef.current?.state === 'inactive') {
-        mediaRecorderRef.current.start();
-        setIsListening(true);
-      }
-    }
+    const next = !isMuted;
+    setIsMuted(next);
+    if (next) { pauseVAD(); } else { resumeVAD(); }
   };
 
   const handleStartCall = () => {
-    // Stop ringing
-    if (ringingAudioRef.current) {
-      ringingAudioRef.current.pause();
-    }
-
-    setCallState('connected');
-    const existingName = getNameFromUser(user);
-    const nextPhase = existingName ? 'chatting' : 'onboarding';
-
-    setConvoPhase(nextPhase);
-    stateRef.current.convoPhase = nextPhase;
-
-    // We no longer trigger an automatic message. 
-    // The STT will start automatically due to the callState useEffect, 
-    // and the AI will wait for the user to speak first.
-    console.log("📞 Call Connected. Waiting for user input...");
-  };
-
-  const endCall = () => {
-    setCallState('ended');
-    setIsListening(false);
-    setIsSpeaking(false);
-    setMessages([]); // Clear history for next call
-    if (mediaRecorderRef.current?.state === 'recording') {
-      mediaRecorderRef.current.stop();
-    }
     if (ringingAudioRef.current) ringingAudioRef.current.pause();
-    window.speechSynthesis.cancel();
-    ttsService.stop();
-
-    // RESET ALL STATES FOR NEXT CALL
-    setTimeout(() => {
-      setMessages([]);
-      setUserName(getNameFromUser(user));
-      setConvoPhase('intro');
-      setTranscript('');
-      setSelectedLanguage({ code: 'en-IN', name: 'English' });
-      onClose();
-    }, 1500);
+    setCallState('connected');
+    const name = getNameFromUser(user);
+    const phase = name ? 'chatting' : 'onboarding';
+    setConvoPhase(phase);
+    stateRef.current.convoPhase = phase;
+    console.log('📞 Call Connected. Waiting for user...');
   };
 
   if (!isOpen) return null;
+
+  // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
     <AnimatePresence>
       <motion.div className="fixed inset-0 z-50 bg-white" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
 
-        {/* Language Selection Phase */}
         {callState === 'ringing' && (
           <div className="absolute inset-0 overflow-hidden">
-            {/* Video Background */}
-            <video
-              autoPlay
-              loop
-              muted
-              playsInline
-              className="absolute inset-0 w-full h-full object-cover"
-            >
+            <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
               <source src="/callbg.mp4" type="video/mp4" />
             </video>
-
-            {/* Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-br from-slate-900/60 to-blue-900/60"></div>
-
-            {/* Content */}
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-900/60 to-blue-900/60" />
             <div className="absolute inset-0 flex flex-col items-center justify-center overflow-y-auto py-4">
-              {/* Animated Agent Avatar */}
               <div className="relative mb-6 w-48 h-48 mx-auto">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-48 h-48 rounded-full bg-blue-200/30 animate-ping"></div>
-                </div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-40 h-40 rounded-full bg-blue-300/40 animate-pulse"></div>
-                </div>
+                <div className="absolute inset-0 flex items-center justify-center"><div className="w-48 h-48 rounded-full bg-blue-200/30 animate-ping" /></div>
+                <div className="absolute inset-0 flex items-center justify-center"><div className="w-40 h-40 rounded-full bg-blue-300/40 animate-pulse" /></div>
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-[#000080] shadow-2xl">
                     <img src={agentAvatar} className="w-full h-full object-cover" alt="Agent" />
                   </div>
                 </div>
               </div>
-
               <h2 className="text-3xl font-black text-white mb-1">Callix Connecting...</h2>
               <p className="text-blue-300 font-bold uppercase tracking-widest text-xs mb-6">{selectedCompany?.name}</p>
-
               <div className="bg-white/10 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-6 w-full max-w-4xl mx-4">
                 <h3 className="text-xl font-black text-white mb-2 text-center">Select Your Language</h3>
                 <p className="text-blue-200 text-sm text-center mb-5">Choose your preferred language</p>
-
-                <div className="flex justify-center flex-nowrap gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
-                  {[
-                    { code: 'en-IN', name: 'English', locked: false },
-                    { code: 'hi-IN', name: 'Hindi', locked: false },
-                    { code: 'te-IN', name: 'Telugu', locked: false },
-                  ].map((lang) => (
-                    <div key={lang.code} className="relative group">
-                      <button
-                        onClick={() => {
-                          if (!lang.locked) {
-                            setSelectedLanguage({ code: lang.code, name: lang.name });
-                            stateRef.current.selectedLanguage = { code: lang.code, name: lang.name };
-                            console.log(`🌐 Language selected: ${lang.name} (${lang.code})`);
-                          }
-                        }}
-                        disabled={lang.locked}
-                        className={`px-4 py-2 rounded-full border-2 transition-all duration-300 font-semibold text-sm flex items-center gap-2 ${lang.locked
-                          ? 'border-white/20 bg-white/5 text-white/40 cursor-not-allowed'
-                          : selectedLanguage.code === lang.code
-                            ? 'border-blue-400 bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/50 hover:scale-110'
-                            : 'border-white/30 bg-white/10 backdrop-blur-sm text-white hover:border-blue-300 hover:bg-white/20 hover:scale-110'
-                          }`}
-                      >
-                        {lang.name}
-                        {lang.locked && (
-                          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                      </button>
-
-                      {/* Tooltip */}
-                      {lang.locked && (
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-slate-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
-                          <div className="font-semibold mb-1">Coming Soon!</div>
-                          <div className="text-slate-300">We're working on {lang.name} support</div>
-                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
-                            <div className="border-4 border-transparent border-t-slate-900"></div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                <div className="flex justify-center gap-2 mb-6">
+                  {[{ code: 'en-IN', name: 'English' }, { code: 'hi-IN', name: 'Hindi' }, { code: 'te-IN', name: 'Telugu' }].map(lang => (
+                    <button key={lang.code}
+                      onClick={() => { setSelectedLanguage(lang); stateRef.current.selectedLanguage = lang; }}
+                      className={`px-4 py-2 rounded-full border-2 font-semibold text-sm transition-all duration-200 ${selectedLanguage.code === lang.code
+                        ? 'border-blue-400 bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg scale-105'
+                        : 'border-white/30 bg-white/10 text-white hover:border-blue-300 hover:scale-105'
+                        }`}>{lang.name}
+                    </button>
                   ))}
                 </div>
-
-                <div className="mt-4">
-                  <div className="flex items-center justify-center gap-4">
-
-                    {/* Continue Button */}
-                    <button
-                      onClick={handleStartCall}
-                      className="px-8 py-3 bg-[#000080] text-white rounded-full font-bold text-lg shadow-lg hover:bg-blue-700 transition-all transform hover:scale-105"
-                    >
-                      Continue Call
-                    </button>
-
-                    {/* Hangup Button */}
-                    <button
-                      onClick={endCall}
-                      className="p-3 bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 transition-all transform hover:scale-110"
-                    >
-                      <PhoneOff size={20} />
-                    </button>
-                  </div>
+                <div className="flex items-center justify-center gap-4">
+                  <button onClick={handleStartCall} className="px-8 py-3 bg-[#000080] text-white rounded-full font-bold text-lg shadow-lg hover:bg-blue-700 transition-all hover:scale-105">Continue Call</button>
+                  <button onClick={endCall} className="p-3 bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 hover:scale-110"><PhoneOff size={20} /></button>
                 </div>
-
-
-
               </div>
             </div>
           </div>
         )}
 
-        {/* Live Call Interface */}
         {callState === 'connected' && (
           <div className="h-full flex flex-col md:flex-row bg-white">
-            {/* Left: Visual Agent */}
-            <div className="md:w-1/2 flex flex-col items-center justify-center p-4 md:p-8 bg-slate-50 border-b md:border-b-0 md:border-r border-slate-200 relative shrink-0">
-              <div className="relative">
-                {/* Decorative Capsule Background */}
-                <div className="absolute inset-0 -m-4 bg-gradient-to-b from-slate-100/50 to-white/30 rounded-[80px] blur-xl -z-10 border border-slate-200/50"></div>
-
-                <motion.div
-                  animate={{
-                    scale: isSpeaking ? [1, 1.03, 1] : 1,
-                    boxShadow: isSpeaking
-                      ? ["0 15px 35px rgba(74, 222, 128, 0.2)", "0 25px 50px rgba(74, 222, 128, 0.4)", "0 15px 35px rgba(74, 222, 128, 0.2)"]
-                      : isListening
-                        ? "0 15px 35px rgba(59, 130, 246, 0.2)"
-                        : "0 15px 35px rgba(0, 0, 0, 0.1)"
-                  }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
-                  className={`w-32 h-32 md:w-56 md:h-56 aspect-square rounded-full overflow-hidden border-[4px] md:border-[6px] transition-all duration-500 flex items-center justify-center p-1.5 bg-white ${isSpeaking ? 'border-green-400' : isListening ? 'border-blue-600' : 'border-slate-100'
-                    }`}
-                >
-                  <img src={agentAvatar} className="w-full h-full object-cover rounded-full shadow-inner" alt="Callix Agent" />
-                </motion.div>
-              </div>
-
-              <div className="mt-4 md:mt-10 text-center flex flex-col items-center">
-                <h3 className="text-2xl md:text-4xl font-black text-slate-900 tracking-tight">Callix</h3>
-                <p className="text-blue-700 font-extrabold uppercase tracking-[0.2em] md:tracking-[0.4em] text-[8px] md:text-[10px] mt-2 bg-blue-50 px-4 py-1 rounded-full border border-blue-100">
+            <div className="md:w-1/2 flex flex-col items-center justify-center p-4 md:p-8 bg-slate-50 border-b md:border-b-0 md:border-r border-slate-200 shrink-0">
+              <motion.div
+                animate={{
+                  scale: isSpeaking ? [1, 1.03, 1] : 1,
+                  boxShadow: isSpeaking
+                    ? ['0 15px 35px rgba(74,222,128,0.2)', '0 25px 50px rgba(74,222,128,0.4)', '0 15px 35px rgba(74,222,128,0.2)']
+                    : isListening ? '0 15px 35px rgba(59,130,246,0.2)' : '0 15px 35px rgba(0,0,0,0.1)'
+                }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                className={`w-32 h-32 md:w-56 md:h-56 rounded-full overflow-hidden border-[4px] md:border-[6px] bg-white p-1.5 transition-all duration-500 ${isSpeaking ? 'border-green-400' : isListening ? 'border-blue-600' : 'border-slate-100'
+                  }`}
+              >
+                <img src={agentAvatar} className="w-full h-full object-cover rounded-full" alt="Callix" />
+              </motion.div>
+              <div className="mt-6 text-center flex flex-col items-center">
+                <h3 className="text-2xl md:text-4xl font-black text-slate-900">Callix</h3>
+                <p className="text-blue-700 font-extrabold uppercase tracking-widest text-[9px] mt-2 bg-blue-50 px-4 py-1 rounded-full border border-blue-100">
                   {selectedCompany?.name || 'VIRTUAL ASSISTANT'}
                 </p>
-
-                {/* Real-time Indicator & Waveform */}
-                <div className="flex flex-col items-center gap-2 md:gap-4 mt-4 md:mt-6">
-                  {isListening && !isSpeaking && (
-                    <div className="flex items-center gap-1 h-6 md:h-8">
-                      {[1, 2, 3, 4, 5].map(i => (
-                        <motion.div
-                          key={i}
-                          animate={{ height: [4, Math.random() * 16 + 4, 4] }}
-                          transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.1 }}
-                          className="w-1 bg-blue-500 rounded-full"
-                        />
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="flex flex-col items-center gap-1">
-                    <div className="flex flex-col items-center gap-2">
-                      <div className={`px-3 py-1 md:px-4 md:py-1.5 rounded-full text-[8px] md:text-[10px] font-black tracking-widest uppercase flex items-center space-x-2 border transition-all duration-300 ${isSpeaking ? 'bg-green-100 text-green-700 border-green-200' : isThinking ? 'bg-purple-100 text-purple-700 border-purple-200' : isTranscribing ? 'bg-orange-100 text-orange-700 border-orange-200' : isListening ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`} style={{ transform: `scale(${isListening && !isSpeaking ? pulseScale : 1})` }}>
-                        <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${isSpeaking ? 'bg-green-500' : isThinking ? 'bg-purple-500' : isTranscribing ? 'bg-orange-500' : isListening ? 'bg-blue-500' : 'bg-slate-400'}`}></div>
-                        <span>{isSpeaking ? 'Speaking' : isThinking ? 'Thinking' : isTranscribing ? 'Transcribing' : isListening ? 'Listening' : 'Ready'}</span>
-                      </div>
-                    </div>
+                {isListening && !isSpeaking && (
+                  <div className="flex items-center gap-1 h-8 mt-4">
+                    {[1, 2, 3, 4, 5].map(i => (
+                      <motion.div key={i} animate={{ height: [4, Math.random() * 16 + 4, 4] }}
+                        transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.1 }}
+                        className="w-1 bg-blue-500 rounded-full" />
+                    ))}
                   </div>
+                )}
+                <div className={`mt-3 px-4 py-1.5 rounded-full text-[9px] font-black tracking-widest uppercase flex items-center gap-2 border transition-all duration-300 ${isSpeaking ? 'bg-green-100 text-green-700 border-green-200'
+                  : isThinking ? 'bg-purple-100 text-purple-700 border-purple-200'
+                    : isTranscribing ? 'bg-orange-100 text-orange-700 border-orange-200'
+                      : isListening ? 'bg-blue-100 text-blue-700 border-blue-200'
+                        : 'bg-slate-100 text-slate-500 border-slate-200'
+                  }`} style={{ transform: `scale(${isListening && !isSpeaking ? pulseScale : 1})` }}>
+                  <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${isSpeaking ? 'bg-green-500' : isThinking ? 'bg-purple-500'
+                    : isTranscribing ? 'bg-orange-500' : isListening ? 'bg-blue-500' : 'bg-slate-400'
+                    }`} />
+                  {isSpeaking ? 'Speaking' : isThinking ? 'Thinking' : isTranscribing ? 'Transcribing' : isListening ? 'Listening' : 'Ready'}
                 </div>
-
-                <div className="mt-4 md:mt-8 flex items-center space-x-3 md:space-x-4">
+                <div className="mt-6 flex items-center gap-3">
                   <button onClick={toggleMute} className={`p-3 md:p-4 rounded-full shadow-lg transition-all ${isMuted ? 'bg-red-500 text-white' : 'bg-white text-slate-700 hover:bg-slate-100'}`}>
                     {isMuted ? <MicOff size={20} /> : <Mic size={20} />}
                   </button>
@@ -1016,12 +763,11 @@ Customer Name: ${latestName}`;
                       <VolumeX size={20} />
                     </button>
                   )}
-                  <button onClick={endCall} className="p-3 md:p-4 bg-red-600 text-white rounded-full shadow-lg hover:bg-red-700 transform hover:scale-110"><PhoneOff size={20} /></button>
+                  <button onClick={endCall} className="p-3 md:p-4 bg-red-600 text-white rounded-full shadow-lg hover:bg-red-700 hover:scale-110"><PhoneOff size={20} /></button>
                 </div>
               </div>
             </div>
 
-            {/* Right: Message Stream */}
             <div className="md:w-1/2 flex flex-col h-full bg-white">
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <div>
@@ -1030,30 +776,29 @@ Customer Name: ${latestName}`;
                 </div>
                 <MessageSquare className="text-slate-200" size={24} />
               </div>
-
               <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50/50">
                 {messages.map((m, i) => (
-                  <motion.div initial={{ opacity: 0, x: m.sender === 'user' ? 20 : -20 }} animate={{ opacity: 1, x: 0 }} key={i} className={`flex ${m.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] p-4 rounded-2xl shadow-sm border ${m.sender === 'user' ? 'bg-[#000080] text-white border-[#000080]' : 'bg-white text-slate-800 border-slate-200'}`}>
+                  <motion.div key={i} initial={{ opacity: 0, x: m.sender === 'user' ? 20 : -20 }} animate={{ opacity: 1, x: 0 }}
+                    className={`flex ${m.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[85%] p-4 rounded-2xl shadow-sm border ${m.sender === 'user' ? 'bg-[#000080] text-white border-[#000080]' : 'bg-white text-slate-800 border-slate-200'
+                      }`}>
                       <p className="text-sm font-medium leading-relaxed">{m.text}</p>
-                      <p className={`text-[10px] mt-2 font-bold uppercase opacity-50 ${m.sender === 'user' ? 'text-white' : 'text-slate-400'}`}>{m.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                      <p className={`text-[10px] mt-2 font-bold uppercase opacity-50 ${m.sender === 'user' ? 'text-white' : 'text-slate-400'}`}>
+                        {m.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
                     </div>
                   </motion.div>
                 ))}
-
                 {transcript && (
                   <div className="flex justify-end">
-                    <div className="bg-slate-200/50 p-4 rounded-2xl text-slate-500 text-sm font-bold italic animate-pulse">
-                      {transcript}...
-                    </div>
+                    <div className="bg-slate-200/50 p-4 rounded-2xl text-slate-500 text-sm italic animate-pulse">{transcript}...</div>
                   </div>
                 )}
                 <div ref={chatEndRef} />
               </div>
-
               <div className="p-6 bg-white border-t border-slate-100">
-                <div className="flex items-center space-x-3 text-slate-400">
-                  <div className={`w-2 h-2 rounded-full ${isListening ? 'bg-blue-500 animate-ping' : 'bg-slate-300'}`}></div>
+                <div className="flex items-center gap-3 text-slate-400">
+                  <div className={`w-2 h-2 rounded-full ${isListening ? 'bg-blue-500 animate-ping' : 'bg-slate-300'}`} />
                   <span className="text-xs font-black uppercase tracking-widest">{isListening ? 'Voice capture active' : 'Waiting for system'}</span>
                 </div>
               </div>
@@ -1061,7 +806,6 @@ Customer Name: ${latestName}`;
           </div>
         )}
 
-        {/* End Screen */}
         {callState === 'ended' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white">
             <div className="w-24 h-24 bg-red-50 rounded-full flex items-center justify-center mb-6"><PhoneOff size={48} className="text-red-500" /></div>
@@ -1074,30 +818,28 @@ Customer Name: ${latestName}`;
   );
 };
 
-
 const calculateSimilarity = (s1, s2) => {
   const longer = s1.length > s2.length ? s1 : s2;
   const shorter = s1.length > s2.length ? s2 : s1;
   if (longer.length === 0) return 1.0;
-  const editDistance = (a, b) => {
+  const editDist = (a, b) => {
     a = a.toLowerCase(); b = b.toLowerCase();
-    let costs = [];
+    const costs = [];
     for (let i = 0; i <= a.length; i++) {
-      let lastValue = i;
+      let last = i;
       for (let j = 0; j <= b.length; j++) {
-        if (i === 0) costs[j] = j;
+        if (i === 0) { costs[j] = j; }
         else if (j > 0) {
-          let newValue = costs[j - 1];
-          if (a.charAt(i - 1) !== b.charAt(j - 1)) newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
-          costs[j - 1] = lastValue;
-          lastValue = newValue;
+          let nv = costs[j - 1];
+          if (a[i - 1] !== b[j - 1]) nv = Math.min(nv, last, costs[j]) + 1;
+          costs[j - 1] = last; last = nv;
         }
       }
-      if (i > 0) costs[b.length] = lastValue;
+      if (i > 0) costs[b.length] = last;
     }
     return costs[b.length];
   };
-  return (longer.length - editDistance(longer, shorter)) / parseFloat(longer.length);
+  return (longer.length - editDist(longer, shorter)) / longer.length;
 };
 
 export default VoiceOverlay;

@@ -1,11 +1,5 @@
 import { supabase } from './supabase';
 
-/**
- * FINAL CLEAN DATABASE LAYER
- * Maps universal AI actions to industry-specific Supabase tables.
- */
-
-// --- Industry Constants ---
 export const INDUSTRIES = {
   HEALTHCARE: 'Healthcare',
   RESTAURANT: 'Food & Beverage',
@@ -34,13 +28,8 @@ export const database = {
   signUp: async (email, password, fullName) => {
     try {
       const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { full_name: fullName },
-          // Note: If you want to disable email confirmation for users, 
-          // you must also toggle "Confirm Email" OFF in the Supabase Auth Settings.
-        }
+        email, password,
+        options: { data: { full_name: fullName } }
       });
       if (error) throw error;
       return data;
@@ -57,44 +46,26 @@ export const database = {
     const guestEmail = email || `guest_${randomId}@callix.dev`;
     const guestPass = password || `Pass_${randomId}#2025`;
     const fullName = `Guest User ${randomId.toUpperCase()}`;
-
     try {
       const { data, error } = await supabase.auth.signUp({
-        email: guestEmail,
-        password: guestPass,
-        options: {
-          data: {
-            full_name: fullName,
-            role: 'guest',
-            is_guest: true
-          }
-        }
+        email: guestEmail, password: guestPass,
+        options: { data: { full_name: fullName, role: 'guest', is_guest: true } }
       });
       if (error) throw error;
       return { user: data.user, email: guestEmail, password: guestPass };
-    } catch (err) {
-      // Return a valid-looking object even on failure for instant access
+    } catch {
       return {
         user: { id: `guest-${Date.now()}`, email: guestEmail, user_metadata: { full_name: fullName, role: 'guest' } },
-        email: guestEmail,
-        password: guestPass,
-        isMock: true
+        email: guestEmail, password: guestPass, isMock: true
       };
     }
   },
+
   signUpAdmin: async (email, password, fullName, companyName, industry) => {
     try {
       const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-            role: 'admin',
-            company_name: companyName,
-            industry: industry
-          }
-        }
+        email, password,
+        options: { data: { full_name: fullName, role: 'admin', company_name: companyName, industry } }
       });
       if (error) throw error;
       await notifySuperadmin({ fullName, email, companyName, industry });
@@ -112,7 +83,7 @@ export const database = {
         if (profile?.status === 'suspended') throw new Error('Account suspended.');
         return { ...authData.user, profile: profile || { role: 'user', full_name: authData.user.user_metadata?.full_name } };
       } catch (err) {
-        console.warn('Handling profile error:', err.message);
+        if (err.message.includes('approval') || err.message.includes('suspended')) throw err;
         return { ...authData.user, profile: { role: 'user', full_name: authData.user.user_metadata?.full_name } };
       }
     }
@@ -123,7 +94,7 @@ export const database = {
     throw authError;
   },
 
-  signOut: async () => { try { await supabase.auth.signOut(); } catch (e) { } },
+  signOut: async () => { try { await supabase.auth.signOut(); } catch { } },
 
   // --- DATA FETCHING ---
   getCompanies: async () => {
@@ -155,7 +126,7 @@ export const database = {
   },
 
   saveMenuItem: async (item) => {
-    const { data, error } = await supabase.from('restaurant_tables').insert([item]).select(); // Note: check if 'menu' or 'tables' is correct, but follow onboarding usage
+    const { data, error } = await supabase.from('restaurant_tables').insert([item]).select();
     return error ? { error: error.message } : data[0];
   },
 
@@ -164,9 +135,8 @@ export const database = {
     return error ? { error: error.message } : data[0];
   },
 
-  // --- UNIVERSAL INTERACTION ENGINE ---
   saveOrder: async (order) => {
-    console.log('📦 Saving Universal Order:', order);
+    console.log('📦 Saving Universal Order:', JSON.stringify(order, null, 2));
     const payload = {
       company_id: order.companyId || order.company_id || order.entityId,
       company_name: order.companyName || order.entityName || 'General',
@@ -185,7 +155,7 @@ export const database = {
       metadata: { source: 'AI_AGENT', industry: order.industry }
     };
 
-    // --- Strict Deduplication Check (30 mins) ---
+    // Dedup check: 30 minutes window
     const { data: existing } = await supabase.from('bookings').select('id, created_at')
       .eq('company_id', payload.company_id)
       .eq('user_email', payload.user_email)
@@ -194,31 +164,31 @@ export const database = {
       .limit(1);
 
     if (existing && existing.length > 0) {
-      console.log('🚫 Skipping Duplicate Order (Already saved in last 30 mins)');
+      console.log('🚫 Skipping Duplicate Order');
       return { success: true, duplicated: true };
     }
 
     const { data, error } = await supabase.from('bookings').insert([payload]).select();
+    console.log('📦 Order Insert Result:', JSON.stringify({ data, error }, null, 2));
+
     if (error) {
       console.error('Booking DB Error:', error);
-      // Fallback for older schema
       if (error.code === '42703') {
         const { data: fallbackData, error: fallbackError } = await supabase.from('bookings').insert([{
-          company_id: payload.company_id,
-          user_email: payload.user_email,
-          date: payload.date,
-          time: payload.time,
-          status: payload.status
+          company_id: payload.company_id, user_email: payload.user_email,
+          date: payload.date, time: payload.time, status: payload.status
         }]).select();
-        return fallbackError ? { error: fallbackError.message } : { ...fallbackData[0], success: true };
+
+        console.log('📦 Backup Order Insert Result:', JSON.stringify({ fallbackData, fallbackError }, null, 2));
+        return fallbackError ? { error: fallbackError.message } : { ...(fallbackData ? fallbackData[0] : {}), success: true };
       }
       return { error: error.message };
     }
-    return { ...data[0], success: true };
+    return { ...(data ? data[0] : {}), success: true };
   },
 
   saveAppointment: async (appointment) => {
-    console.log('📅 Saving Universal Booking:', appointment);
+    console.log('📅 Saving Universal Booking payload info:', JSON.stringify(appointment, null, 2));
     const payload = {
       company_id: appointment.companyId || appointment.company_id || appointment.entityId,
       company_name: appointment.companyName || appointment.entityName || 'General',
@@ -235,44 +205,47 @@ export const database = {
       metadata: { source: 'AI_AGENT', industry: appointment.industry }
     };
 
-    // --- Strict Deduplication Check (30 mins) ---
-    let query = supabase.from('bookings').select('id, created_at')
+    // Dedup check — build query conditionally then execute once
+    const dedupCutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    let dedupQuery = supabase.from('bookings').select('id, created_at')
       .eq('company_id', payload.company_id)
       .eq('date', payload.date)
       .eq('time', payload.time)
-      .gte('created_at', new Date(Date.now() - 30 * 60 * 1000).toISOString());
+      .gte('created_at', dedupCutoff);
 
     if (payload.user_email && payload.user_email !== 'Guest') {
-      query = query.eq('user_email', payload.user_email);
+      dedupQuery = dedupQuery.eq('user_email', payload.user_email);
     } else {
-      query = query.eq('user_name', payload.user_name);
+      dedupQuery = dedupQuery.eq('user_name', payload.user_name);
     }
 
-    const { data: existing } = await query.limit(1);
+    // Await the fully-built query (was incorrectly chained before)
+    const { data: existing } = await dedupQuery.limit(1);
 
     if (existing && existing.length > 0) {
-      console.log('🚫 Skipping Duplicate Appointment (Already booked in last 30 mins)');
+      console.log('🚫 Skipping Duplicate Appointment');
       return { success: true, duplicated: true };
     }
 
     if (appointment.doctorId) payload.doctor_id = appointment.doctorId;
 
     const { data, error } = await supabase.from('bookings').insert([payload]).select();
+    console.log('📅 Appointment Insert Result:', JSON.stringify({ data, error }, null, 2));
+
     if (error) {
       console.error('Booking DB Error:', error);
       if (error.code === '42703') {
         const { data: fallbackData, error: fallbackError } = await supabase.from('bookings').insert([{
-          company_id: payload.company_id,
-          user_email: payload.user_email,
-          date: payload.date,
-          time: payload.time,
-          status: payload.status
+          company_id: payload.company_id, user_email: payload.user_email,
+          date: payload.date, time: payload.time, status: payload.status
         }]).select();
-        return fallbackError ? { error: fallbackError.message } : { ...fallbackData[0], success: true };
+
+        console.log('📅 Backup Appointment Insert Result:', JSON.stringify({ fallbackData, fallbackError }, null, 2));
+        return fallbackError ? { error: fallbackError.message } : { ...(fallbackData ? fallbackData[0] : {}), success: true };
       }
       return { error: error.message };
     }
-    return { ...data[0], success: true };
+    return { ...(data ? data[0] : {}), success: true };
   },
 
   getUserData: async (email) => {
@@ -283,39 +256,32 @@ export const database = {
     const seen = new Set();
     (b || []).forEach(item => {
       const key = `${item.company_id}-${item.title}-${item.date}-${item.time}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        uniqueBookings.push(item);
-      }
+      if (!seen.has(key)) { seen.add(key); uniqueBookings.push(item); }
     });
 
     const getTab = (item) => {
       const ind = (item.metadata?.industry || item.sub_title || '').toLowerCase();
       const type = (item.booking_type || '').toLowerCase();
-
       if (ind.includes('health') || ind.includes('hosp') || type === 'doctor') return 'appointments';
       if (ind.includes('restaur') || ind.includes('food') || type === 'table' || type === 'reservation') return 'reservations';
       if (ind.includes('commerce') || ind.includes('retail') || type === 'order') return 'orders';
       if (ind.includes('business') || ind.includes('tech') || ind.includes('it') || type === 'meeting' || type === 'interview') return 'meetings';
-
-      // Fallbacks
       if (type === 'order') return 'orders';
       if (type === 'table') return 'reservations';
       if (type === 'doctor') return 'appointments';
       if (type === 'interview') return 'meetings';
-      return 'appointments'; // default fallback
+      return 'appointments';
     };
 
     return {
-      appointments: (uniqueBookings).filter(item => getTab(item) === 'appointments'),
-      reservations: (uniqueBookings).filter(item => getTab(item) === 'reservations'),
-      meetings: (uniqueBookings).filter(item => getTab(item) === 'meetings'),
-      orders: (uniqueBookings).filter(item => getTab(item) === 'orders'),
+      appointments: uniqueBookings.filter(item => getTab(item) === 'appointments'),
+      reservations: uniqueBookings.filter(item => getTab(item) === 'reservations'),
+      meetings: uniqueBookings.filter(item => getTab(item) === 'meetings'),
+      orders: uniqueBookings.filter(item => getTab(item) === 'orders'),
       feedback: f || []
     };
   },
 
-  // --- ADMIN DASHBOARD DATA ---
   getCompanyInteractions: async (companyId) => {
     const { data: bookings } = await supabase.from('bookings').select('*').eq('company_id', companyId).order('created_at', { ascending: false });
     const { data: feedback } = await supabase.from('feedback').select('*').eq('company_id', companyId).order('created_at', { ascending: false });
@@ -323,87 +289,74 @@ export const database = {
   },
 
   saveFeedback: async (feedback) => {
-    console.log('⭐ Saving Universal Feedback:', feedback);
-    // Explicitly mapping to match the schema: company_id, user_email, rating, comment, user_name, industry, company_name
+    console.log('⭐ Saving Universal Feedback:', JSON.stringify(feedback, null, 2));
     const payload = {
       company_id: feedback.companyId || feedback.company_id || feedback.entityId,
       company_name: feedback.companyName || feedback.entityName || 'General',
-      user_email: feedback.user_email || feedback.userEmail || (feedback.userName ? '' : 'Guest'),
+      user_email: feedback.user_email || feedback.userEmail || '',
       user_name: feedback.userName || feedback.user_name || 'Customer',
       rating: parseInt(feedback.rating) || 5,
       comment: feedback.comment || 'Voice Feedback',
       industry: feedback.industry || 'General'
     };
 
-    // --- Strict Deduplication Check ---
-    const dedupWindow = (payload.user_email && payload.user_email !== 'Guest') ? (1 * 60 * 1000) : (10 * 1000);
-
-    let query = supabase.from('feedback').select('id, created_at')
-      .eq('company_id', payload.company_id)
-      .eq('rating', payload.rating)
-      .gte('created_at', new Date(Date.now() - dedupWindow).toISOString());
-
-    if (payload.user_email && payload.user_email !== 'Guest') {
-      query = query.eq('user_email', payload.user_email);
-    } else {
-      query = query.eq('user_name', payload.user_name);
+    if (!payload.company_id || payload.company_id === 'manual') {
+      console.error('❌ Feedback Error: Invalid Company ID (UUID required)');
+      return { error: 'Invalid company identification for feedback storage.' };
     }
 
-    const { data: existing } = await query.limit(1);
+    // Dedup window: 60s for authenticated users, 10s for guests
+    const dedupWindow = (payload.user_email && payload.user_email !== 'Guest') ? 60_000 : 10_000;
+    const dedupCutoff = new Date(Date.now() - dedupWindow).toISOString();
+
+    let dedupQuery = supabase.from('feedback').select('id, created_at')
+      .eq('company_id', payload.company_id)
+      .eq('rating', payload.rating)
+      .gte('created_at', dedupCutoff);
+
+    if (payload.user_email && payload.user_email !== 'Guest') {
+      dedupQuery = dedupQuery.eq('user_email', payload.user_email);
+    } else {
+      dedupQuery = dedupQuery.eq('user_name', payload.user_name);
+    }
+
+    const { data: existing } = await dedupQuery.limit(1);
 
     if (existing && existing.length > 0) {
       console.log(`🚫 Skipping Duplicate Feedback (Window: ${dedupWindow / 1000}s)`);
       return { success: true, duplicated: true };
     }
 
-    // Validation: Supabase will fail if company_id is not a valid UUID
-    if (!payload.company_id || payload.company_id === 'manual') {
-      console.error('❌ Feedback Error: Invalid Company ID (UUID required)');
-      return { error: 'Invalid company identification for feedback storage.' };
-    }
-
     const { data, error } = await supabase.from('feedback').insert([payload]).select();
-
+    console.log('⭐ Feedback Insert Result:', JSON.stringify({ data, error }, null, 2));
     if (error) {
-      console.error('❌ Supabase Feedback Error (Full):', error);
-      // If user_name/company_name/industry columns are somehow missing, fallback to essential fields
+      console.error('❌ Supabase Feedback Error:', error);
       if (error.code === '42703' || error.message?.includes('column')) {
-        console.warn('⚠️ Column missing, trying minimal feedback insert...');
         const { data: fData, error: fError } = await supabase.from('feedback').insert([{
-          company_id: payload.company_id,
-          user_email: payload.user_email,
-          rating: payload.rating,
-          comment: payload.comment
+          company_id: payload.company_id, user_email: payload.user_email,
+          rating: payload.rating, comment: payload.comment
         }]).select();
-
-        if (fError) {
-          console.error('❌ Minimal Feedback Insert also FAILED:', fError);
-          return { error: fError.message };
-        }
-        return { ...fData[0] || {}, success: true };
+        console.log('⭐ Backup Feedback Insert Result:', JSON.stringify({ fData, fError }, null, 2));
+        if (fError) { console.error('❌ Minimal Feedback Insert FAILED:', fError); return { error: fError.message }; }
+        return { ...(fData ? fData[0] : {}), success: true };
       }
       return { error: error.message };
     }
-
-    console.log('✅ Feedback Saved Successfully:', data[0]?.id);
-    return { ...data[0], success: true };
+    console.log('✅ Feedback Saved:', data?.[0]?.id);
+    return { ...(data ? data[0] : {}), success: true };
   },
 
   getLiveCatalogue: async (companyId, companyName) => {
     try {
-      const name = companyName.toLowerCase();
-      // Clean name: remove common suffixes like "Pvt Ltd", "Corporation", etc.
+      const name = (companyName || '').toLowerCase();
       const cleanedName = name
         .replace(/\s+(pvt\s+ltd|ltd|inc|corp|corporation|llp|solutions|hospital|electronics|foodcourt|resort|clinic).*/g, '')
         .replace(/^the\s+/g, '')
         .trim();
 
-      const snakeName = cleanedName.replace(/\s+/g, '_');
-      const fullSnakeName = name.replace(/^the\s+/g, '').replace(/\s+/g, '_').replace(/[\s-]+/g, '_');
       const noSpaceName = cleanedName.replace(/\s+/g, '');
-      const fullNoSpaceName = name.replace(/^the\s+/g, '').replace(/[\s-]/g, '');
 
-      // 1. REGISTRY: Find every table name this company has ever used in the Knowledge Studio
+      // 1. Registry lookup
       const { data: registry } = await supabase
         .from('approval_queue')
         .select('table_name')
@@ -411,39 +364,44 @@ export const database = {
 
       const registeredTables = (registry || []).map(r => r.table_name).filter(Boolean);
 
-      // 2. RPC DISCOVERY: Try to list all tables starting with the company prefix (Safe, no 404s)
+      // 2. RPC discovery
       let discoveredTables = [];
       try {
-        const prefix = `${noSpaceName}_`; // companyname_
-        const { data: rpcData, error: rpcError } = await supabase.rpc('get_company_tables', { prefix: prefix });
-
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_company_tables', { prefix: `${noSpaceName}_` });
         if (!rpcError && rpcData) {
           discoveredTables = rpcData.map(t => (typeof t === 'string' ? t : t.table_name));
           console.log(`🔎 [${companyName}] Discovered tables:`, discoveredTables);
         }
-      } catch (e) { /* Silent fallback */ }
+      } catch { /* silent */ }
 
-      // 3. FALLBACK PATTERNS: Only if we found NOTHING, try the most common ones.
-      // We reduce this list significantly to avoid console spam 404s.
+      // 3. Fallback patterns — only if nothing found
       const criticalSuffixes = ['menu', 'products', 'services', 'doctors', 'vault'];
       const fallbackTables = (registeredTables.length === 0 && discoveredTables.length === 0)
         ? criticalSuffixes.map(s => `${noSpaceName}_${s}`)
         : [];
 
+      // FIX: Only include tables that are confirmed to belong to this company
+      // (either in registry or discovered via RPC with the company prefix)
       const specificTablesToCheck = [...new Set([
         ...registeredTables,
         ...discoveredTables,
         ...fallbackTables
-      ])].filter(table => table && (table.startsWith(noSpaceName) || registeredTables.includes(table)));
+      ])].filter(table =>
+        table &&
+        (
+          registeredTables.includes(table) ||
+          discoveredTables.includes(table) ||
+          (noSpaceName.length > 2 && table.startsWith(noSpaceName))
+        )
+      );
 
       console.log(`🔍 [${companyName}] Tables to check:`, specificTablesToCheck);
 
-      // Global tables are checked with a company_id filter
       const globalTablesToTry = ['products', 'restaurant_tables', 'services', 'doctors', 'menu', 'items'];
 
       let finalData = [];
 
-      // 0. CORE COMPANY METADATA: Start with the base identity from 'companies' table
+      // Core company metadata
       const { data: companyMeta } = await supabase.from('companies').select('*').eq('id', companyId).single();
       if (companyMeta) {
         finalData.push({
@@ -454,65 +412,46 @@ export const database = {
         });
       }
 
-      // Try fetching from specific tables (only if they belong to this company)
+      // Query specific tables
       for (const table of specificTablesToCheck) {
         try {
-          console.log(`📡 [${companyName}] Querying table: ${table}...`);
-          // Check if table exists and has data
           const { data, error } = await supabase.from(table).select('*').limit(50);
-          if (error) {
-            console.warn(`❌ [${companyName}] Table ${table} not found or inaccessible:`, error.message);
-            continue;
-          }
-
+          if (error) { console.warn(`❌ Table ${table}:`, error.message); continue; }
           if (data && data.length > 0) {
-            // Success: only add data that belongs to this company (if column exists)
+            // Only include rows that either have no company_id or match this company
             const filteredData = data.filter(item => !item.company_id || item.company_id === companyId);
             if (filteredData.length > 0) {
               finalData = [...finalData, ...filteredData];
-              console.log(`✅ [${companyName}] Success: Aggregated ${filteredData.length} records from table "${table}"`);
-            } else {
-              console.log(`⚠️ [${companyName}] Table "${table}" has data, but 0 records matched company_id: ${companyId}`);
+              console.log(`✅ [${companyName}] ${filteredData.length} records from "${table}"`);
             }
-          } else {
-            console.log(`ℹ️ [${companyName}] Table "${table}" is empty.`);
           }
         } catch (e) {
-          console.error(`💥 [${companyName}] Error querying table ${table}:`, e);
-          continue;
+          console.error(`💥 Error querying ${table}:`, e);
         }
       }
 
-      // Try fetching from global shared tables ONLY if we haven't found any specific data
-      // This prevents cross-contamination (e.g. pulling "medical services" globally for a restaurant)
-      if (finalData.length === 1) { // 1 means only the CORE_IDENTITY is in there
-        console.log(`🌐 [${companyName}] No specific tables found. Falling back to global search in:`, globalTablesToTry);
+      // Global table fallback — only if no specific data found
+      if (finalData.length <= 1) {
+        console.log(`🌐 [${companyName}] Falling back to global tables...`);
         for (const table of globalTablesToTry) {
           try {
-            console.log(`🌍 [${companyName}] Searching global table: ${table} for company_id: ${companyId}`);
             const { data, error } = await supabase.from(table).select('*').eq('company_id', companyId).limit(50);
-            if (error) {
-              console.warn(`❌ [${companyName}] Global table ${table} error:`, error.message);
-              continue;
-            }
-
+            if (error) { console.warn(`❌ Global table ${table}:`, error.message); continue; }
             if (data && data.length > 0) {
               finalData = [...finalData, ...data];
-              console.log(`✅ [${companyName}] Success: Found ${data.length} records in global table "${table}"`);
+              console.log(`✅ [${companyName}] ${data.length} records from global "${table}"`);
             }
-          } catch (e) {
-            continue;
-          }
+          } catch { continue; }
         }
       }
 
-      console.log(`📊 [${companyName}] FINAL DATA COLLECTION SUMMARY: Collected ${finalData.length - 1} records from the vault.`);
+      console.log(`📊 [${companyName}] Total records: ${finalData.length - 1}`);
 
       if (finalData.length <= 1) {
-        return `DATA_NOT_FOUND: No service or product information is available in the database for ${companyName}. Verify the tables exist and have active RLS policies.`;
+        return `DATA_NOT_FOUND: No service or product information available for ${companyName}.`;
       }
 
-      // De-duplicate if same items appear in multiple tables
+      // Deduplicate
       const seen = new Set();
       const uniqueData = finalData.filter(item => {
         const itemLabel = item.label || item.name || item.title || item.item_name || item.doctor_name || item.table_number || '';
@@ -527,65 +466,45 @@ export const database = {
         const timings = item.timings_json ? ` | Timings: ${JSON.stringify(item.timings_json)}` : '';
         const price = item.price_or_fee || item.price || item.fee ? ` | Price: ${item.price_or_fee || item.price || item.fee} INR` : '';
         const category = (item.category || item.type || item.specialization || 'INFO').toUpperCase();
-
         let label = item.label || item.name || item.title || item.item_name || item.doctor_name || (item.table_number ? `Table ${item.table_number}` : null) || 'Detail';
-
-        // Explicitly include the doctor's name if it was shadowed by the label
-        if (item.doctor_name && label !== item.doctor_name) {
-          label = `${label} (${item.doctor_name})`;
-        }
-
+        if (item.doctor_name && label !== item.doctor_name) label = `${label} (${item.doctor_name})`;
         let desc = item.details || item.description || item.sub_details || '';
-
-        // Explicitly include speciality
-        if (item.speciality) {
-          desc = `Speciality: ${item.speciality}. ${desc}`;
-        }
-
+        if (item.speciality) desc = `Speciality: ${item.speciality}. ${desc}`;
         const descStr = desc ? `: ${desc}` : '';
         return `[${category}] ${label}${descStr}${price}${timings}`;
       }).join('\n');
+
     } catch (e) {
       console.warn('Vault Access Error:', e);
       return 'DATA_UNAVAILABLE: The database is currently unreachable.';
     }
   },
 
+  // FIX: Pass companyName correctly to getLiveCatalogue
   query_entity_database: async ({ entityId, category, query }) => {
     try {
-      // Logic to search specifically within the company's vault
-      const { data } = await supabase
-        .from('companies')
-        .select('name')
-        .eq('id', entityId)
-        .single();
-
-      const catalogue = await database.getLiveCatalogue(entityId, data?.name || '');
-      // This allows the AI to "search" the text-based catalogue we already fetch
+      const { data } = await supabase.from('companies').select('name').eq('id', entityId).single();
+      const companyName = data?.name || '';
+      const catalogue = await database.getLiveCatalogue(entityId, companyName);
       return catalogue;
-    } catch (e) {
-      return "Database search unavailable.";
+    } catch {
+      return 'Database search unavailable.';
     }
   },
 
   get_available_slots: async ({ entityId, date, industry }) => {
     try {
-      // Fetch existing bookings for this entity and date
-      const { data: existingBookings } = await supabase
-        .from('bookings')
-        .select('time')
+      const { data: existingBookings } = await supabase.from('bookings').select('time')
         .eq('company_id', entityId)
         .eq('date', date)
         .eq('status', 'scheduled');
 
       const bookedTimes = (existingBookings || []).map(b => b.time);
-
-      // Return the current bookings so the AI can compare against vault timings
       return bookedTimes.length > 0
         ? `Existing bookings for ${date}: ${bookedTimes.join(', ')}. Please suggest alternative times.`
         : `All slots are currently free for ${date}.`;
-    } catch (e) {
-      return "Unable to verify slots at this time.";
+    } catch {
+      return 'Unable to verify slots at this time.';
     }
   }
 };
