@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, MicOff, PhoneOff, MessageSquare, VolumeX } from 'lucide-react';
-import { chatWithGroq, cleanInternalCommands } from '../utils/groq.js';
+import { chatWithGroq, cleanInternalCommands, clearSessionMemory } from '../utils/groq.js';
 import { ttsService } from '../utils/ttsService';
 import { sttService } from '../utils/sttService';
 import {
@@ -56,7 +56,9 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
   const [userName, setUserName] = useState(initialName);
   const sessionGuestEmailRef = useRef(`guest_${Math.random().toString(36).substring(2, 7)}@callix.io`);
   const userEmail = user?.email || sessionGuestEmailRef.current;
-  const [sessionId] = useState(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+  // sessionId regenerates every time a new call starts (not once at component mount)
+  const sessionIdRef = useRef(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+  const sessionId = sessionIdRef.current;
   const [selectedLanguage, setSelectedLanguage] = useState({ code: 'en-IN', name: 'English' });
 
   // Track whether the opening greeting has been sent this call
@@ -334,6 +336,9 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
       setSelectedLanguage({ code: 'en-IN', name: 'English' });
       greetingSentRef.current = false;
       isTerminatingRef.current = false;
+      // Clear session memory for ended call, generate fresh sessionId for next call
+      clearSessionMemory(sessionIdRef.current);
+      sessionIdRef.current = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       onClose();
     }, 1500);
   }, [onClose, user]);

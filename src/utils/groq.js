@@ -137,10 +137,27 @@ const sessionActionsMemory = (typeof window !== 'undefined' && window.__sessionA
 if (typeof window !== 'undefined') window.__sessionActionsMemory = sessionActionsMemory;
 
 // ─── Per-session feedback lock (one feedback save per session) ───────────────
+// Map<sessionId, true> — each call gets a unique sessionId, completely independent
 const sessionFeedbackDone = (typeof window !== 'undefined' && window.__sessionFeedbackDone)
   ? window.__sessionFeedbackDone
-  : new Set();
+  : new Map();
 if (typeof window !== 'undefined') window.__sessionFeedbackDone = sessionFeedbackDone;
+
+// Helper: check and mark feedback as done atomically
+const markFeedbackDone = (sid) => {
+  if (sessionFeedbackDone.get(sid)) return false; // already done
+  sessionFeedbackDone.set(sid, true);
+  return true; // we have the lock
+};
+const isFeedbackDone = (sid) => sessionFeedbackDone.get(sid) === true;
+
+// ─── Session cleanup — call this when a call ends ────────────────────────────
+export const clearSessionMemory = (sessionId) => {
+  if (!sessionId) return;
+  sessionFeedbackDone.delete(sessionId);
+  sessionActionsMemory.delete(sessionId);
+  console.log(`🧹 Cleared session memory for: ${sessionId}`);
+};
 
 // ─── Extract a 1-5 star rating from raw user text ────────────────────────────
 const extractRatingFromUserText = (text) => {
@@ -196,7 +213,7 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
     //   (a) feedback hasn't already been saved this session
     //   (b) the last agent message was asking for a rating
     //   (c) the user message resolves to a 1-5 number
-    if (!sessionFeedbackDone.has(sessionId)) {
+    if (!isFeedbackDone(sessionId)) {
       const lastAgentMsg = [...history].reverse().find(m => m.role === 'assistant');
       const lastAgentText = (lastAgentMsg?.text || lastAgentMsg?.content || '').toLowerCase();
       const wasAskingForRating = /rate|rating|stars?|1.*5|రేటింగ్|స్టార్|रेटिंग|स्टार/i.test(lastAgentText);
@@ -225,13 +242,19 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
           };
 
           try {
-            const result = await tools.collect_feedback(feedbackArgs);
-            console.log('✅ Feedback saved via early intercept:', result);
-            if (result && !result.error) {
-              sessionFeedbackDone.add(sessionId);
+            if (markFeedbackDone(sessionId)) {  // atomic lock — only one path saves
+              const result = await tools.collect_feedback(feedbackArgs);
+              console.log('✅ Feedback saved via early intercept:', result);
+              if (result?.error) {
+                // DB write failed — release the lock so it can retry
+                sessionFeedbackDone.delete(sessionId);
+              }
+            } else {
+              console.log('⚠️ Feedback already in progress for this session, skipping.');
             }
           } catch (e) {
             console.error('Feedback save failed:', e);
+            sessionFeedbackDone.delete(sessionId); // release lock on exception
           }
 
           // Return hardcoded thank-you — never touches LLM
@@ -334,12 +357,32 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
         const parsedTime = parseTime2(userPromptClean);
         const parsedGuests = parseGuests2(userPromptClean);
 
-        // Determine booking type from conversation context
-        const isTableBooking = /table|restaurant|reserve|టేబుల్|రెస్టారెంట్|मेज|रेस्टोरेंट/i.test(lastAgentText + ' ' + userPromptClean);
-        const isAppointment = /appointment|doctor|interview|meeting|అపాయింట్|डॉक्टर|अपॉइंटमेंट/i.test(lastAgentText + ' ' + userPromptClean);
+        // Scan full conversation history to determine booking type and what was being booked
+        const fullConvoText = history.map(m => m.text || m.content || '').join(' ').toLowerCase();
+        const allContext = fullConvoText + ' ' + lastAgentText + ' ' + userPromptClean;
+
+        // Use industry as the strongest signal — restaurant/food = always table booking
+        const industryLower = (industry || '').toLowerCase();
+        const isRestaurantIndustry = /food|beverage|restaur|dining|cafe|bistro/i.test(industryLower);
+        const isHealthIndustry = /health|hospital|clinic|medical|pharmac/i.test(industryLower);
+
+        // Text signals (word boundary-free for multilingual reliability)
+        const hasTableSignal = /table|reservation|reserve|dining|టేబుల్|రెస్టారెంట్|मेज|रेस्टोरेंट/i.test(allContext);
+        const hasDoctorSignal = /doctor|dr\.?|appointment|clinic|hospital|అపాయింట్మెంట్|డాక్టర్|डॉक्टर|अपॉइंटमेंट/i.test(allContext);
+
+        // Industry overrides text signal — a restaurant booking is always a table booking
+        const isTableBooking = isRestaurantIndustry || hasTableSignal;
+        const isDoctorBooking = !isTableBooking && (isHealthIndustry || hasDoctorSignal);
+
+        // Find the earliest user message that expressed the booking intent (not just date/time)
+        const intentMsg = [...history]
+          .filter(m => m.role === 'user')
+          .map(m => m.text || m.content || '')
+          .find(t => /book|appointment|table|reserve|doctor|meeting|schedule/i.test(t))
+          || '';
 
         if (parsedDate && parsedTime) {
-          console.log(`📌 Booking intercept: type=${isTableBooking ? 'table' : 'appointment'}, Date=${parsedDate}, Time=${parsedTime}, Guests=${parsedGuests}`);
+          console.log(`📌 Booking intercept: type=${isTableBooking ? 'table' : isDoctorBooking ? 'doctor' : 'appointment'}, Date=${parsedDate}, Time=${parsedTime}, Guests=${parsedGuests}`);
 
           let bookingResult;
           try {
@@ -348,21 +391,26 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
                 entityId, entityName,
                 type: 'table',
                 industry: industry || 'Food & Beverage',
-                personName: `Table for ${parsedGuests} (${userName})`,
+                personName: `Table for ${parsedGuests} — ${userName}`,
                 date: parsedDate,
                 time: parsedTime,
                 userEmail,
                 userName
               });
             } else {
-              // Find what was being booked from earlier conversation context
-              const prevUserMsg = [...history].reverse().find(m => m.role === 'user');
-              const prevText = prevUserMsg?.text || prevUserMsg?.content || 'General';
+              // For non-table bookings, build a clean label from the intent message
+              // Strip filler words to get the core subject (e.g. "Doctor Rajesh Kumar")
+              const cleanIntent = intentMsg
+                ? intentMsg
+                  .replace(/^(i want to|i need to|please|can you|book|schedule|appointment with|book appointment with)\s*/gi, '')
+                  .trim()
+                  .substring(0, 60)
+                : (isDoctorBooking ? `Doctor Appointment — ${userName}` : `Meeting — ${userName}`);
               bookingResult = await tools.book_appointment({
                 entityId, entityName,
-                type: isAppointment ? 'doctor' : 'interview',
+                type: isDoctorBooking ? 'doctor' : 'interview',
                 industry,
-                personName: prevText.substring(0, 50),
+                personName: cleanIntent || `Appointment — ${userName}`,
                 date: parsedDate,
                 time: parsedTime,
                 userEmail,
@@ -438,9 +486,19 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
       let actionSignature;
       if (intent.name === 'collect_feedback') {
         actionSignature = `feedback_${intent.args.companyId}_${sessionId}_${intent.args.rating}`;
-        // Hard session lock — one feedback save per session
-        if (sessionFeedbackDone.has(sessionId)) {
+        // Hard session lock — only one path saves per session
+        if (isFeedbackDone(sessionId)) {
           console.log('⚠️ Feedback already saved for this session, skipping DB write.');
+          const isTeLock = (companyContext?.currLangCode === 'te-IN');
+          const isHiLock = (companyContext?.currLangCode === 'hi-IN');
+          const thankLock = isTeLock
+            ? 'అభిప్రాయం తెలిపినందుకు ధన్యవాదాలు.'
+            : isHiLock ? 'फीडबैक के लिए धन्यवाद।'
+              : 'Thank you for your feedback.';
+          return `${thankLock} [HANG_UP]`;
+        }
+        if (!markFeedbackDone(sessionId)) {
+          console.log('⚠️ Feedback lock already taken, skipping.');
           return assistantMessage;
         }
       } else if (intent.name === 'hang_up') {
@@ -481,9 +539,10 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
       const result = await executeAction(intent);
       console.log('✅ Action Result:', result);
 
-      // Mark feedback as done for this session
-      if (intent.name === 'collect_feedback' && result && !result.error) {
-        sessionFeedbackDone.add(sessionId);
+      // Mark feedback as done (lock was already taken above in the check block)
+      if (intent.name === 'collect_feedback' && result?.error) {
+        // DB write failed — release the lock so it can be retried
+        sessionFeedbackDone.delete(sessionId);
       }
 
       // ── Guaranteed hardcoded responses for critical actions ──────────────
