@@ -461,7 +461,26 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
       shouldTerminate = rawResponse.toUpperCase().includes('[HANG_UP]');
       if (shouldTerminate) isTerminatingRef.current = true;
 
-      const finalDisplay = cleanInternalCommands(rawResponse) || '...';
+      let finalDisplay = cleanInternalCommands(rawResponse);
+
+      // Fallback if Groq returned empty (e.g. under rate-limit pressure)
+      if (!finalDisplay || finalDisplay === '...') {
+        const isTeFallback = curLang.code === 'te-IN';
+        const isHiFallback = curLang.code === 'hi-IN';
+        // Don't show '...' — stay silent and let user try again
+        if (!shouldTerminate) {
+          finalDisplay = isTeFallback
+            ? 'క్షమించండి, మళ్ళీ చెప్పండి.'
+            : isHiFallback
+              ? 'क्षमा करें, कृपया दोबारा बोलें।'
+              : 'Sorry, could you please repeat that?';
+        } else {
+          finalDisplay = isTeFallback
+            ? 'ధన్యవాదాలు.'
+            : isHiFallback ? 'धन्यवाद।' : 'Thank you.';
+        }
+      }
+
       // Store ONLY the clean display text as rawText — never let brackets bleed into history
       addMessage('agent', finalDisplay, finalDisplay);
 
@@ -503,7 +522,7 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
         : isHi
           ? `केवल पहले संदेश में: "नमस्ते ${latestName}, मैं कॉलिक्स हूँ, ${companyName || 'आपकी कंपनी'} का वर्चुअल रिसेप्शनिस्ट। मैं आपकी कैसे मदद कर सकता हूँ?" कहें।`
           : `FIRST MESSAGE ONLY: Say exactly: "Hello ${latestName}, I'm Callix, the virtual receptionist for ${companyName || 'our company'}. How may I help you today?"`)
-      : (isTe ? 'परिचय मत दोहराएं। / Do NOT re-introduce yourself.'
+      : (isTe ? 'మీ పరిచయం మళ్ళీ చెప్పవద్దు.'
         : isHi ? 'परिचय मत दोहराएं।'
           : 'Do NOT re-introduce yourself.');
 
