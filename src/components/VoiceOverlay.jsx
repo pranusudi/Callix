@@ -544,15 +544,22 @@ const VoiceOverlay = ({ isOpen, onClose, selectedCompany, user, addToast }) => {
         ? `समाप्ति: "नहीं" / "बस" कहने पर ही "1 से 5 रेटिंग दें" पूछें। रेटिंग मिलने पर [COLLECT_FEEDBACK X/5] उपयोग करें। उसके बाद ही [HANG_UP].`
         : `WRAP-UP: ONLY ask for rating (1–5) after user says they need nothing else. After user gives rating, use [COLLECT_FEEDBACK X/5]. ONLY use [HANG_UP] after [COLLECT_FEEDBACK] is used.`;
 
+    const bracketFormat = isTe
+      ? `బ్రాకెట్ నిబంధన: బ్రాకెట్‌లో తేదీ YYYY-MM-DD format లో, సమయం HH:MM format లో వాడండి. ఉదా: [BOOK_TABLE for 4 on 2026-03-15 at 19:00]`
+      : isHi
+        ? `ब्रैकेट नियम: ब्रैकेट में तारीख YYYY-MM-DD और समय HH:MM format में लिखें।`
+        : `BRACKET FORMAT: Always use YYYY-MM-DD for dates and HH:MM for times inside brackets.`;
+
     return `You are Callix — Virtual Receptionist for ${companyName || 'our company'}.
 DATE: ${dateStr} | TIME: ${timeStr}
-LANGUAGE: ${langName} ONLY. ${isTe ? 'తెలుగులో మాత్రమే జవాబివ్వండి.' : isHi ? 'केवल हिंदी में उत्तर दें।' : 'Respond in English only.'}
+LANGUAGE: ${langName} ONLY. ${isTe ? 'తెలుగులో మాత్రమే జవాబివ్వండి. ఇతర భాషలు వాడవద్దు.' : isHi ? 'केवल हिंदी में उत्तर दें।' : 'Respond in English only.'}
 USER NAME: ${latestName}
 
 ${introInstruction}
 
 BEHAVIOUR:
 - Max 2 sentences per reply. NO markdown. No asterisks (*). No filler phrases.
+- ${bracketFormat}
 - ${antiHallucinationRule}
 - ${bookingRules}
 - ${feedbackRules}

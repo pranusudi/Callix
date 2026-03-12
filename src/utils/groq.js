@@ -295,8 +295,8 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
 
         const parseDate2 = (txt) => {
           const t = txt.toLowerCase();
-          if (/\btoday|ఈరోజు|आज\b/.test(t)) return formatISO2(now2);
-          if (/\btomorrow|రేపు|कल\b/.test(t)) { const d = new Date(now2); d.setDate(d.getDate() + 1); return formatISO2(d); }
+          if (/\btoday\b|ఈరోజు|आज/.test(t)) return formatISO2(now2);
+          if (/\btomorrow\b|రేపు|कल/.test(t)) { const d = new Date(now2); d.setDate(d.getDate() + 1); return formatISO2(d); }
           const dayNames = { sunday: 0, ఆదివారం: 0, रविवार: 0, monday: 1, సోమవారం: 1, सोमवार: 1, tuesday: 2, మంగళవారం: 2, मंगलवार: 2, wednesday: 3, బుధవారం: 3, बुधवार: 3, thursday: 4, గురువారం: 4, गुरुवार: 4, friday: 5, శుక్రవారం: 5, शुक्रवार: 5, saturday: 6, శనివారం: 6, शनिवार: 6 };
           for (const [name, idx] of Object.entries(dayNames)) {
             if (t.includes(name)) {
@@ -317,7 +317,7 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
         const parseTime2 = (txt) => {
           const t = txt.toLowerCase();
           // "10 గంటలకు" / "10 baje" / "10 am" / "10:30" / "ఉదయం 10" etc.
-          const teluguTime = t.match(/(?:ఉదయం|మధ్యాహ్నం|సాయంత్రం|రాత్రి)?\s*(\d{1,2})(?::(\d{2}))?\s*(?:గంటలకు|గంటలు|గంట)?/);
+          const teluguTime = t.match(/(?:ఉదయం|మధ్యాహ్నం|సాయంత్రం|రాత్రి|सुबह|दोपहर|शाम|रात)?\s*(\d{1,2})(?::(\d{2}))?\s*(?:గంటలకు|గంటలు|గంట|बजे)?/);
           const stdTime = t.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m|p\.m)/i);
           const colonTime = t.match(/(\d{1,2}):(\d{2})/);
 
@@ -331,8 +331,8 @@ export const chatWithGroq = async (prompt, history = [], companyContext = null, 
           if (colonTime) return `${colonTime[1].padStart(2, '0')}:${colonTime[2]}`;
           if (teluguTime) {
             let h = parseInt(teluguTime[1]), m = parseInt(teluguTime[2] || '0');
-            // "ఉదయం" = morning, "మధ్యాహ్నం/సాయంత్రం" = PM
-            if (/మధ్యాహ్నం|సాయంత్రం|రాత్రి/.test(t) && h < 12) h += 12;
+            // Telugu PM: మధ్యాహ్నం/సాయంత్రం/రాత్రి | Hindi PM: दोपहर/शाम/रात
+            if (/మధ్యాహ్నం|సాయంత్రం|రాత్రి|दोपहर|शाम|रात/.test(t) && h < 12) h += 12;
             return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
           }
           return null;
@@ -762,7 +762,12 @@ const detectIntent = (message, context) => {
     }
 
     if (type === 'time') {
-      if (!/\d/.test(low) && !/am|pm/i.test(low) && !low.includes(':')) return fallback;
+      // Accept numeric time, am/pm, colon format, or Telugu/Hindi time words with digits
+      const hasDigit = /\d/.test(low);
+      const hasAmPm = /am|pm/i.test(low);
+      const hasColon = low.includes(':');
+      const hasTimeWord = /గంటలకు|గంటలు|బజే|baje/i.test(low);
+      if (!hasDigit && !hasAmPm && !hasColon && !hasTimeWord) return fallback;
     }
 
     return cleaned || fallback;
@@ -813,7 +818,7 @@ const detectIntent = (message, context) => {
       if (gM) gSize = gM[1];
       const tM = cmdStr.match(/at\s+([^\s\]\n]+(?:\s*(?:AM|PM|am|pm))?)/i) || cmdStr.match(/(\d{1,2}(?::\d{2})?\s*(?:AM|PM|am|pm))/i);
       if (tM) bTime = tM[1].trim();
-      const dM = cmdStr.match(/on\s+([\w\-\/]+)/i) || cmdStr.match(/(today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i);
+      const dM = cmdStr.match(/on\s+([\w\-\/]+)/i) || cmdStr.match(/(today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|ఈరోజు|రేపు|సోమవారం|మంగళవారం|బుధవారం|గురువారం|శుక్రవారం|శనివారం|ఆదివారం|आज|कल|सोमवार|मंगलवार|बुधवार|गुरुवार|शुक्रवार|शनिवार|रविवार)/i);
       if (dM) bDate = dM[1].trim();
     }
 
